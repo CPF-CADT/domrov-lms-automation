@@ -3,8 +3,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { SQLDatabaseModule } from './database/sql-database/sql-database.module';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from '../libs/entities/user.entity';
+import { AuthModule } from './modules/auth/auth.module';
+import { UserModule } from './modules/user/user.module';
 
 @Module({
   imports: [
@@ -13,7 +13,8 @@ import { User } from '../libs/entities/user.entity';
       expandVariables:true,
     }),
     SQLDatabaseModule,
-    TypeOrmModule.forFeature([User])
+    AuthModule,
+    UserModule
   ],
   controllers: [AppController],
   providers: [AppService],

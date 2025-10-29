@@ -4,6 +4,7 @@ import {
   Column,
   OneToMany,
   BaseEntity,
+  OneToOne,
 } from 'typeorm';
 import { UserStatus } from '../enums/Status';
 import { Class } from './class.entity';
@@ -18,6 +19,8 @@ import { Payment } from './payment.entity';
 import { Submission } from './submission.entity';
 import { QuizResult } from './quiz-result.entity';
 import { UserProvidedAIModel } from './user-provided-ai-model.entity';
+import { UserRefreshToken } from './user-refresh-token.entity';
+import { UserEmailOtp } from './user-email-otp.entity';
 
 @Entity({ name: 'users' })
 export class User extends BaseEntity {
@@ -25,75 +28,82 @@ export class User extends BaseEntity {
   id: number;
 
   @Column({ length: 100 })
-  firstName: string; 
+  firstName: string;
 
   @Column({ length: 100 })
-  lastName: string; 
+  lastName: string;
 
   @Column({ length: 10, nullable: true })
-  gender: string; 
+  gender: string;
 
   @Column({ nullable: true })
-  dob: Date; 
+  dob: Date;
 
   @Column({ length: 20, unique: true, nullable: true })
-  phoneNumber: string; 
+  phoneNumber: string;
 
   @Column({ length: 150, unique: true })
-  email: string; 
+  email: string;
 
   @Column({ length: 255 })
-  password: string; 
+  password: string;
 
   @Column({ nullable: true })
-  profilePictureUrl: string; 
+  profilePictureUrl: string;
 
   @Column({ default: false })
-  isVerified: boolean; 
+  isVerified: boolean;
 
   @Column({ default: false })
-  isTwoFactorEnable: boolean; 
+  isTwoFactorEnable: boolean;
 
   @Column({
     type: 'enum',
     enum: UserStatus,
     default: UserStatus.INACTIVE,
   })
-  status: UserStatus; 
+  status: UserStatus;
 
   @OneToMany(() => Class, (cls) => cls.owner)
-  classes: Class[]; 
+  classes: Class[];
 
   @OneToMany(() => Enrollment, (enrollment) => enrollment.user)
-  enrollments: Enrollment[]; 
+  enrollments: Enrollment[];
 
   @OneToMany(() => Team, (team) => team.leader)
-  leadTeams: Team[]; 
+  leadTeams: Team[];
 
   @OneToMany(() => TeamMember, (member) => member.user)
-  teamMemberships: TeamMember[]; 
+  teamMemberships: TeamMember[];
 
   @OneToMany(() => OAuthAccount, (account) => account.user)
-  oauthAccounts: OAuthAccount[]; 
+  oauthAccounts: OAuthAccount[];
 
   @OneToMany(() => TelegramChat, (chat) => chat.user)
-  telegramChats: TelegramChat[]; 
+  telegramChats: TelegramChat[];
 
   @OneToMany(() => AIUsageLog, (log) => log.user)
-  usageLogs: AIUsageLog[]; 
+  usageLogs: AIUsageLog[];
 
   @OneToMany(() => UserTokenBalance, (balance) => balance.user)
-  tokenBalances: UserTokenBalance[]; 
+  tokenBalances: UserTokenBalance[];
 
   @OneToMany(() => Payment, (payment) => payment.user)
-  payments: Payment[]; 
+  payments: Payment[];
 
   @OneToMany(() => Submission, (submission) => submission.user)
-  submissions: Submission[]; 
+  submissions: Submission[];
 
   @OneToMany(() => QuizResult, (result) => result.user)
-  quizResults: QuizResult[]; 
+  quizResults: QuizResult[];
 
   @OneToMany(() => UserProvidedAIModel, (model) => model.owner)
-  providedAIModels: UserProvidedAIModel[]; 
+  providedAIModels: UserProvidedAIModel[];
+
+  @OneToMany(() => UserRefreshToken, (token) => token.user)
+  refreshTokens: UserRefreshToken[];
+
+  @OneToOne(() => UserEmailOtp, (ueo) => ueo.user)
+  emailOtps: UserEmailOtp;
+
 }
