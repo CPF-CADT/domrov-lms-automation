@@ -20,6 +20,6 @@ import { UserEmailOtp } from '../../../libs/entities/user-email-otp.entity';
     RefreshJwtConfigModule,
     MailModule
   ],
-  exports: [TypeOrmModule],
+  exports: [TypeOrmModule,AuthService],
 })
 export class AuthModule {}

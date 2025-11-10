@@ -25,7 +25,7 @@ export class Team extends BaseEntity {
     @Column()
     maxMember: number;
 
-    @ManyToOne(() => User, (user) => user.leadTeams)
+    @ManyToOne(() => User, (user) => user.leadTeams ,{nullable: true})
     @JoinColumn()
     leader: User;
 

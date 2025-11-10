@@ -1,7 +1,7 @@
 import { IsString, IsEmail, IsIn, Length, IsOptional, IsNumber, Matches, IsDate, IsUrl } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsPasswordConfirmed } from '../../src/common/decorators/IsPasswordConfirmed';
+import { IsPasswordConfirmed } from '../../../src/common/decorators/IsPasswordConfirmed';
 
 export class RegisterUserDTO {
 
