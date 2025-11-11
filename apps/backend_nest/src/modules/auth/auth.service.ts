@@ -9,6 +9,8 @@ import { LoginUserDTO } from '../../../libs/dtos/login.dto';
 import { UserRefreshToken } from '../../../libs/entities/user-refresh-token.entity';
 import { UserEmailOtp } from '../../../libs/entities/user-email-otp.entity';
 import { MailerService } from '@nestjs-modules/mailer';
+import { UserStatus } from '../../../libs/enums/Status';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
@@ -146,6 +148,36 @@ export class AuthService {
         return true;
     }
 
+    async validateGoogleUser(googleUser: Partial<RegisterUserDTO>): Promise<User> {
+        console.log('Checking Google user:', googleUser.email);
+
+        let user = await this.userRepository.findOne({ where: { email: googleUser.email } });
+
+        if (user) {
+            console.log('Found existing user:', user.id);
+            return user;
+        }
+
+        console.log('Creating new Google user...');
+
+        const randomPassword = await bcrypt.hash(Math.random().toString(36).slice(-8), 10);
+
+        user = this.userRepository.create({
+            firstName: googleUser.firstName,
+            lastName: googleUser.lastName,
+            gender: googleUser.gender ?? undefined,
+            email: googleUser.email,
+            password: randomPassword,
+            profilePictureUrl: googleUser.profilePictureUrl ?? undefined,
+            isVerified: true,
+            status: UserStatus.ACTIVE,
+        });
+
+        const saved = await this.userRepository.save(user);
+        console.log('Saved new user:', saved);
+
+        return saved;
+    }
 
 
 

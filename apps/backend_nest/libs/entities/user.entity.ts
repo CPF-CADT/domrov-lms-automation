@@ -30,8 +30,8 @@ export class User extends BaseEntity {
   @Column({ length: 100 })
   firstName: string;
 
-  @Column({ length: 100 })
-  lastName: string;
+  @Column({ length: 100 ,nullable:true})
+  lastName?: string;
 
   @Column({ length: 10, nullable: true })
   gender: string;
