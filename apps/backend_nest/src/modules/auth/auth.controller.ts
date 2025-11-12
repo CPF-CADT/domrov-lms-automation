@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, Res, UseGuards,Get } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ApiBody, ApiOperation } from '@nestjs/swagger';
 import { RegisterUserDTO } from '../../../libs/dtos/user/register-user.dto';
@@ -7,6 +7,7 @@ import type { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { ResendOtpDTO, VerifyOtpDTO } from '../../../libs/dtos/user/email-verification.dto';
+
 
 @Controller('auth')
 export class AuthController {
@@ -95,6 +96,22 @@ export class AuthController {
     return {
       status: 'success',
       message: result ? 'OTP sent successfully' : 'User not found or already verified',
+    };
+  }
+  // @Public()
+  
+  @Get('google/login')
+  // @UseGuards(GoogleAuthGuard)
+  async googleLogin() {
+    
+  }
+
+  @Get('google/callback')
+  // @UseGuards(GoogleAuthGuard)
+  async googleCallback(@Req() req) {
+    return {
+      message: 'Google login successful!',
+      user: req.user,
     };
   }
 
