@@ -2,10 +2,10 @@ import { BadRequestException, Injectable, InternalServerErrorException, NotFound
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../../libs/entities/user.entity';
-import { RegisterUserDTO } from '../../../libs/dtos/register-user.dto';
+import { RegisterUserDTO } from '../../../libs/dtos/user/register-user.dto';
 import { Encryption } from '../../../libs/utils/Encryption';
 import { JwtService } from '@nestjs/jwt';
-import { LoginUserDTO } from '../../../libs/dtos/login.dto';
+import { LoginUserDTO } from '../../../libs/dtos/user/login.dto';
 import { UserRefreshToken } from '../../../libs/entities/user-refresh-token.entity';
 import { UserEmailOtp } from '../../../libs/entities/user-email-otp.entity';
 import { MailerService } from '@nestjs-modules/mailer';

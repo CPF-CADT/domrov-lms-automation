@@ -5,6 +5,8 @@ import { ConfigModule } from '@nestjs/config';
 import { SQLDatabaseModule } from './database/sql-database/sql-database.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
+import { ClassModule } from './modules/class/class.module';
+import { TeamModule } from './modules/team/team.module';
 
 @Module({
   imports: [
@@ -14,7 +16,9 @@ import { UserModule } from './modules/user/user.module';
     }),
     SQLDatabaseModule,
     AuthModule,
-    UserModule
+    UserModule,
+    ClassModule,
+    TeamModule
   ],
   controllers: [AppController],
   providers: [AppService],

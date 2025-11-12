@@ -27,6 +27,6 @@ import { UserModule } from '../user/user.module';
     ConfigModule.forFeature(google_oauthConfig),
     UserModule
   ],
-  exports: [TypeOrmModule],
+  exports: [TypeOrmModule,AuthService],
 })
 export class AuthModule {}

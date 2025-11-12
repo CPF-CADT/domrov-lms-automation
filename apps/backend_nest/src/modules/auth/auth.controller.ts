@@ -1,12 +1,12 @@
 import { Body, Controller, Post, Req, Res, UseGuards,Get } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ApiBody, ApiOperation } from '@nestjs/swagger';
-import { RegisterUserDTO } from '../../../libs/dtos/register-user.dto';
-import { LoginUserDTO } from '../../../libs/dtos/login.dto';
+import { RegisterUserDTO } from '../../../libs/dtos/user/register-user.dto';
+import { LoginUserDTO } from '../../../libs/dtos/user/login.dto';
 import type { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { JwtAuthGuard } from './jwt-auth.guard';
-import { ResendOtpDTO, VerifyOtpDTO } from '../../../libs/dtos/email-verification.dto';
+import { ResendOtpDTO, VerifyOtpDTO } from '../../../libs/dtos/user/email-verification.dto';
 
 
 @Controller('auth')
