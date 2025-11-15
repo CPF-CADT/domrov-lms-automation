@@ -1,12 +1,13 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ClassService } from './class.service';
-import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UserId } from '../../common/decorators/user.decorator';
-import { JoinClassDto } from '../../../libs/dtos/class/join-class.dto';
+import { JoinClassByTokenDto, JoinClassDto } from '../../../libs/dtos/class/join-class.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateClassDto } from '../../../libs/dtos/class/create-class.dto';
 import { TransferOwnershipDto } from '../../../libs/dtos/class/transfer-ownership.dto';
 import { AssignTADto } from '../../../libs/dtos/class/assign-ta.dto';
+import { InviteClassByEmailDto } from '../../../libs/dtos/class/Invite-class.dto';
 
 @ApiTags('Class')
 @ApiBearerAuth('JWT-auth')
@@ -93,52 +94,6 @@ export class ClassController {
     return this.classService.markClassComplete(classId, teacherId);
   }
 
-
-
-  // @Get('join/link')
-  // @ApiOperation({ summary: 'Join a class using an invite link token' })
-  // @ApiQuery({ name: 'token', description: 'The JWT invite token from the link' })
-  // @ApiResponse({ status: 200, description: 'Successfully joined class' })
-  // @ApiResponse({ status: 400, description: 'Invalid or expired invite link' })
-  // async joinClassWithLink(
-  //   @Query('token') token: string,
-  //   @UserId() userId: number,
-  // ) {
-  //   return this.classService.joinClassWithLink(token, userId);
-  // }
-
-  // @Post(':id/invite/link')
-  // @ApiOperation({
-  //   summary: 'Generate a new invite link (Teacher only)',
-  // })
-  // @ApiParam({ name: 'id', description: 'The class ID' })
-  // @ApiResponse({ status: 201, description: 'Returns the generated invite link' })
-  // @ApiResponse({ status: 403, description: 'Not a teacher of this class' })
-  // async generateInviteLink(
-  //   @Param('id', ParseIntPipe) classId: number,
-  //   @UserId() teacherId: number,
-  // ) {
-  //   return this.classService.generateInviteLink(classId, teacherId);
-  // }
-
-  // @Post(':id/invite/email')
-  // @HttpCode(HttpStatus.OK)
-  // @ApiOperation({ summary: 'Invite a user by email (Teacher only)' })
-  // @ApiParam({ name: 'id', description: 'The class ID' })
-  // @ApiResponse({ status: 200, description: 'Invite sent successfully' })
-  // @ApiResponse({ status: 404, description: 'User to invite not found' })
-  // async inviteUserByEmail(
-  //   @Param('id', ParseIntPipe) classId: number,
-  //   @Body() inviteEmailDto: InviteEmailDto,
-  //   @UserId() teacherId: number,
-  // ) {
-  //   return this.classService.inviteByEmail(
-  //     classId,
-  //     inviteEmailDto.email,
-  //     teacherId,
-  //   );
-  // }
-
   @Delete(':classId/student/:studentId')
   @ApiOperation({ summary: 'Remove a student from a class (Teacher only)' })
   @ApiParam({ name: 'classId', description: 'The class ID' })
@@ -153,5 +108,32 @@ export class ClassController {
   ) {
     return this.classService.removeStudent(classId, studentId, teacherId);
   }
+
+  @Post(':classId/invite')
+  @ApiOperation({ summary: 'Invite a student by email to join a class' })
+  @ApiParam({ name: 'classId', type: Number })
+  async inviteByEmail(
+    @Param('classId') classId: number,
+    @Body() dto: InviteClassByEmailDto,
+    @UserId() teacherId: number,
+  ) {
+    return this.classService.inviteByEmail(classId, dto.email, teacherId);
+  }
+
+  @Get('join/link')
+  @ApiOperation({ summary: 'Join a class using an invite token' })
+  @ApiQuery({
+    name: 'token',
+    type: String,
+    description: 'Invite token',
+  })
+  async joinByLink(
+    @Query() dto: JoinClassByTokenDto,
+    @UserId() userId: number,
+  ) {
+    return this.classService.joinClassByInviteToken(dto.token, userId);
+  }
+
+
 }
 

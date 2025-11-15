@@ -4,6 +4,7 @@ import {
     ForbiddenException,
     ConflictException,
     BadRequestException,
+    UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -16,6 +17,9 @@ import { UserRole } from '../../../libs/enums/Role';
 import { TransferOwnershipDto } from '../../../libs/dtos/class/transfer-ownership.dto';
 import { AssignTADto } from '../../../libs/dtos/class/assign-ta.dto';
 import { ClassStatus } from '../../../libs/enums/Status';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { MailerService } from '@nestjs-modules/mailer';
 @Injectable()
 export class ClassService {
 
@@ -26,6 +30,10 @@ export class ClassService {
         private readonly userRepository: Repository<User>,
         @InjectRepository(Enrollment)
         private readonly enrollmentRepository: Repository<Enrollment>,
+
+        private readonly mailerService: MailerService,
+        private config: ConfigService,
+        private jwtService: JwtService
     ) {
     }
 
@@ -308,79 +316,118 @@ export class ClassService {
         return { message: `Class "${classEntity.name}" marked as completed.` };
     }
 
+    async inviteByEmail(classId: number, email: string, teacherId: number) {
+        const { class: classToJoin } = await this.findClassAndVerifyTeacher(
+            classId,
+            teacherId,
+        );
+
+        const userToInvite = await this.userRepository.findOneBy({ email });
+        if (!userToInvite) {
+            throw new NotFoundException(
+                'User with this email not found. They must register first.',
+            );
+        }
+
+        const existingEnrollment = await this.isUserEnrolled(
+            classToJoin.id,
+            userToInvite.id,
+        );
+        if (existingEnrollment) {
+            throw new ConflictException('User is already in this class');
+        }
+
+        const { link } = await this.generateInviteLink(classId, teacherId, userToInvite.id, true);
+
+        await this.mailerService.sendMail({
+            to: userToInvite.email,
+            subject: `You're invited to join ${classToJoin.name}!`,
+            text: `Hello ${userToInvite.firstName + ' ' + userToInvite.lastName},\n\nYou have been invited to join the class "${classToJoin.name}".\nClick this link to join: ${link}\n\n.`,
+            html: `
+            <p>Hello ${userToInvite.firstName},</p>
+            <p>You have been invited to join the class <b>${classToJoin.name}</b>.</p>
+            <p>Click the link below to join:</p>
+            <a href="${link}">${link}</a>
+            <p>If you did not expect this, please ignore this email.</p>
+        `,
+        });
+
+        return { message: `Invite sent to ${email}` };
+    }
 
 
-    // async joinClassWithLink(token: string, studentId: number) {
-    //     try {
-    //         const payload = await this.jwtService.verifyAsync(token, {
-    //             secret: this.INVITE_SECRET,
-    //         });
+    async generateInviteLink(
+        classId: number,
+        teacherId: number,
+        userInvitedId: number,
+        internalCall: boolean = false,
+    ) {
+        if (!internalCall) {
+            await this.findClassAndVerifyTeacher(classId, teacherId);
+        }
 
-    //         if (!payload.classId) throw new Error();
+        const payload = { classId, userId: userInvitedId };
 
-    //         return this.enrollUserInClass(payload.classId, studentId);
-    //     } catch (error) {
-    //         throw new BadRequestException('Invalid or expired invite link');
-    //     }
-    // }
+        const token = await this.jwtService.signAsync(payload, {
+            secret: this.config.get<string>('JWT_INVITE_SECRET'),
+            expiresIn: '7d',
+        });
 
-    // async inviteByEmail(
-    //     classId: number,
-    //     email: string,
-    //     teacherId: number,
-    // ) {
-    //     const { class: classToJoin, enrollment: teacherEnrollment } =
-    //         await this.findClassAndVerifyTeacher(classId, teacherId);
+        const baseUrl = this.config.get<string>('BASE_URL');
 
-    //     const userToInvite = await this.userRepository.findOneBy({ email });
-    //     if (!userToInvite) {
-    //         throw new NotFoundException(
-    //             'User with this email not found. They must register first.',
-    //         );
-    //     }
+        return {
+            link: `${baseUrl}/class/join/link?token=${token}`,
+        };
+    }
 
-    //     const existingEnrollment = await this.isUserEnrolled(
-    //         classToJoin.id,
-    //         userToInvite.id,
-    //     );
-    //     if (existingEnrollment) {
-    //         throw new ConflictException('User is already in this class');
-    //     }
+    async joinClassByInviteToken(token: string, userId: number) {
+        let payload: any;
 
-    //     const { link } = await this.generateInviteLink(classId, teacherId, true);
+        try {
+            payload = await this.jwtService.verifyAsync(token, {
+                secret: this.config.get<string>('JWT_INVITE_SECRET'),
+            });
+        } catch (err) {
+            throw new BadRequestException('Invalid or expired invite link');
+        }
 
-    //     // Use MailerService directly
-    //     await this.mailerService.sendMail({
-    //         to: userToInvite.email,
-    //         subject: `You're invited to join ${classToJoin.name}!`,
-    //         text: `Hello ${userToInvite.firstName},\n\nYou have been invited to join the class "${classToJoin.name}".\nClick this link to join: ${link}\n\nIf you did not expect this, please ignore this email.`,
-    //         html: `<p>Hello ${userToInvite.firstName},</p>
-    //             <p>You have been invited to join the class "<b>${classToJoin.name}</b>".</p>
-    //             <p>Click the link below to join:</p>
-    //             <a href="${link}">Join Class</a>
-    //             <p>If you did not expect this, please ignore this email.</p>`,
-    //     });
+        if (payload.userId == userId) {
+            throw new UnauthorizedException('You are not Invited to this class')
+        }
 
-    //     return { message: `Invite sent to ${email}` };
-    // }
+        const classId = payload.classId;
 
-    // async generateInviteLink(
-    //     classId: number,
-    //     teacherId: number,
-    //     internalCall: boolean = false,
-    // ) {
-    //     if (!internalCall) {
-    //         await this.findClassAndVerifyTeacher(classId, teacherId);
-    //     }
+        const classToJoin = await this.classRepository.findOne({
+            where: { id: classId },
+        });
 
-    //     const payload = { classId };
-    //     const token = await this.jwtService.signAsync(payload, {
-    //         secret: this.INVITE_SECRET,
-    //         expiresIn: '7d', // Link is valid for 7 days
-    //     });
+        if (!classToJoin) {
+            throw new NotFoundException('Class not found');
+        }
 
-    //     return {
-    //         link: `${this.BASE_URL}/class/join/link?token=${token}`,
-    //     };
-    // }
+        if (userId == classToJoin.owner.id) {
+            throw new UnauthorizedException('You are already the teacher in this class.');
+        }
+
+        const existingEnrollment = await this.enrollmentRepository.findOne({
+            where: { class: { id: classId }, user: { id: userId } },
+        });
+
+        if (existingEnrollment) {
+            throw new ConflictException('You are already enrolled in this class');
+        }
+
+        const enrollment = this.enrollmentRepository.create({
+            class: { id: classId },
+            user: { id: userId },
+            role: UserRole.Student,
+        });
+
+        await this.enrollmentRepository.save(enrollment);
+
+        return {
+            message: 'Successfully joined the class',
+            classId,
+        };
+    }
 }
