@@ -24,7 +24,7 @@ export class RegisterUserDTO {
 
     @IsOptional()
     @Transform(({ value }) => (value ? new Date(value) : undefined), { toClassOnly: true })
-    @IsDate({ message:'dob must be a Date in format "YYYY-MM-DD"' })
+    @IsDate({ message: 'dob must be a Date in format "YYYY-MM-DD"' })
     @ApiPropertyOptional({ example: '2000-01-01', description: 'Date of birth in YYYY-MM-DD format' })
     dob: Date;
 
@@ -33,11 +33,13 @@ export class RegisterUserDTO {
     @Matches(/^0\d{8,9}$/, { message: 'Phone number must start with 0 and be 9-10 digits' })
     @ApiPropertyOptional({ example: '0123456789', description: 'Phone number starting with 0, 9-10 digits' })
     phoneNumber: string;
-    
+
     @ApiProperty({ example: 'sokdara@gmail.com', description: 'Email address of the user' })
     @IsRealEmailDomain({ message: 'Email domain appears suspicious or invalid' })
     @IsEmail()
+    @Transform(({ value }) => value.toLowerCase())
     email: string;
+
 
     @ApiProperty({ example: 'P@ssw0rd123', description: 'Password (6-20 characters)' })
     @IsString()
@@ -51,6 +53,6 @@ export class RegisterUserDTO {
     @IsOptional()
     @ApiProperty({ example: 'https://img.freepik.com/free-vector/blue-circle-with-white-user_78370-4707.jpg?semt=ais_hybrid&w=740&q=80', description: 'User profile url' })
     @IsUrl()
-    profilePictureUrl?:string;
+    profilePictureUrl?: string;
 }
 

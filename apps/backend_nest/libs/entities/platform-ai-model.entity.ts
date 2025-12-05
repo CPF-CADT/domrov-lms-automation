@@ -1,33 +1,32 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { BaseEntity } from './base.entity';
-import { TokenPackage } from './token-package.entity';
-import { UserTokenBalance } from './user-token-balance.entity';
 import { AIUsageLog } from './ai-usage-log.entity';
 import { Assessment } from './assessment.entity';
 
 @Entity({ name: 'platform_ai_models' })
 export class PlatformAIModel extends BaseEntity {
   @PrimaryGeneratedColumn()
-  id: number; 
+  id: number;
 
   @Column({ length: 100 })
-  name: string; 
+  name: string;
 
   @Column()
-  apiUrl: string; 
+  apiUrl: string;
 
   @Column({ type: 'float', nullable: true })
-  accuracy: number; 
+  accuracy: number;
 
-  @OneToMany(() => TokenPackage, (pkg) => pkg.model)
-  tokenPackages: TokenPackage[];
+  // Cost per token usage (to calculate how much to deduct from wallet)
+  @Column({ type: 'float', default: 1 })
+  costPerInputToken: number;
 
-  @OneToMany(() => UserTokenBalance, (balance) => balance.model)
-  userBalances: UserTokenBalance[];
+  @Column({ type: 'float', default: 1 })
+  costPerOutputToken: number;
 
   @OneToMany(() => AIUsageLog, (log) => log.model)
   usageLogs: AIUsageLog[];
-  
+
   @OneToMany(() => Assessment, (assessment) => assessment.aiModel)
   assessments: Assessment[];
 }

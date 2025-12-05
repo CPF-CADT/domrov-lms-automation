@@ -2,12 +2,13 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  ManyToOne,
+  OneToOne,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { User } from './user.entity';
-import { PlatformAIModel } from './platform-ai-model.entity';
+import { WalletTransaction } from './wallet-transaction.entity';
 
 @Entity({ name: 'user_token_balances' })
 export class UserTokenBalance extends BaseEntity {
@@ -15,13 +16,14 @@ export class UserTokenBalance extends BaseEntity {
   id: number;
 
   @Column({ type: 'float', default: 0 })
-  tokenBalance: number; 
+  tokenBalance: number;
 
-  @ManyToOne(() => User)
+  // Changed to OneToOne: One user has exactly one wallet
+  @OneToOne(() => User)
   @JoinColumn()
-  user: User; 
+  user: User;
 
-  @ManyToOne(() => PlatformAIModel, (model) => model.userBalances)
-  @JoinColumn()
-  model: PlatformAIModel;
+  // Link to transaction history
+  @OneToMany(() => WalletTransaction, (tx) => tx.wallet)
+  transactions: WalletTransaction[];
 }

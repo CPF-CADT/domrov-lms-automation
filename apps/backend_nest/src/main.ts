@@ -10,15 +10,17 @@ async function bootstrap() {
   app.use(cookieParser());
 
   app.enableCors({
-    origin: 'http://localhost:3000', 
-    credentials: true,               
+    origin: 'http://localhost:3000',
+    credentials: true,
   });
 
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
     forbidNonWhitelisted: true,
-    transform: true
+    forbidUnknownValues: true,
+    transform: true,
   }));
+
 
   const config = new DocumentBuilder()
     .setTitle('Domrov LMS-Automation')
@@ -36,7 +38,7 @@ async function bootstrap() {
     )
     .build();
   const document = SwaggerModule.createDocument(app, config);
-
+  
   SwaggerModule.setup('api-docs', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
