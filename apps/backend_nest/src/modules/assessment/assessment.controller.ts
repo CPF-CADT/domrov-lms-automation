@@ -4,7 +4,7 @@ import {
   Patch
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags, ApiBody } from '@nestjs/swagger';
 import { AssessmentService } from './assessment.service';
 import { CreateAssessmentDTO } from '../../../libs/dtos/assessment/create-assessment.dto';
 import { GradeSubmissionDTO } from '../../../libs/dtos/submission/grade-submission.dto';
@@ -22,6 +22,17 @@ export class AssessmentController {
   @Post()
   @ApiOperation({ summary: 'Create Assessment (Instructor)' })
   @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        files: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' }
+        }
+      }
+    }
+  })
   @UseInterceptors(FilesInterceptor('files', 5))
   async create(
     @UserId() userId: number,
@@ -34,6 +45,17 @@ export class AssessmentController {
   @Post(':id/submit')
   @ApiOperation({ summary: 'Submit Assignment (Student/Team)' })
   @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        files: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' }
+        }
+      }
+    }
+  })
   @UseInterceptors(FilesInterceptor('files', 10))
   async submit(
     @UserId() userId: number,
@@ -57,6 +79,26 @@ export class AssessmentController {
     @Body() dto: GradeSubmissionDTO,
   ) {
     return this.assessmentService.gradeSubmission(userId, submissionId, dto);
+  }
+
+  // Instructor: list all submissions for an assessment
+  @Get(':id/submissions')
+  @ApiOperation({ summary: 'Teacher: List all submissions for an assessment' })
+  async listSubmissions(
+    @UserId() userId: number,
+    @Param('id', ParseIntPipe) assessmentId: number
+  ) {
+    return this.assessmentService.listSubmissionsForInstructor(userId, assessmentId);
+  }
+
+  // View a single submission (teacher or the submitter/team member)
+  @Get('submission/:id')
+  @ApiOperation({ summary: 'Get a single submission with files and evaluation' })
+  async getSubmission(
+    @UserId() userId: number,
+    @Param('id', ParseIntPipe) submissionId: number
+  ) {
+    return this.assessmentService.getSubmissionForViewer(userId, submissionId);
   }
 
   @Get('class/:classId')

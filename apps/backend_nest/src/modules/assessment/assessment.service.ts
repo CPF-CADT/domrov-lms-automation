@@ -153,10 +153,20 @@ export class AssessmentService {
     async gradeSubmission(teacherId: number, submissionId: number, dto: GradeSubmissionDTO) {
         const submission = await this.submissionRepo.findOne({
             where: { id: submissionId },
-            relations: ['evaluation']
+            relations: [
+                'evaluation',
+                'assessment',
+                'assessment.class',
+                'assessment.class.owner',
+            ]
         });
 
         if (!submission) throw new NotFoundException('Submission not found');
+
+        // Authorization: only class owner can grade
+        if (submission.assessment?.class?.owner?.id !== teacherId) {
+            throw new BadRequestException('Unauthorized');
+        }
 
         let evaluation = submission.evaluation;
         if (!evaluation) {
@@ -171,6 +181,62 @@ export class AssessmentService {
         await this.submissionRepo.save(submission);
 
         return evaluation;
+    }
+
+    // Teacher: list all submissions for an assessment, with files and evaluation
+    async listSubmissionsForInstructor(teacherId: number, assessmentId: number) {
+        const assessment = await this.assessmentRepo.findOne({
+            where: { id: assessmentId },
+            relations: ['class', 'class.owner']
+        });
+        if (!assessment) throw new NotFoundException('Assessment not found');
+        if (assessment.class.owner.id !== teacherId) {
+            throw new BadRequestException('Unauthorized');
+        }
+
+        return this.submissionRepo.find({
+            where: { assessment: { id: assessmentId } },
+            relations: [
+                'user',
+                'team',
+                'team.members',
+                'team.members.user',
+                'resources',
+                'resources.resource',
+                'evaluation'
+            ],
+            order: { submissionTime: 'DESC' }
+        });
+    }
+
+    // Teacher or submitter/team member can view a submission
+    async getSubmissionForViewer(userId: number, submissionId: number) {
+        const submission = await this.submissionRepo.findOne({
+            where: { id: submissionId },
+            relations: [
+                'user',
+                'team',
+                'team.members',
+                'team.members.user',
+                'assessment',
+                'assessment.class',
+                'assessment.class.owner',
+                'resources',
+                'resources.resource',
+                'evaluation'
+            ]
+        });
+        if (!submission) throw new NotFoundException('Submission not found');
+
+        const isTeacher = submission.assessment.class.owner.id === userId;
+        const isOwner = submission.user?.id === userId;
+        const isTeamMember = submission.team?.members?.some(m => m.user?.id === userId) ?? false;
+
+        if (!isTeacher && !isOwner && !isTeamMember) {
+            throw new BadRequestException('Unauthorized');
+        }
+
+        return submission;
     }
 
     // --- 4. Get Tracking (Roster View) ---
