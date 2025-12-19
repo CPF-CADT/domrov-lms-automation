@@ -1,8 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DeepPartial, ILike, Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { User } from '../../../libs/entities/user.entity';
-import { UserStatus } from '../../../libs/enums/Status';
 import * as bcrypt from 'bcrypt';
 import { UpdateUserDTO } from '../../../libs/dtos/update.user.dto';
 
