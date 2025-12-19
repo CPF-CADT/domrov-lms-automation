@@ -20,12 +20,13 @@ import {
   ApiBearerAuth,
   ApiQuery,
   ApiParam,
+  ApiBody,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { TeamService } from './team.service';
 import { CreateTeamDto } from '../../../libs/dtos/team/create-team.dto';
 import { UserId } from '../../common/decorators/user.decorator';
-import { JoinTeamDto } from '../../../libs/dtos/team/join-team.dto';
+import { InviteTeamByEmailDto, JoinTeamByTokenDto, JoinTeamDto } from '../../../libs/dtos/team/join-team.dto';
 import { CreateManyTeamsDto } from '../../../libs/dtos/team/create-many-teams.dto';
 
 @ApiTags('Team')
@@ -118,48 +119,25 @@ export class TeamController {
   async leaveTeam(@Param('teamId') teamId: number, @UserId() userId: number) {
     return this.teamService.leaveTeam(teamId, userId);
   }
+
+  @Post(':teamId/invite')
+  @ApiOperation({ summary: 'Invite a user to a team by email' })
+  @ApiParam({ name: 'teamId', type: Number })
+  async inviteTeamByEmail(
+    @Param('teamId') teamId: number,
+    @Body() dto: InviteTeamByEmailDto,
+    @UserId() inviterId: number,
+  ) {
+    return this.teamService.inviteByEmail(teamId, dto.email, inviterId);
+  }
+
+  @Post('join/token')
+  @ApiOperation({ summary: 'Join a team using an invite token' })
+  async joinTeamByToken(
+    @Body() dto: JoinTeamByTokenDto,
+    @UserId() userId: number,
+  ) {
+    return this.teamService.joinTeamWithLink(dto.token, userId);
+  }
+
 }
-
-
-
-// @Get('join/link')
-// @ApiOperation({ summary: 'Join a team using an invite link token' })
-// @ApiQuery({ name: 'token', description: 'The JWT invite token from the link' })
-// @ApiResponse({ status: 200, description: 'Successfully joined team' })
-// @ApiResponse({ status: 400, description: 'Invalid or expired invite link' })
-// async joinTeamWithLink(
-//   @Query('token') token: string,
-//   @UserId() userId: number,
-// ) {
-//   return this.teamService.joinTeamWithLink(token, userId);
-// }
-
-// @Post(':id/invite/link')
-// @ApiOperation({ summary: 'Generate a new team invite link (Leader only)' })
-// @ApiParam({ name: 'id', description: 'The team ID' })
-// @ApiResponse({ status: 201, description: 'Returns the generated invite link' })
-// @ApiResponse({ status: 403, description: 'Not the team leader' })
-// async generateInviteLink(
-//   @Param('id', ParseIntPipe) teamId: number,
-//   @UserId() leaderId: number,
-// ) {
-//   return this.teamService.generateInviteLink(teamId, leaderId);
-// }
-
-// @Post(':id/invite/email')
-// @HttpCode(HttpStatus.OK)
-// @ApiOperation({ summary: 'Invite a user to the team by email (Leader only)' })
-// @ApiParam({ name: 'id', description: 'The team ID' })
-// @ApiResponse({ status: 200, description: 'Invite sent successfully' })
-// @ApiResponse({ status: 404, description: 'User to invite not found' })
-// async inviteUserByEmail(
-//   @Param('id', ParseIntPipe) teamId: number,
-//   @Body() inviteTeamDto: InviteTeamDto,
-//   @UserId() leaderId: number,
-// ) {
-//   return this.teamService.inviteByEmail(
-//     teamId,
-//     inviteTeamDto.email,
-//     leaderId,
-//   );
-// }

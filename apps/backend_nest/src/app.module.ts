@@ -7,6 +7,11 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import { ClassModule } from './modules/class/class.module';
 import { TeamModule } from './modules/team/team.module';
+import { FileModule } from './modules/file/file.module';
+import { AssessmentModule } from './modules/assessment/assessment.module';
+import { HttpModule } from '@nestjs/axios';
+import { PaymentService } from './services/payment.service';
+import { WalletModule } from './modules/wallet/wallet.module';
 
 @Module({
   imports: [
@@ -18,10 +23,14 @@ import { TeamModule } from './modules/team/team.module';
     AuthModule,
     UserModule,
     ClassModule,
-    TeamModule
+    TeamModule,
+    FileModule,
+    AssessmentModule,
+    HttpModule,
+    WalletModule
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService,PaymentService],
   exports:[AppService]
 })
 export class AppModule {}

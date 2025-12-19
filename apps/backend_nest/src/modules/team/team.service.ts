@@ -4,6 +4,7 @@ import {
     ForbiddenException,
     ConflictException,
     BadRequestException,
+    UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -15,6 +16,9 @@ import { generateJoinCode } from '../../../libs/utils/GenerateRandom';
 import { CreateTeamDto } from '../../../libs/dtos/team/create-team.dto';
 import { UserRole } from '../../../libs/enums/Role';
 import { CreateManyTeamsDto } from '../../../libs/dtos/team/create-many-teams.dto';
+import { MailerService } from '@nestjs-modules/mailer';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class TeamService {
@@ -28,6 +32,11 @@ export class TeamService {
         private readonly enrollmentRepository: Repository<Enrollment>,
         @InjectRepository(TeamMember)
         private readonly teamMemberRepository: Repository<TeamMember>,
+
+        private readonly mailerService: MailerService,
+        private config: ConfigService,
+        private jwtService: JwtService
+
     ) {
     }
 
@@ -148,7 +157,7 @@ export class TeamService {
                         },
                     });
 
-                    if (!enrollment) continue; 
+                    if (!enrollment) continue;
 
                     const teamMember = this.teamMemberRepository.create({
                         user: member,
@@ -160,7 +169,7 @@ export class TeamService {
                 if (teamDto.leaderId && !teamDto.memberIds.includes(teamDto.leaderId)) {
                     const leader = await this.userRepository.findOneBy({ id: teamDto.leaderId });
                     const leaderMember = this.teamMemberRepository.create({
-                        user: leader??undefined,
+                        user: leader ?? undefined,
                         team: savedTeam,
                     });
                     await this.teamMemberRepository.save(leaderMember);
@@ -299,82 +308,6 @@ export class TeamService {
         return { message: 'You have successfully left the team' };
     }
 
-
-    // async joinTeamWithLink(token: string, studentId: number) {
-    //     try {
-    //         const payload = await this.jwtService.verifyAsync(token, {
-    //             secret: this.INVITE_SECRET,
-    //         });
-
-    //         if (!payload.teamId) throw new Error();
-
-    //         const teamToJoin = await this.teamRepository.findOne({
-    //             where: { id: payload.teamId },
-    //             relations: ['class'],
-    //         });
-    //         if (!teamToJoin) throw new NotFoundException('Team not found');
-
-    //         return this.addMemberToTeam(teamToJoin, studentId);
-    //     } catch (error) {
-    //         throw new BadRequestException('Invalid or expired invite link');
-    //     }
-    // }
-
-    // async inviteByEmail(
-    //     teamId: number,
-    //     email: string,
-    //     leaderId: number,
-    // ) {
-    //     const { team } = await this.findTeamAndVerifyLeader(teamId, leaderId);
-
-    //     const userToInvite = await this.userRepository.findOneBy({ email });
-    //     if (!userToInvite) {
-    //         throw new NotFoundException(
-    //             'User with this email not found. They must register first.',
-    //         );
-    //     }
-
-    //     await this.findUserAndVerifyEnrollment(userToInvite.id, team.class.id);
-
-    //     if (await this.isUserInTeam(team.id, userToInvite.id)) {
-    //         throw new ConflictException('User is already in this team');
-    //     }
-
-    //     const { link } = await this.generateInviteLink(teamId, leaderId, true);
-
-    //     await this.mailerService.sendMail({
-    //         to: userToInvite.email,
-    //         subject: `You're invited to join ${team.name}!`,
-    //         text: `Hello ${userToInvite.firstName},\n\nYou have been invited to join the team "${team.name}" in the class "${team.class.name}".\nClick this link to join: ${link}`,
-    //         html: `<p>Hello ${userToInvite.firstName},</p>
-    //          <p>You have been invited to join the team "<b>${team.name}</b>" in the class "<b>${team.class.name}</b>".</p>
-    //          <p>Click the link below to join:</p>
-    //          <a href="${link}">Join Team</a>`,
-    //     });
-
-    //     return { message: `Invite sent to ${email}` };
-    // }
-
-    // async generateInviteLink(
-    //     teamId: number,
-    //     leaderId: number,
-    //     internalCall: boolean = false,
-    // ) {
-    //     if (!internalCall) {
-    //         await this.findTeamAndVerifyLeader(teamId, leaderId);
-    //     }
-
-    //     const payload = { teamId };
-    //     const token = await this.jwtService.signAsync(payload, {
-    //         secret: this.INVITE_SECRET,
-    //         expiresIn: '7d',
-    //     });
-
-    //     return {
-    //         link: `${this.BASE_URL}/team/join/link?token=${token}`,
-    //     };
-    // }
-
     async removeMember(
         teamId: number,
         memberId: number,
@@ -471,4 +404,99 @@ export class TeamService {
             },
         });
     }
+
+    async generateInviteLink(
+        teamId: number,
+        leaderId: number,
+        memberId:number,
+        internalCall: boolean = false,
+    ) {
+        if (!internalCall) {
+            await this.findTeamAndVerifyLeader(teamId, leaderId);
+        }
+
+        const token = await this.jwtService.signAsync(
+            { teamId ,memberId},
+            {
+                secret: this.config.get<string>('TEAM_INVITE_SECRET'),
+                expiresIn: '7d',
+            },
+        );
+
+        const baseUrl = this.config.get<string>('BASE_URL');
+
+        return {
+            link: `${baseUrl}/team/join/link?token=${token}`,
+        };
+    }
+
+    async inviteByEmail(teamId: number, email: string, leaderId: number) {
+        const { team } = await this.findTeamAndVerifyLeader(teamId, leaderId);
+
+        const userToInvite = await this.userRepository.findOneBy({ email });
+        if (!userToInvite) {
+            throw new NotFoundException('User with this email not found');
+        }
+
+        await this.findUserAndVerifyEnrollment(userToInvite.id, team.class.id);
+
+        if (await this.isUserInTeam(team.id, userToInvite.id)) {
+            throw new ConflictException('User is already in this team');
+        }
+
+        const { link } = await this.generateInviteLink(teamId, leaderId, userToInvite.id,true);
+
+        await this.mailerService.sendMail({
+            to: userToInvite.email,
+            subject: `You're invited to join ${team.name}!`,
+            text: `Hello ${userToInvite.firstName},\n\nYou are invited to join the team "${team.name}".\nClick this link: ${link}`,
+            html: `
+            <p>Hello ${userToInvite.firstName},</p>
+            <p>You have been invited to join the team <b>${team.name}</b> in class <b>${team.class.name}</b>.</p>
+            <a href="${link}">Join Team</a>
+        `,
+        });
+
+        return { message: `Invite sent to ${email}` };
+    }
+
+    async joinTeamWithLink(token: string, studentId: number) {
+        let payload: any;
+
+        try {
+            payload = await this.jwtService.verifyAsync(token, {
+                secret: this.config.get<string>('TEAM_INVITE_SECRET'),
+            });
+        } catch {
+            throw new BadRequestException('Invalid or expired invite link');
+        }
+
+        const { teamId,memberId } = payload;
+        if(memberId!=studentId){
+            throw new UnauthorizedException('You Are not invited.')
+        }
+        const team = await this.teamRepository.findOne({
+            where: { id: teamId },
+            relations: ['class'],
+        });
+
+        if (!team) {
+            throw new NotFoundException('Team not found');
+        }
+        
+
+        await this.findUserAndVerifyEnrollment(studentId, team.class.id);
+
+        if (await this.isUserInTeam(team.id, studentId)) {
+            throw new ConflictException('You are already in this team');
+        }
+
+        if (team.leader.id === studentId) {
+            throw new ConflictException('Leader is already part of the team');
+        }
+
+        return this.addMemberToTeam(team, studentId);
+    }
+
+
 }
