@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ClassService } from './class.service';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UserId } from '../../common/decorators/user.decorator';
 import { JoinClassByTokenDto, JoinClassDto } from '../../../libs/dtos/class/join-class.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateClassDto } from '../../../libs/dtos/class/create-class.dto';
+import { UpdateClassDto } from '../../../libs/dtos/class/update-class.dto';
 import { TransferOwnershipDto } from '../../../libs/dtos/class/transfer-ownership.dto';
 import { AssignTADto } from '../../../libs/dtos/class/assign-ta.dto';
 import { InviteClassByEmailDto } from '../../../libs/dtos/class/Invite-class.dto';
@@ -92,6 +93,45 @@ export class ClassController {
     @UserId() teacherId: number,
   ) {
     return this.classService.markClassComplete(classId, teacherId);
+  }
+
+  @Patch(':classId')
+  @ApiOperation({ summary: 'Update class info (Teacher only)' })
+  @ApiParam({ name: 'classId', description: 'The class ID' })
+  @ApiBody({ type: UpdateClassDto })
+  @ApiResponse({ status: 200, description: 'Class updated successfully' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async updateClass(
+    @Param('classId', ParseIntPipe) classId: number,
+    @Body() dto: UpdateClassDto,
+    @UserId() teacherId: number,
+  ) {
+    return this.classService.updateClass(classId, teacherId, dto);
+  }
+
+  @Delete(':classId')
+  @ApiOperation({ summary: 'Delete a class (Owner only)' })
+  @ApiParam({ name: 'classId', description: 'The class ID' })
+  @ApiResponse({ status: 200, description: 'Class deleted successfully' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 400, description: 'Cannot delete due to dependencies' })
+  async deleteClass(
+    @Param('classId', ParseIntPipe) classId: number,
+    @UserId() teacherId: number,
+  ) {
+    return this.classService.deleteClass(classId, teacherId);
+  }
+
+  @Get(':classId/leaderboard')
+  @ApiOperation({ summary: 'Get class leaderboard (Teacher only)' })
+  @ApiParam({ name: 'classId', description: 'The class ID' })
+  @ApiResponse({ status: 200, description: 'Leaderboard retrieved successfully' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async getLeaderboard(
+    @Param('classId', ParseIntPipe) classId: number,
+    @UserId() teacherId: number,
+  ) {
+    return this.classService.getLeaderboard(classId, teacherId);
   }
 
   @Delete(':classId/student/:studentId')

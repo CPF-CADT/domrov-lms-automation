@@ -20,6 +20,10 @@ import { ClassStatus } from '../../../libs/enums/Status';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { MailerService } from '@nestjs-modules/mailer';
+import { UpdateClassDto } from '../../../libs/dtos/class/update-class.dto';
+import { Assessment } from '../../../libs/entities/assessment.entity';
+import { Submission } from '../../../libs/entities/submission.entity';
+import { Evaluation } from '../../../libs/entities/evaluation.entity';
 @Injectable()
 export class ClassService {
 
@@ -30,6 +34,12 @@ export class ClassService {
         private readonly userRepository: Repository<User>,
         @InjectRepository(Enrollment)
         private readonly enrollmentRepository: Repository<Enrollment>,
+        @InjectRepository(Assessment)
+        private readonly assessmentRepository: Repository<Assessment>,
+        @InjectRepository(Submission)
+        private readonly submissionRepository: Repository<Submission>,
+        @InjectRepository(Evaluation)
+        private readonly evaluationRepository: Repository<Evaluation>,
 
         private readonly mailerService: MailerService,
         private config: ConfigService,
@@ -105,6 +115,33 @@ export class ClassService {
 
         await this.enrollmentRepository.remove(enrollment);
         return { message: 'Student removed successfully' };
+    }
+
+    async updateClass(classId: number, teacherId: number, dto: UpdateClassDto) {
+        const { class: classEntity } = await this.findClassAndVerifyTeacher(classId, teacherId);
+
+        if (dto.name !== undefined) classEntity.name = dto.name;
+        if (dto.description !== undefined) classEntity.description = dto.description;
+        if (dto.coverImageUrl !== undefined) classEntity.coverImageUrl = dto.coverImageUrl;
+
+        const saved = await this.classRepository.save(classEntity);
+        return saved;
+    }
+
+    async deleteClass(classId: number, teacherId: number) {
+        const { class: classEntity } = await this.findClassAndVerifyTeacher(classId, teacherId);
+
+        if (classEntity.owner?.id !== teacherId) {
+            throw new ForbiddenException('Only the class owner can delete this class');
+        }
+
+        try {
+            await this.classRepository.remove(classEntity);
+        } catch (err) {
+            throw new BadRequestException('Class cannot be deleted due to existing dependencies');
+        }
+
+        return { message: 'Class deleted successfully' };
     }
 
     private async enrollUserInClass(classId: number, studentId: number) {
@@ -314,6 +351,46 @@ export class ClassService {
         await this.classRepository.save(classEntity);
 
         return { message: `Class "${classEntity.name}" marked as completed.` };
+    }
+
+    async getLeaderboard(classId: number, teacherId: number) {
+        await this.findClassAndVerifyTeacher(classId, teacherId);
+
+        const students = await this.enrollmentRepository.find({
+            where: { class: { id: classId }, role: UserRole.Student },
+            relations: ['user'],
+        });
+
+        const rawScores = await this.submissionRepository
+            .createQueryBuilder('submission')
+            .leftJoin('submission.evaluation', 'evaluation')
+            .leftJoin('submission.assessment', 'assessment')
+            .where('assessment.classId = :classId', { classId })
+            .andWhere('submission.userId IS NOT NULL')
+            .select('submission.userId', 'userId')
+            .addSelect('SUM(COALESCE(evaluation.score, 0))', 'totalScore')
+            .groupBy('submission.userId')
+            .getRawMany();
+
+        const scoreMap = new Map<number, number>();
+        rawScores.forEach((r: any) => {
+            const uid = Number(r.userId);
+            const score = Number(r.totalScore || 0);
+            scoreMap.set(uid, score);
+        });
+
+        const leaderboard = students.map((en) => ({
+            user: {
+                id: en.user.id,
+                firstName: en.user.firstName,
+                lastName: en.user.lastName,
+                email: en.user.email,
+            },
+            totalScore: scoreMap.get(en.user.id) || 0,
+        }))
+            .sort((a, b) => b.totalScore - a.totalScore);
+
+        return leaderboard;
     }
 
     async inviteByEmail(classId: number, email: string, teacherId: number) {
