@@ -18,11 +18,13 @@ export class FileController {
     required: true,
     type: FileUploadDto,
   })
+  
   @UseInterceptors(FileInterceptor('file'))
-  uploadFile(@UploadedFile() file: Express.Multer.File) {
-    console.log(file);
+  async uploadFile(@UploadedFile() file: Express.Multer.File) {
+    const url = await this.fileService.mockUploadFile(file);
     return {
       filename: file.originalname,
+      url,
       mimetype: file.mimetype,
       size: file.size,
     };

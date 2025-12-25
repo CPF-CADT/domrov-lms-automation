@@ -36,8 +36,10 @@ export class WalletService {
      * Get Transaction History
      */
     async getTransactionHistory(userId: number) {
+        const wallet = await this.balanceRepo.findOne({ where: { user: { id: userId } } });
+        if (!wallet) return [];
         return this.txRepo.find({
-            where: { wallet: { user: { id: userId } } },
+            where: { wallet: { id: wallet.id } },
             order: { createdAt: 'DESC' }
         });
     }

@@ -92,28 +92,24 @@ export class AuthService {
     }
 
     async sendVerificationEmail(email: string) {
-        // const user = await this.userRepository.findOne({ where: { email } });
-        // if (!user) throw new Error('User not found');
+        const user = await this.userRepository.findOne({ where: { email } });
+        if (!user) return false;
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
         const expiresAt = new Date();
         expiresAt.setMinutes(expiresAt.getMinutes() + 10);
 
-        // let userOtp = await this.userEmailOtpRepository.findOne({
-        //     where: { user: { id: user.id } },
-        // });
+        let userOtp = await this.userEmailOtpRepository.findOne({
+            where: { user: { id: user.id } },
+        });
 
-        // if (userOtp) {
-        //     userOtp.otp = otp;
-        //     userOtp.expiresAt = expiresAt;
-        // } else {
-        //     userOtp = this.userEmailOtpRepository.create({
-        //         user,
-        //         otp,
-        //         expiresAt,
-        //     });
-        // }
+        if (userOtp) {
+            userOtp.otp = otp;
+            userOtp.expiresAt = expiresAt;
+        } else {
+            userOtp = this.userEmailOtpRepository.create({ user, otp, expiresAt });
+        }
+        await this.userEmailOtpRepository.save(userOtp);
 
         await this.mailerService.sendMail({
             to: email,
@@ -124,6 +120,7 @@ export class AuthService {
 
         return true;
     }
+
 
 
     async verifyEmailOtp(email: string, otp: string) {

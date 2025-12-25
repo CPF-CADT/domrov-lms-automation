@@ -38,12 +38,11 @@ export class AdminWalletController {
     @Post('adjust')
     @ApiOperation({ summary: 'Manually add/remove tokens from user (Refund/Bonus)' })
     async manualAdjustment(@Body() dto: AdminAdjustWalletDTO) {
-        // If amount is positive, it adds. If negative, the logic below handles it.
         if (dto.amount >= 0) {
             return this.walletService.addTokens(dto.userId, dto.amount, dto.type, dto.description);
         } else {
-            // Pass positive number to deduct method
-            return this.walletService.deductTokens(dto.userId, Math.abs(dto.amount), dto.description);
+            const ok = await this.walletService.deductTokens(dto.userId, Math.abs(dto.amount), dto.description);
+            return { success: ok };
         }
     }
 }

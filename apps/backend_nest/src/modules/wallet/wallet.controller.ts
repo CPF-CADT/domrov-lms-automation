@@ -13,7 +13,7 @@ export class WalletController {
   constructor(
     private walletService: WalletService,
     private packageService: TokenPackageService
-  ) {}
+  ) { }
 
   @Get('balance')
   @ApiOperation({ summary: 'Get current token balance' })

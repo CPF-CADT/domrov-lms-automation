@@ -79,21 +79,22 @@ export class TeamController {
     return this.teamService.removeMember(teamId, memberId, leaderId);
   }
 
-  @Post('team/many')
+  @Post('many')
   @ApiOperation({ summary: 'Create multiple teams in a class (Teacher only)' })
   @ApiResponse({
     status: 201,
     description: 'The teams have been successfully created.',
   })
   @ApiResponse({ status: 403, description: 'Not a teacher of this class' })
-  async createManyTeams(
+    async createManyTeams(
     @Body() createManyTeamsDto: CreateManyTeamsDto,
     @UserId() teacherId: number,
   ) {
     return this.teamService.createManyTeams(createManyTeamsDto, teacherId);
   }
 
-  @Get('team/:teamId/details')
+
+  @Get(':teamId/details')
   @ApiOperation({ summary: 'Get team details (leader and members)' })
   @ApiParam({ name: 'teamId', description: 'The team ID' })
   @ApiResponse({ status: 200, description: 'Team details' })
@@ -106,7 +107,7 @@ export class TeamController {
     return this.teamService.getTeamDetails(teamId, userId);
   }
 
-  @Get('class/:classId/with-members')
+  @Get('class/:classId')
   @ApiOperation({ summary: 'Get all teams in a class with their members' })
   @ApiResponse({ status: 200, description: 'Teams fetched successfully' })
   async getTeamsWithMembers(@Param('classId') classId: number, @UserId() userId: number) {

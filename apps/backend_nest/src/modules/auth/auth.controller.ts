@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, Res, UseGuards,Get } from '@nestjs/common';
+import { Body, Controller, Post, Req, Res, UseGuards, Get } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ApiBody, ApiOperation } from '@nestjs/swagger';
 import { RegisterUserDTO } from '../../../libs/dtos/user/register-user.dto';
@@ -51,27 +51,22 @@ export class AuthController {
   }
 
   @Post('logout')
+  @UseGuards(JwtAuthGuard)
   async logout(@Req() req, @Res({ passthrough: true }) res: Response) {
     const user = req.user;
     const refreshToken = req.cookies['refresh_token'];
-
     if (!refreshToken) {
       throw new Error('Refresh token missing');
     }
-
     await this.authService.logout(user.id, refreshToken);
-
     res.clearCookie('refresh_token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
     });
-
-    return {
-      status: 'success',
-      message: 'Logged out from current device',
-    };
+    return { status: 'success', message: 'Logged out from current device' };
   }
+
 
   @Post('verify-email')
   @ApiOperation({ summary: 'Verify user email with OTP' })
@@ -99,11 +94,11 @@ export class AuthController {
     };
   }
   // @Public()
-  
+
   @Get('google/login')
   // @UseGuards(GoogleAuthGuard)
   async googleLogin() {
-    
+
   }
 
   @Get('google/callback')
