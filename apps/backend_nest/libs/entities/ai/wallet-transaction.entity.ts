@@ -6,9 +6,9 @@ import {
     JoinColumn,
     CreateDateColumn,
 } from 'typeorm';
-import { BaseEntity } from './base.entity';
-import { UserTokenBalance } from './user-token-balance.entity';
+import { BaseEntity } from '../base.entity';
 import { Payment } from './payment.entity';
+import { UserTokenBalance } from './user-token-balance.entity';
 
 export enum TransactionType {
     PURCHASE = 'PURCHASE',   // Bought tokens

@@ -4,8 +4,8 @@ import {
   Column,
   OneToMany,
 } from 'typeorm';
-import { BaseEntity } from './base.entity';
-import { Currency } from '../enums/Payment';
+import { BaseEntity } from '../base.entity';
+import { Currency } from '../../enums/Payment';
 import { Payment } from './payment.entity';
 
 @Entity({ name: 'token_packages' })

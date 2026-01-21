@@ -5,8 +5,8 @@ import {
     ManyToOne,
     JoinColumn,
 } from 'typeorm';
-import { BaseEntity } from './base.entity';
-import { User } from './user.entity';
+import { BaseEntity } from '../base.entity';
+import { User } from '../user/user.entity';
 import { PlatformAIModel } from './platform-ai-model.entity';
 
 @Entity({ name: 'ai_usage_logs' })

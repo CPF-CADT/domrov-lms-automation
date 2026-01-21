@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
-import { BaseEntity } from './base.entity'; 
+import { BaseEntity } from '../base.entity'; 
 import { OAuthAccount } from './oauth-account.entity';
 
 @Entity({ name: 'oauth_providers' })

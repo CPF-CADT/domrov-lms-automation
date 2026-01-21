@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
-import { BaseEntity } from './base.entity';
-import { Assessment } from './assessment.entity';
+import { BaseEntity } from '../base.entity';
+import { Assessment } from '../assessment/assessment.entity';
 import { Resource } from './resource.entity';
 
 @Entity({ name: 'assignment_resources' })

@@ -11,7 +11,7 @@ import {
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { UpdateUserDTO } from '../../../libs/dtos/update.user.dto';
-import { User } from '../../../libs/entities/user.entity';
+import { User } from '../../../libs/entities/user/user.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @ApiTags('Users')

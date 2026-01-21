@@ -6,9 +6,9 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { User } from './user.entity';
+import { User } from '../user/user.entity';
 import { Class } from './class.entity';
-import { UserRole } from '../enums/Role';
+import { UserRole } from '../../enums/Role';
 
 @Entity({ name: 'enrollments' })
 export class Enrollment extends BaseEntity {

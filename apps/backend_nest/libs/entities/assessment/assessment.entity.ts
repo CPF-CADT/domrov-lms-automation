@@ -6,12 +6,12 @@ import {
   JoinColumn,
   OneToMany,
 } from 'typeorm';
-import { BaseEntity } from './base.entity';
-import { SubmissionType } from '../enums/Assessment';
-import { Class } from './class.entity';
-import { PlatformAIModel } from './platform-ai-model.entity';
+import { BaseEntity } from '../base.entity';
+import { SubmissionType } from '../../enums/Assessment';
+import { Class } from '../classroom/class.entity';
+import { PlatformAIModel } from '../ai/platform-ai-model.entity';
 import { Submission } from './submission.entity';
-import { AssessmentResource } from './assessment-resource.entity';
+import { AssessmentResource } from '../resource/assessment-resource.entity';
 
 
 @Entity({ name: 'assessments' })

@@ -7,14 +7,13 @@ import {
   JoinColumn,
   OneToMany,
 } from 'typeorm';
-import { User } from './user.entity';
+import { User } from '../user/user.entity';
 import { Enrollment } from './enrollment.entity';
 import { Team } from './team.entity';
-import { Module } from './module.entity';
-import { Quiz } from './quiz.entity';
-import { Assessment } from './assessment.entity';
-import { ClassResource } from './class-resource.entity';
-import { ClassStatus } from '../enums/Status'; 
+import { Assessment } from '../assessment/assessment.entity';
+import { ClassResource } from '../resource/class-resource.entity';
+import { ClassStatus } from '../../enums/Status'; 
+import { Module } from '../lesson/module.entity';
 
 @Entity({ name: 'classes' })
 export class Class extends BaseEntity {
@@ -54,8 +53,6 @@ export class Class extends BaseEntity {
   @OneToMany(() => Module, (module) => module.class)
   modules: Module[]; 
 
-  @OneToMany(() => Quiz, (quiz) => quiz.class)
-  quizzes: Quiz[]; 
 
   @OneToMany(() => Assessment, (assessment) => assessment.class)
   assessments: Assessment[]; 

@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
-import { BaseEntity } from './base.entity';
-import { ResourceType } from '../enums/Resource';
+import { BaseEntity } from '../base.entity';
+import { ResourceType } from '../../enums/Resource';
 import { ModuleResource } from './module-resource.entity';
 import { TopicResource } from './topic-resource.entity';
 import { ClassResource } from './class-resource.entity';

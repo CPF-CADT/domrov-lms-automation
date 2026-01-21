@@ -8,9 +8,9 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Class } from '../../../libs/entities/class.entity';
-import { Enrollment } from '../../../libs/entities/enrollment.entity';
-import { User } from '../../../libs/entities/user.entity';
+import { Class } from '../../../libs/entities/classroom/class.entity';
+import { Enrollment } from '../../../libs/entities/classroom/enrollment.entity';
+import { User } from '../../../libs/entities/user/user.entity';
 import { CreateClassDto } from '../../../libs/dtos/class/create-class.dto';
 import { generateJoinCode } from '../../../libs/utils/GenerateRandom';
 import { UserRole } from '../../../libs/enums/Role';
@@ -21,9 +21,9 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { MailerService } from '@nestjs-modules/mailer';
 import { UpdateClassDto } from '../../../libs/dtos/class/update-class.dto';
-import { Assessment } from '../../../libs/entities/assessment.entity';
-import { Submission } from '../../../libs/entities/submission.entity';
-import { Evaluation } from '../../../libs/entities/evaluation.entity';
+import { Assessment } from '../../../libs/entities/assessment/assessment.entity';
+import { Submission } from '../../../libs/entities/assessment/submission.entity';
+import { Evaluation } from '../../../libs/entities/assessment/evaluation.entity';
 @Injectable()
 export class ClassService {
 

@@ -6,19 +6,17 @@ import {
   BaseEntity,
   OneToOne,
 } from 'typeorm';
-import { UserStatus } from '../enums/Status';
-import { Class } from './class.entity';
-import { Enrollment } from './enrollment.entity';
-import { Team } from './team.entity';
-import { TeamMember } from './user-team.entity';
+import { UserStatus } from '../../enums/Status';
+import { Class } from '../classroom/class.entity';
+import { Enrollment } from '../classroom/enrollment.entity';
+import { Team } from '../classroom/team.entity';
+import { TeamMember } from '../classroom/user-team.entity';
 import { OAuthAccount } from './oauth-account.entity';
 import { TelegramChat } from './telegram-chat.entity';
-import { AIUsageLog } from './ai-usage-log.entity';
-import { UserTokenBalance } from './user-token-balance.entity';
-import { Payment } from './payment.entity';
-import { Submission } from './submission.entity';
-import { QuizResult } from './quiz-result.entity';
-import { UserProvidedAIModel } from './user-provided-ai-model.entity';
+import { AIUsageLog } from '../ai/ai-usage-log.entity';
+import { UserTokenBalance } from '../ai/user-token-balance.entity';
+import { Payment } from '../ai/payment.entity';
+import { Submission } from '../assessment/submission.entity';
 import { UserRefreshToken } from './user-refresh-token.entity';
 import { UserEmailOtp } from './user-email-otp.entity';
 
@@ -93,12 +91,6 @@ export class User extends BaseEntity {
 
   @OneToMany(() => Submission, (submission) => submission.user)
   submissions: Submission[];
-
-  @OneToMany(() => QuizResult, (result) => result.user)
-  quizResults: QuizResult[];
-
-  @OneToMany(() => UserProvidedAIModel, (model) => model.owner)
-  providedAIModels: UserProvidedAIModel[];
 
   @OneToMany(() => UserRefreshToken, (token) => token.user)
   refreshTokens: UserRefreshToken[];

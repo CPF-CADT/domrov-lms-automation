@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
-import { BaseEntity } from './base.entity';
-import { Module } from './module.entity';
+import { BaseEntity } from '../base.entity';
 import { Resource } from './resource.entity';
+import { Module } from '../lesson/module.entity';
 
 @Entity({ name: 'module_resources' })
 export class ModuleResource extends BaseEntity {

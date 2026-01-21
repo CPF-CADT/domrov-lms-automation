@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
-import { BaseEntity } from './base.entity';
-import { Submission } from './submission.entity';
+import { BaseEntity } from '../base.entity';
+import { Submission } from '../assessment/submission.entity';
 import { Resource } from './resource.entity';
 
 @Entity({ name: 'submission_resources' })

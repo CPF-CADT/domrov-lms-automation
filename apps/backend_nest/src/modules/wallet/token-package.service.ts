@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateTokenPackageDTO } from '../../../libs/dtos/wallet/create-package.dto';
-import { TokenPackage } from '../../../libs/entities/token-package.entity';
+import { TokenPackage } from '../../../libs/entities/ai/token-package.entity';
 
 @Injectable()
 export class TokenPackageService {

@@ -8,10 +8,9 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Team } from '../../../libs/entities/team.entity';
-import { Enrollment } from '../../../libs/entities/enrollment.entity';
-import { User } from '../../../libs/entities/user.entity';
-import { TeamMember } from '../../../libs/entities/user-team.entity';
+import { Team } from '../../../libs/entities/classroom/team.entity';
+import { Enrollment } from '../../../libs/entities/classroom/enrollment.entity';
+import { User } from '../../../libs/entities/user/user.entity';
 import { generateJoinCode } from '../../../libs/utils/GenerateRandom';
 import { CreateTeamDto } from '../../../libs/dtos/team/create-team.dto';
 import { UserRole } from '../../../libs/enums/Role';
@@ -19,6 +18,7 @@ import { CreateManyTeamsDto } from '../../../libs/dtos/team/create-many-teams.dt
 import { MailerService } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { TeamMember } from '../../../libs/entities/classroom/user-team.entity';
 
 @Injectable()
 export class TeamService {

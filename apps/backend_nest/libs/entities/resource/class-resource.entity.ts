@@ -1,16 +1,16 @@
 import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
-import { BaseEntity } from './base.entity';
-import { Topic } from './topic.entity';
+import { BaseEntity } from '../base.entity';
+import { Class } from '../classroom/class.entity';
 import { Resource } from './resource.entity';
 
-@Entity({ name: 'topic_resources' })
-export class TopicResource extends BaseEntity {
+@Entity({ name: 'class_resources' })
+export class ClassResource extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Topic, (topic) => topic.resources)
+  @ManyToOne(() => Class)
   @JoinColumn()
-  topic: Topic;
+  class: Class; 
 
   @ManyToOne(() => Resource)
   @JoinColumn()

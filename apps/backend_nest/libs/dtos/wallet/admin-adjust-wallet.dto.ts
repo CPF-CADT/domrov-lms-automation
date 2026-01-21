@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNumber, IsString, IsEnum, IsNotEmpty } from 'class-validator';
-import { TransactionType } from '../../entities/wallet-transaction.entity';
+import { TransactionType } from '../../entities/ai/wallet-transaction.entity';
 
 export class AdminAdjustWalletDTO {
     @ApiProperty()

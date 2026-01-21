@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
-import { BaseEntity } from './base.entity';
+import { BaseEntity } from '../base.entity';
 import { AIUsageLog } from './ai-usage-log.entity';
-import { Assessment } from './assessment.entity';
+import { Assessment } from '../assessment/assessment.entity';
 
 @Entity({ name: 'platform_ai_models' })
 export class PlatformAIModel extends BaseEntity {

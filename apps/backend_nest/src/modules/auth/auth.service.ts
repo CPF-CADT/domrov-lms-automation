@@ -1,13 +1,13 @@
 import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from '../../../libs/entities/user.entity';
+import { User } from '../../../libs/entities/user/user.entity';
 import { RegisterUserDTO } from '../../../libs/dtos/user/register-user.dto';
 import { Encryption } from '../../../libs/utils/Encryption';
 import { JwtService } from '@nestjs/jwt';
 import { LoginUserDTO } from '../../../libs/dtos/user/login.dto';
-import { UserRefreshToken } from '../../../libs/entities/user-refresh-token.entity';
-import { UserEmailOtp } from '../../../libs/entities/user-email-otp.entity';
+import { UserRefreshToken } from '../../../libs/entities/user/user-refresh-token.entity';
+import { UserEmailOtp } from '../../../libs/entities/user/user-email-otp.entity';
 import { MailerService } from '@nestjs-modules/mailer';
 import { UserStatus } from '../../../libs/enums/Status';
 import * as bcrypt from 'bcrypt';

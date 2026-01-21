@@ -5,8 +5,8 @@ import {
   OneToOne,
   JoinColumn,
 } from 'typeorm';
-import { BaseEntity } from './base.entity';
-import { EvaluationType } from '../enums/Assessment';
+import { BaseEntity } from '../base.entity';
+import { EvaluationType } from '../../enums/Assessment';
 import { Submission } from './submission.entity';
 
 

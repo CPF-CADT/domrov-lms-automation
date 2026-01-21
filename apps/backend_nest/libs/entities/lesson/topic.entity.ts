@@ -6,9 +6,9 @@ import {
   JoinColumn,
   OneToMany,
 } from 'typeorm';
-import { BaseEntity } from './base.entity';
+import { BaseEntity } from '../base.entity';
 import { Module } from './module.entity';
-import { TopicResource } from './topic-resource.entity';
+import { TopicResource } from '../resource/topic-resource.entity';
 
 @Entity({ name: 'topics' })
 export class Topic extends BaseEntity {

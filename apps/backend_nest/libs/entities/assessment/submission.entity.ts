@@ -7,13 +7,13 @@ import {
   OneToOne,
   OneToMany,
 } from 'typeorm';
-import { BaseEntity } from './base.entity';
-import { User } from './user.entity';
-import { Team } from './team.entity'; // Make sure this import exists
+import { BaseEntity } from '../base.entity';
+import { User } from '../user/user.entity';
+import { Team } from '../classroom/team.entity'; // Make sure this import exists
 import { Assessment } from './assessment.entity';
 import { Evaluation } from './evaluation.entity';
-import { SubmissionStatus } from '../enums/Status';
-import { SubmissionResource } from './submission-resource.entity';
+import { SubmissionStatus } from '../../enums/Status';
+import { SubmissionResource } from '../resource/submission-resource.entity';
 
 @Entity({ name: 'submissions' })
 export class Submission extends BaseEntity {

@@ -6,11 +6,12 @@ import {
   JoinColumn,
   CreateDateColumn,
 } from 'typeorm';
-import { BaseEntity } from './base.entity';
-import { User } from './user.entity';
+import { BaseEntity } from '../base.entity';
+import { User } from '../user/user.entity';
 import { TokenPackage } from './token-package.entity';
-import { Currency, PaymentMethod } from '../enums/Payment';
-import { PaymentStatus } from '../enums/Status';
+import { Currency, PaymentMethod } from '../../enums/Payment';
+import { PaymentStatus } from '../../enums/Status';
+
 
 @Entity({ name: 'payments' })
 export class Payment extends BaseEntity {

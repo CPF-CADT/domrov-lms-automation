@@ -8,7 +8,7 @@ import {
   Unique,
 } from 'typeorm';
 import { Team } from './team.entity';
-import { User } from './user.entity';
+import { User } from '../user/user.entity';
 
 @Entity({ name: 'team_members' })
 @Unique(['user', 'team'])

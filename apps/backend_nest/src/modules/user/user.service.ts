@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository } from 'typeorm';
-import { User } from '../../../libs/entities/user.entity';
+import { User } from '../../../libs/entities/user/user.entity';
 import * as bcrypt from 'bcrypt';
 import { UpdateUserDTO } from '../../../libs/dtos/update.user.dto';
 

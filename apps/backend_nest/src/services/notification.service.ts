@@ -2,8 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
-import { Assessment } from '../../libs/entities/assessment.entity';
-import { User } from '../../libs/entities/user.entity';
+import { Assessment } from '../../libs/entities/assessment/assessment.entity';
+import { User } from '../../libs/entities/user/user.entity';
 import { MailerService } from '@nestjs-modules/mailer';
 
 // Entities & Interfaces

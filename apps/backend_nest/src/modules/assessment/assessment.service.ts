@@ -3,16 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 
 // Entities
-import { Assessment } from '../../../libs/entities/assessment.entity';
-import { Submission } from '../../../libs/entities/submission.entity';
-import { SubmissionResource } from '../../../libs/entities/submission-resource.entity';
-import { Resource } from '../../../libs/entities/resource.entity';
-import { AssessmentResource } from '../../../libs/entities/assessment-resource.entity';
-import { Evaluation } from '../../../libs/entities/evaluation.entity';
-import { Class } from '../../../libs/entities/class.entity';
-import { User } from '../../../libs/entities/user.entity';
-import { Team } from '../../../libs/entities/team.entity';
-import { Enrollment } from '../../../libs/entities/enrollment.entity';
+import { Assessment } from '../../../libs/entities/assessment/assessment.entity';
+import { Submission } from '../../../libs/entities/assessment/submission.entity';
+import { Resource } from '../../../libs/entities/resource/resource.entity';
+import { AssessmentResource } from '../../../libs/entities/resource/assessment-resource.entity';
+import { Class } from '../../../libs/entities/classroom/class.entity';
+import { User } from '../../../libs/entities/user/user.entity';
+import { Team } from '../../../libs/entities/classroom/team.entity';
+import { Enrollment } from '../../../libs/entities/classroom/enrollment.entity';
 
 // Enums & DTOs
 import { SubmissionStatus } from '../../../libs/enums/Status';
@@ -21,6 +19,8 @@ import { CreateAssessmentDTO } from '../../../libs/dtos/assessment/create-assess
 import { GradeSubmissionDTO } from '../../../libs/dtos/submission/grade-submission.dto';
 import { FileService } from '../file/file.service';
 import { UpdateAssessmentDTO } from '../../../libs/dtos/assessment/update-assessment.dto';
+import { SubmissionResource } from '../../../libs/entities/resource/submission-resource.entity';
+import { Evaluation } from '../../../libs/entities/assessment/evaluation.entity';
 
 @Injectable()
 export class AssessmentService {
