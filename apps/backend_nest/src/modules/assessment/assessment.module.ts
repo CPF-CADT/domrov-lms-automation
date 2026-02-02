@@ -15,12 +15,13 @@ import { Team } from '../../../libs/entities/classroom/team.entity';
 import { Enrollment } from '../../../libs/entities/classroom/enrollment.entity';
 import { SubmissionResource } from '../../../libs/entities/resource/submission-resource.entity';
 import { Evaluation } from '../../../libs/entities/assessment/evaluation.entity';
+import { Rubrics } from 'libs/entities/assessment/rubic.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Assessment, Submission, SubmissionResource, AssessmentResource,
-      Resource, Evaluation, Class, User, Team, Enrollment
+      Resource, Evaluation, Class, User, Team, Enrollment,Rubrics
     ]),
   ],
   controllers: [AssessmentController],
