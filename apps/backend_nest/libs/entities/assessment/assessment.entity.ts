@@ -13,6 +13,7 @@ import { PlatformAIModel } from '../ai/platform-ai-model.entity';
 import { Submission } from './submission.entity';
 import { AssessmentResource } from '../resource/assessment-resource.entity';
 import { Rubrics } from './rubic.entity';
+import { EvaluationRubricScore } from './evaluation-rubric-score.entity';
 
 
 @Entity({ name: 'assessments' })
@@ -66,4 +67,8 @@ export class Assessment extends BaseEntity {
 
   @OneToMany(() => AssessmentResource, (ar) => ar.assessment)
   resources: AssessmentResource[];
+   @OneToMany(() => EvaluationRubricScore, (rs) => rs.evaluation, {
+    cascade: true,
+  })
+  rubricScores: EvaluationRubricScore[];
 }

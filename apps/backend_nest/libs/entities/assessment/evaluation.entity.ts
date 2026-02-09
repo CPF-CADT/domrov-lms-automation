@@ -4,42 +4,53 @@ import {
   Column,
   OneToOne,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { BaseEntity } from '../base.entity';
 import { EvaluationType } from '../../enums/Assessment';
 import { Submission } from './submission.entity';
-
+import { EvaluationFeedback } from './evaluation-feedback.entity';
+import { EvaluationRubricScore } from './evaluation-rubric-score.entity';
 
 @Entity({ name: 'evaluations' })
 export class Evaluation extends BaseEntity {
   @PrimaryGeneratedColumn()
-  id: number; 
+  id: number;
 
   @Column({ type: 'float' })
-  score: number; 
+  score: number;
 
   @Column({ type: 'text', nullable: true })
   feedback: string;
 
   @Column({ type: 'float', default: 0 })
-  penaltyScore: number; 
+  penaltyScore: number;
 
   @Column({ default: false })
-  isApproved: boolean; 
+  isApproved: boolean;
 
   @Column({ default: false })
-  isModified: boolean; 
+  isModified: boolean;
 
   @Column({ type: 'enum', enum: EvaluationType })
-  evaluationType: EvaluationType
+  evaluationType: EvaluationType;
 
   @Column({ type: 'text', nullable: true })
   aiOutput: string;
 
   @Column({ length: 100, nullable: true })
-  confidencePoint: string; 
+  confidencePoint: string;
 
   @OneToOne(() => Submission, (submission) => submission.evaluation)
   @JoinColumn()
-  submission: Submission; 
+  submission: Submission;
+
+  @OneToMany(() => EvaluationFeedback, (feedback) => feedback.evaluation, {
+    cascade: true,
+  })
+  feedbacks: EvaluationFeedback[];
+  @OneToMany(() => EvaluationRubricScore, (rs) => rs.evaluation, {
+    cascade: true,
+  })
+  rubricScores: EvaluationRubricScore[];
 }

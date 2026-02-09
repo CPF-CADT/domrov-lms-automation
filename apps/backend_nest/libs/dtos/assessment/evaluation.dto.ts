@@ -1,13 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  IsArray,
   IsBoolean,
   IsEnum,
   IsNumber,
   IsOptional,
   IsString,
+  ValidateNested,
 } from 'class-validator';
 
 import { EvaluationType } from '../../enums/Assessment';
+import { Type } from 'class-transformer';
+import { RubricScoreDto } from './rubric-score.dto';
 
 export class EvaluationDto {
   @ApiProperty({ example: 85 })
@@ -63,4 +67,10 @@ export class EvaluationDto {
   @ApiProperty({ example: 10 })
   @IsNumber()
   submissionId: number;
+  @ApiProperty({ type: [RubricScoreDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RubricScoreDto)
+  rubricScores?: RubricScoreDto[];
 }

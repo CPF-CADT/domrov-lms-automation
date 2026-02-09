@@ -11,7 +11,7 @@ import { GradeSubmissionDTO } from '../../../libs/dtos/submission/grade-submissi
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UserId } from '../../common/decorators/user.decorator';
 import { UpdateAssessmentDTO } from '../../../libs/dtos/assessment/update-assessment.dto';
-import { EvaluationDto } from 'libs/dtos/assessment/evaluation.dto';
+import { EvaluationDto } from '../../../libs/dtos/assessment/evaluation.dto';
 
 @ApiTags('Assessments')
 @ApiBearerAuth('JWT-auth')
