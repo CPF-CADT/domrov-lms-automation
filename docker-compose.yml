@@ -27,6 +27,7 @@ services:
     command: npm run start:dev
     volumes:
       - ./apps/backend_nest:/app
+      - ./apps/shared:/app/shared
       - /app/node_modules
     ports:
       - "3000:3000"
@@ -41,9 +42,10 @@ services:
       context: ./apps/code_eval
       dockerfile: Dockerfile.dev
     container_name: domrov_code_eval
-    command: python main.py
+    command: bash -c "export PYTHONPATH=/app && python main.py"
     volumes:
-      - ./apps/code_eval:/app
+      - ./apps/code_eval:/app 
+      - ./apps/shared:/app/shared
     env_file:
       - .env
     depends_on:
@@ -52,3 +54,4 @@ services:
 
 volumes:
   pgdata:
+  backend_node_modules:

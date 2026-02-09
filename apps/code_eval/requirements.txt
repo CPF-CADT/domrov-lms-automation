@@ -13,3 +13,6 @@ ollama
 ijson
 grpcio
 grpcio-tools
+python-dotenv
+openai
+google-genai

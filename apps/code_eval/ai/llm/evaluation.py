@@ -8,6 +8,7 @@ from utils.read_file import process_path
 from utils.token_handler import estimate_tokens
 
 def evaluate(
+    submission_id:str,
     resource_url: str,
     rubrics: list[dict],
     user_exclude_files: list[str] = None,
@@ -15,7 +16,7 @@ def evaluate(
     ai_model: AIModel = AIModel.GEMINI_2_5,
 ):
 
-    filePath = downloadFiles(resource_url)
+    filePath = downloadFiles(resource_url, submission_id)
 
     tree_str, content_str = process_path(
         filePath, user_exclude_files, user_include_files
@@ -31,10 +32,10 @@ def evaluate(
         evaluator = get_evaluator(ai_model)
         result = evaluator.evaluate(final_prompt)
         output_tokens = estimate_tokens(result, ai_model)
-        
+
     else:
         raise InputTokenLimited("Input tokens exceed maximum allowed limit")
-    
+
     return {
         "result": extract_scores_and_feedback_robust(result),
         "input_tokens": input_tokens,

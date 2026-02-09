@@ -13,6 +13,8 @@ import { HttpModule } from '@nestjs/axios';
 import { PaymentService } from './services/payment.service';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { EvaluationModule } from './modules/evaluation/evaluation.module';
+import { TasksModule } from './modules/tasks/tasks.module';
+import { RedisService } from './modules/tasks/redis.service';
 
 @Module({
   imports: [
@@ -29,10 +31,11 @@ import { EvaluationModule } from './modules/evaluation/evaluation.module';
     AssessmentModule,
     HttpModule,
     WalletModule,
-    EvaluationModule
+    EvaluationModule,
+    TasksModule,
   ],
   controllers: [AppController],
-  providers: [AppService,PaymentService],
+  providers: [AppService,PaymentService, RedisService],
   exports:[AppService]
 })
 export class AppModule {}

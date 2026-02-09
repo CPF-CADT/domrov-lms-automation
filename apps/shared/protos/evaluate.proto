@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package submission;
+package evaluation;
 
 message ScoreCriteria {
     repeated float value = 1;

@@ -1,0 +1,24 @@
+# Node modules (we mount them with a volume)
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Local environment files (we pass via docker-compose env_file)
+.env
+
+# Build output
+dist
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Docker files
+Dockerfile
+Dockerfile.dev
+docker-compose.override.yml

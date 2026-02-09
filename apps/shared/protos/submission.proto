@@ -6,7 +6,26 @@ package submission;
 service SubmissionService {
   // Processes a submission request and returns the submission response with file content.
   rpc ProcessSubmission(SubmissionRequest) returns (SubmissionResponse);
+  
+  // Get submission resource and rubric
+  rpc GetSubmission(SubmissionContentRequest) returns (SubmissionContentResponse);
+
 }
+message SubmissionContentRequest {
+  string submission_id = 1; // ID of the submission
+}
+
+message SubmissionContentResponse {
+  string submission_id = 1;    // Submission ID
+  string instrctions =2;
+  string resource_url = 3;    // URL of the repo / resource
+  repeated RubricCriterion rubric = 4; // List of rubric criteria
+}
+message RubricCriterion {
+  string criterion = 1; // Description of the requirement
+  int32 weight = 2;     // Weight for grading
+}
+
 
 message SubmissionRequest {
   string submission_id = 1;

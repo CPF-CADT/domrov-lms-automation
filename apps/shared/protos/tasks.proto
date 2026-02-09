@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package submission;
+
+// Request sent when a submission is pushed to the queue
+message TasksRequest {
+    string submission_id = 1;
+}
+
+// Response returned after enqueueing
+message TasksResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+// gRPC service definition
+service TasksQueue {
+    // requet add task to queue
+    rpc AddQueue(TasksRequest) returns (TasksResponse);
+}

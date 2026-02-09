@@ -17,10 +17,9 @@ def is_repo_accessible(repo_url: str, token: str = None) -> bool:
         return False
 
 
-def clone_repo(repo_url: str, destination: str = None) -> str:
-    random_name = os.urandom(8).hex()
+def clone_repo(repo_url: str, destination: str = None, name=os.urandom(8).hex()) -> str:
     os.makedirs(destination if destination else './files_cache', exist_ok=True)
-    clone_dir = os.path.join(destination if destination else './files_cache', random_name)
+    clone_dir = os.path.join(destination if destination else './files_cache', name)
     try:
         if not os.path.exists(clone_dir):
             os.makedirs(clone_dir)
@@ -29,6 +28,7 @@ def clone_repo(repo_url: str, destination: str = None) -> str:
     except GitCommandError as e:
         print(f"Error cloning repository: {e}")
         return None
+
 
 if __name__ == "__main__":
     repo = "https://github.com/lida-sokha/KonnYoeung.git"
