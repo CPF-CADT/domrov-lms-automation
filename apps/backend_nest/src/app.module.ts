@@ -51,5 +51,6 @@ import { Notification } from './libs/entities/user/notification.entity';
     ],
     controllers: [AppController],
     providers: [AppService, PaymentService, RedisService, PaymentFlowService, PaymentGateway, NotificationService],
+    exports: [NotificationService], 
 })
 export class AppModule {}

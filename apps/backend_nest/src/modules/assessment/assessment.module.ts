@@ -25,6 +25,10 @@ import { UserCreditBalance } from '../../libs/entities/ai/user-credit-balance.en
 import { WalletModule } from '../wallet/wallet.module';
 import { TeamAssessment } from '../../libs/entities/classroom/team-assessment.entity';
 import { TasksModule } from '../tasks/tasks.module';
+import { NotificationService } from '../../services/notification.service';
+import { Notification } from '../../libs/entities/user/notification.entity';
+import { AppModule } from '../../app.module';
+import { NotificationModule } from '../../services/notification.module';
 
 @Module({
   imports: [
@@ -45,13 +49,16 @@ import { TasksModule } from '../tasks/tasks.module';
       UserAIKey,
       UserCreditBalance,
       TeamAssessment,
+      Notification
+      
     ]),
+    NotificationModule, 
     WalletModule,
     forwardRef(() => TasksModule),
     forwardRef(() => EvaluationModule), // <-- import with forwardRef to resolve circular dependency
   ],
   controllers: [AssessmentController,SubmissionController],
-  providers: [AssessmentService,SubmissionService],
+  providers: [AssessmentService,SubmissionService,],
   exports: [AssessmentService, SubmissionService],
 })
 export class AssessmentModule { }

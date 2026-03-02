@@ -12,12 +12,16 @@ import { join } from 'path';
 import { WalletModule } from '../wallet/wallet.module';
 import { UserAiModule } from '../user-ai/user-ai.module';
 import { UserAIKey } from '../../libs/entities/ai/user-ai-key.entity';
+import { NotificationService } from '../../services/notification.service';
+import { Notification } from '../../libs/entities/user/notification.entity';
+import { NotificationModule } from '../../services/notification.module';
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Submission, Evaluation, EvaluationFeedback,UserAIKey]),
+    TypeOrmModule.forFeature([Submission, Evaluation, EvaluationFeedback,UserAIKey,Notification]),
     forwardRef(() => AssessmentModule),
     WalletModule,
     UserAiModule,
+    NotificationModule,
     ClientsModule.registerAsync([
       {
         name: 'CODE_EVAL_GRPC',
@@ -38,7 +42,7 @@ import { UserAIKey } from '../../libs/entities/ai/user-ai-key.entity';
     ]),
   ],
   controllers: [EvaluationController],
-  providers: [EvaluationService],
+  providers: [EvaluationService,],
   exports: [EvaluationService],
 })
 export class EvaluationModule { }
