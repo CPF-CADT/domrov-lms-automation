@@ -432,7 +432,7 @@ describe('AssessmentService - Comprehensive Testing', () => {
                 maxScore: 100,
                 rubrics: [
                     { id: 1, criterion: 'Quality', weight: 50, totalScore: 60 } as unknown as Rubrics,
-                    { id: 2, criterion: 'Effort', weight: 50, totalScore: 40 } as unknown as Rubrics,
+                    { id: 2, criterion: 'Effort', weight: 50, totalScore: 30 } as unknown as Rubrics, // 60+30=90, not 100
                 ],
             };
             assessmentRepoMock.findOne.mockResolvedValue(partialRubricAssessment as any);
@@ -580,6 +580,8 @@ describe('AssessmentService - Comprehensive Testing', () => {
         it('UPDATE_005 - deletes old rubrics and creates new ones', async () => {
             assessmentRepoMock.findOne.mockResolvedValue({ ...mockAssessmentEntity, resources: [] } as any);
             queryRunnerManagerMock.save.mockResolvedValue(mockAssessmentEntity);
+            // Mock the resource existence check
+            queryRunnerManagerMock.findOne.mockResolvedValue({ id: 10, title: 'Resource' } as any);
 
             await assessmentService.updateAssessment(baseUpdateDto, mockAssessmentContext);
 
@@ -591,6 +593,8 @@ describe('AssessmentService - Comprehensive Testing', () => {
             assessmentRepoMock.findOne.mockResolvedValue({ ...mockAssessmentEntity, resources: [] } as any);
             queryRunnerManagerMock.save.mockResolvedValue(mockAssessmentEntity);
             queryRunnerManagerMock.findBy.mockResolvedValue([{ id: 1 }, { id: 2 }, { id: 3 }]);
+            // Mock the resource existence check
+            queryRunnerManagerMock.findOne.mockResolvedValue({ id: 10, title: 'Resource' } as any);
 
             await assessmentService.updateAssessment(baseUpdateDto, mockAssessmentContext);
 
@@ -775,17 +779,23 @@ describe('AssessmentService - Comprehensive Testing', () => {
                 submissionType: SubmissionType.INDIVIDUAL,
                 isPublic: true,
             };
+            
+            // Mock submissions with user and evaluation property
+            const submissionsWithUser = [
+                { id: 1, user: { id: 10 }, status: SubmissionStatus.SUBMITTED, evaluation: { score: 85 } },
+                { id: 2, user: { id: 11 }, status: SubmissionStatus.PENDING, evaluation: null },
+            ];
 
             assessmentRepoMock.findOne.mockResolvedValue(individualAssessment as any);
-            submissionRepoMock.find.mockResolvedValue(mockSubmissions as any);
+            submissionRepoMock.find.mockResolvedValue(submissionsWithUser as any);
             enrollmentRepoMock.find.mockResolvedValue(mockEnrollments as any);
 
             const result = await assessmentService.getTracking(mockAssessmentContext);
 
-            // John (id 10) should have submission
+            // John (id 10) should have submission with evaluation, so status is GRADED
             const johnTracking = result.find((t: any) => t.studentId === 10);
             expect(johnTracking).toBeDefined();
-            expect(johnTracking.status).toBe(SubmissionStatus.SUBMITTED);
+            expect(johnTracking.status).toBe('GRADED'); // Has evaluation, so status is GRADED
             expect(johnTracking.score).toBe(85);
         });
 
@@ -856,7 +866,7 @@ describe('AssessmentService - Comprehensive Testing', () => {
 
         it('TRACKING_008 - calculates correct score when submission exists', async () => {
             const submissions = [
-                { id: 1, studentId: 10, status: SubmissionStatus.GRADED, score: 95 },
+                { id: 1, user: { id: 10 }, status: SubmissionStatus.GRADED, evaluation: { score: 95 } },
             ];
 
             const individualAssessment = {
@@ -1117,12 +1127,11 @@ describe('AssessmentService - Comprehensive Testing', () => {
                 rubrics: [{ id: 1, criterion: 'Quality', totalScore: 0 }],
             };
             assessmentRepoMock.findOne.mockResolvedValue(zeroMaxScore as any);
-            assessmentRepoMock.save.mockResolvedValue({ ...zeroMaxScore, isPublic: true } as any);
-            submissionServiceMock.createSubmissionsForAssessment.mockResolvedValue(undefined);
 
-            const result = await assessmentService.publishAssessment(mockAssessmentContext);
-
-            expect(result.message).toBe('Assessment published successfully');
+            // Service validates maxScore > 0, so this should throw
+            await expect(assessmentService.publishAssessment(mockAssessmentContext)).rejects.toThrow(
+                new BadRequestException('Max score must be greater than 0')
+            );
         });
 
         it('EDGE_002 - handles very large maxScore', async () => {

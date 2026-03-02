@@ -302,6 +302,9 @@ export class TeamService {
         if (!context?.teamEntity) {
             throw new NotFoundException('Team context not available');
         }
+        if (!context.isLeader) {
+            throw new ForbiddenException('Only the team leader can remove members');
+        }
         if (memberId === context.userId) {
             throw new BadRequestException('The leader cannot be removed');
         }

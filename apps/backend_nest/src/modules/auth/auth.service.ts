@@ -33,10 +33,42 @@ export class AuthService {
     ) { }
 
     async signUp(signUpUserDto: RegisterUserDTO): Promise<SignUpResponseDto> {
-        if (!signUpUserDto?.email || !signUpUserDto?.password) throw new BadRequestException('Email and password are required')
-        const existingUser = await this.userService.findByEmail(signUpUserDto.email)
-        if (existingUser) throw new ConflictException('Email already registered')
-        signUpUserDto.password = await Encryption.hashPassword(signUpUserDto.password)
+        if (!signUpUserDto) throw new BadRequestException('Registration data is required')
+        if (!signUpUserDto?.email || !signUpUserDto?.password)
+          throw new BadRequestException('Email and password are required');
+        const existingUser = await this.userService.findByEmail(
+          signUpUserDto.email,
+        );
+        if (existingUser)
+          throw new ConflictException('Email already registered');
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(signUpUserDto.email))
+          throw new BadRequestException('Invalid email format');
+        if (!signUpUserDto?.firstName)
+          throw new BadRequestException('First name is required');
+        if (!signUpUserDto?.lastName)
+          throw new BadRequestException('Last name is required');
+
+        // Password strength validation
+        if (signUpUserDto.password.length < 8)
+          throw new BadRequestException(
+            'Password must be at least 8 characters',
+          );
+        if (!/[A-Z]/.test(signUpUserDto.password))
+          throw new BadRequestException('Password must contain uppercase');
+        if (!/[0-9]/.test(signUpUserDto.password))
+          throw new BadRequestException('Password must contain number/digit');
+        if (
+          !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(signUpUserDto.password)
+        )
+          throw new BadRequestException(
+            'Password must contain special character',
+          );
+        
+
+        signUpUserDto.password = await Encryption.hashPassword(
+          signUpUserDto.password,
+        );
         const { confirmPassword, ...userData } = signUpUserDto
         const createdUser = await this.userService.create(userData)
         return {

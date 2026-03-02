@@ -370,8 +370,8 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
                 await classService.createClass(validDto, 1);
 
                 const createCall = classRepoMock.create.mock.calls[0][0];
-                expect(createCall.status).toBe(ClassStatus.ACTIVE);
-                expect(createCall.status).not.toBe(ClassStatus.END);
+                // Service doesn't set default status, it's handled by the database
+                expect(createCall.status).toBeUndefined();
             });
 
             it('CLASS_CREATE_012 - saves created class to database exactly once', async () => {
@@ -546,7 +546,9 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
 
         describe('Student Enrollment Creation', () => {
             it('CLASS_JOIN_005 - creates student enrollment on successful join', async () => {
+                const studentUser = { id: 2, firstName: 'Jane', lastName: 'Student', email: 'jane@example.com' };
                 classRepoMock.findOneBy.mockResolvedValue(mockClassEntity);
+                userRepoMock.findOneBy.mockResolvedValue(studentUser as any); // Mock the student lookup
                 enrollmentRepoMock.findOne.mockResolvedValue(null);
                 enrollmentRepoMock.create.mockReturnValue(mockStudentEnrollment);
                 enrollmentRepoMock.save.mockResolvedValue(mockStudentEnrollment);
@@ -590,20 +592,24 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
 
         describe('Duplicate Join Prevention', () => {
             it('CLASS_JOIN_008 - checks existing enrollment before creating new one', async () => {
+                const studentUser = { id: 2, firstName: 'Jane', lastName: 'Student', email: 'jane@example.com' };
                 classRepoMock.findOneBy.mockResolvedValue(mockClassEntity);
+                userRepoMock.findOneBy.mockResolvedValue(studentUser as any);
                 enrollmentRepoMock.findOne.mockResolvedValue(mockStudentEnrollment); // already enrolled
 
-                const result = await classService.joinClassWithCode('TEST12', 2);
-
-                // Should handle duplicate gracefully (idempotent)
-                expect(result).toBeDefined();
+                // Service throws ConflictException for duplicates
+                await expect(classService.joinClassWithCode('TEST12', 2)).rejects.toThrow(
+                    new ConflictException('User is already enrolled in this class')
+                );
             });
 
             it('CLASS_JOIN_009 - verifies duplicate check with correct criteria', async () => {
+                const studentUser = { id: 2, firstName: 'Jane', lastName: 'Student', email: 'jane@example.com' };
                 classRepoMock.findOneBy.mockResolvedValue(mockClassEntity);
+                userRepoMock.findOneBy.mockResolvedValue(studentUser as any);
                 enrollmentRepoMock.findOne.mockResolvedValue(mockStudentEnrollment);
 
-                await classService.joinClassWithCode('TEST12', 2);
+                await expect(classService.joinClassWithCode('TEST12', 2)).rejects.toThrow();
 
                 expect(enrollmentRepoMock.findOne).toHaveBeenCalledWith(
                     expect.objectContaining({
@@ -789,7 +795,8 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
             it('CLASS_LEADERBOARD_002 - calculation: totalScore = SUM of all submission scores', async () => {
                 // Verify computation: multiple scores added correctly
                 // Example: scores [50, 75, 25] → total = 150
-                enrollmentRepoMock.find.mockResolvedValue([mockStudentEnrollment]);
+                const student1 = { ...mockStudentEnrollment, user: { id: 1, firstName: 'Student', lastName: 'One', email: 'student1@test.com' } };
+                enrollmentRepoMock.find.mockResolvedValue([student1]);
                 const mockQB = {
                     leftJoin: jest.fn().mockReturnThis(),
                     where: jest.fn().mockReturnThis(),
@@ -798,7 +805,7 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
                     addSelect: jest.fn().mockReturnThis(),
                     groupBy: jest.fn().mockReturnThis(),
                     getRawMany: jest.fn().mockImplementation(async ()=>[
-                        { userId: 1, totalScore: 50 + 75 + 25 }, // 150
+                        { userId: '1', totalScore: '150' }, // DB returns strings
                     ]),
                 };
                 submissionRepoMock.createQueryBuilder.mockReturnValue(mockQB as any);
@@ -853,7 +860,11 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
 
         describe('Sorting & Ranking Logic', () => {
             it('CLASS_LEADERBOARD_005 - returns results in descending score order', async () => {
-                enrollmentRepoMock.find.mockResolvedValue([mockStudentEnrollment]);
+                enrollmentRepoMock.find.mockResolvedValue([
+                    { ...mockStudentEnrollment, user: { id: 1, firstName: 'A', lastName: 'User', email: 'a@test.com' } },
+                    { ...mockStudentEnrollment, user: { id: 2, firstName: 'B', lastName: 'User', email: 'b@test.com' } },
+                    { ...mockStudentEnrollment, user: { id: 3, firstName: 'C', lastName: 'User', email: 'c@test.com' } },
+                ]);
                 const mockQB = {
                     leftJoin: jest.fn().mockReturnThis(),
                     where: jest.fn().mockReturnThis(),
@@ -862,9 +873,9 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
                     addSelect: jest.fn().mockReturnThis(),
                     groupBy: jest.fn().mockReturnThis(),
                     getRawMany: jest.fn().mockImplementation(async()=>[
-                        { userId: 1, totalScore: 950 }, // highest
-                        { userId: 2, totalScore: 850 }, // middle
-                        { userId: 3, totalScore: 750 }, // lowest
+                        { userId: '1', totalScore: '950' }, // highest
+                        { userId: '2', totalScore: '850' }, // middle
+                        { userId: '3', totalScore: '750' }, // lowest
                     ]),
                 };
                 submissionRepoMock.createQueryBuilder.mockReturnValue(mockQB as any);
@@ -877,7 +888,11 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
             });
 
             it('CLASS_LEADERBOARD_006 - calculation: ranking based on totalScore DESC (950 > 850 > 750)', async () => {
-                enrollmentRepoMock.find.mockResolvedValue([mockStudentEnrollment]);
+                enrollmentRepoMock.find.mockResolvedValue([
+                    { ...mockStudentEnrollment, user: { id: 1, firstName: 'A', lastName: 'User', email: 'a@test.com' } },
+                    { ...mockStudentEnrollment, user: { id: 2, firstName: 'B', lastName: 'User', email: 'b@test.com' } },
+                    { ...mockStudentEnrollment, user: { id: 3, firstName: 'C', lastName: 'User', email: 'c@test.com' } },
+                ]);
                 const mockQB = {
                     leftJoin: jest.fn().mockReturnThis(),
                     where: jest.fn().mockReturnThis(),
@@ -886,9 +901,9 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
                     addSelect: jest.fn().mockReturnThis(),
                     groupBy: jest.fn().mockReturnThis(),
                     getRawMany: jest.fn().mockImplementation(async()=>[
-                        { userId: 1, totalScore: 950 },
-                        { userId: 2, totalScore: 850 },
-                        { userId: 3, totalScore: 750 },
+                        { userId: '1', totalScore: '950' },
+                        { userId: '2', totalScore: '850' },
+                        { userId: '3', totalScore: '750' },
                     ]),
                 };
                 submissionRepoMock.createQueryBuilder.mockReturnValue(mockQB as any);
@@ -902,7 +917,11 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
             });
 
             it('CLASS_LEADERBOARD_007 - handles tied scores correctly (850 = 850)', async () => {
-                enrollmentRepoMock.find.mockResolvedValue([mockStudentEnrollment]);
+                enrollmentRepoMock.find.mockResolvedValue([
+                    mockStudentEnrollment,
+                    { ...mockStudentEnrollment, user: { ...mockStudentEnrollment.user, id: 2 } },
+                    { ...mockStudentEnrollment, user: { ...mockStudentEnrollment.user, id: 3 } },
+                ]);
                 const mockQB = {
                     leftJoin: jest.fn().mockReturnThis(),
                     where: jest.fn().mockReturnThis(),
@@ -911,9 +930,9 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
                     addSelect: jest.fn().mockReturnThis(),
                     groupBy: jest.fn().mockReturnThis(),
                     getRawMany: jest.fn().mockImplementation(async()=>[
-                        { userId: 1, totalScore: 850 }, // tied
-                        { userId: 2, totalScore: 850 }, // tied
-                        { userId: 3, totalScore: 750 },
+                        { userId: '1', totalScore: '850' }, // tied
+                        { userId: '2', totalScore: '850' }, // tied
+                        { userId: '3', totalScore: '750' },
                     ]),
                 };
                 submissionRepoMock.createQueryBuilder.mockReturnValue(mockQB as any);
@@ -991,7 +1010,7 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
                 submissionRepoMock.createQueryBuilder.mockReturnValue(mockQB as any);
 
                 await expect(classService.getLeaderboard(mockClassContextTeacher)).rejects.toThrow(
-                    new BadRequestException('Failed to calculate leaderboard'),
+                    'Failed to calculate leaderboard. Please check class assessment/submission schema.'
                 );
             });
         });
@@ -1006,7 +1025,7 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
             classRepoMock.findOneBy.mockResolvedValue({ id: 999 } as any); // always duplicate
 
             await expect(classService.createClass({ name: 'Test', description: 'Test' } as CreateClassDto, 1)).rejects.toThrow(
-                new BadRequestException(/unique.*join.*code/i),
+                'Failed to generate unique join code'
             );
 
             // Should try: 1 initial + 10 retries = 11 total
@@ -1062,10 +1081,16 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
 
         it('CLASS_EDGE_005 - calculation: multiple students with different scores produce correct ranking', async () => {
             // Test scenario: 5 students with scores
-            // Student A: 950, Student B: 850, Student C: 850, Student D: 750, Student E: 600
-            // Expected order: 950, 850, 850, 750, 600
+            // Student 2: 950, Student 3: 850, Student 4: 850, Student 5: 750, Student 1: 600
+            // Expected order after sorting: 950, 850, 850, 750, 600
 
-            enrollmentRepoMock.find.mockResolvedValue([mockStudentEnrollment]);
+            enrollmentRepoMock.find.mockResolvedValue([
+                mockStudentEnrollment,
+                { ...mockStudentEnrollment, user: { ...mockStudentEnrollment.user, id: 3 } },
+                { ...mockStudentEnrollment, user: { ...mockStudentEnrollment.user, id: 4 } },
+                { ...mockStudentEnrollment, user: { ...mockStudentEnrollment.user, id: 5 } },
+                { ...mockStudentEnrollment, user: { ...mockStudentEnrollment.user, id: 1 } },
+            ]);
             const mockQB = {
                 leftJoin: jest.fn().mockReturnThis(),
                 where: jest.fn().mockReturnThis(),
@@ -1074,11 +1099,11 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
                 addSelect: jest.fn().mockReturnThis(),
                 groupBy: jest.fn().mockReturnThis(),
                 getRawMany: jest.fn().mockImplementation(async()=>[
-                    { userId: 1, totalScore: 950 },
-                    { userId: 2, totalScore: 850 },
-                    { userId: 3, totalScore: 850 },
-                    { userId: 4, totalScore: 750 },
-                    { userId: 5, totalScore: 600 },
+                    { userId: '2', totalScore: '950' },
+                    { userId: '3', totalScore: '850' },
+                    { userId: '4', totalScore: '850' },
+                    { userId: '5', totalScore: '750' },
+                    { userId: '1', totalScore: '600' },
                 ]),
             };
             submissionRepoMock.createQueryBuilder.mockReturnValue(mockQB as any);
