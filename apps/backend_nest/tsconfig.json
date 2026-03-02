@@ -21,7 +21,8 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
     "strictNullChecks": false,
-    "forceConsistentCasingInFileNames": false
+    "forceConsistentCasingInFileNames": false,
+     "types": ["jest"]
   },
   "include": ["./**/*"],
   "watchOptions": {
@@ -30,6 +31,6 @@
     "excludeDirectories": [
       "node_modules",
       ".git"
-    ]
+    ],
   }
 }

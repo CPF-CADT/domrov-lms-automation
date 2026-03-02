@@ -40,4 +40,3 @@ export class Encryption {
         return decrypted.toString('utf8');
     }
 }
-1
