@@ -429,7 +429,7 @@ describe('TeamService - Detailed Logic and Computation Tests', () => {
             teamMemberRepoMock.count.mockResolvedValue(2); // Already at max
 
             await expect(teamService.joinTeamWithCode('T1E2A3', 10)).rejects.toThrow(
-                'Team is at full capacity'
+                'This team is already full'
             );
         });
 
@@ -440,7 +440,7 @@ describe('TeamService - Detailed Logic and Computation Tests', () => {
             teamMemberRepoMock.findOne.mockResolvedValue(mockTeamMember1); // Already a member
 
             await expect(teamService.joinTeamWithCode('T1E2A3', 10)).rejects.toThrow(
-                'You are already a member of this team'
+                'You are already in this team'
             );
         });
 
@@ -1067,7 +1067,7 @@ describe('TeamService - Detailed Logic and Computation Tests', () => {
 
             await expect(
                 teamService.inviteByEmail('alice@example.com', mockTeamContextLeader)
-            ).rejects.toThrow('User is already a member of this team');
+            ).rejects.toThrow('User is already in this team');
 
             expect(mailerMock.sendMail).not.toHaveBeenCalled();
         });
@@ -1079,7 +1079,7 @@ describe('TeamService - Detailed Logic and Computation Tests', () => {
 
             await expect(
                 teamService.inviteByEmail('alice@example.com', mockTeamContextLeader)
-            ).rejects.toThrow('User is not enrolled in this class');
+            ).rejects.toThrow('You must be enrolled in this class to join a team');
         });
 
         it('TEAM_INVITEBYEMAIL_MAILCONTENT_005 - sends email with correct invite link', async () => {
@@ -1172,7 +1172,7 @@ describe('TeamService - Detailed Logic and Computation Tests', () => {
             teamMemberRepoMock.count.mockResolvedValue(5); // At max
 
             await expect(teamService.joinTeamWithLink('token', 10)).rejects.toThrow(
-                'Team is at full capacity'
+                'This team is already full'
             );
         });
 

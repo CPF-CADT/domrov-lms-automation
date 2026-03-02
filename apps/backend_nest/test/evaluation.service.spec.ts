@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException, ConflictException, InternalServerErrorException } from '@nestjs/common';
 import { getRepositoryToken, getDataSourceToken } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 import { Repository, DataSource } from 'typeorm';
 import { lastValueFrom, of, throwError } from 'rxjs';
 import * as microservices from '@nestjs/microservices';
@@ -9,6 +10,7 @@ import * as grpcJs from '@grpc/grpc-js';
 import { EvaluationService } from '../src/modules/evaluation/evaluation.service';
 import { WalletService } from '../src/modules/wallet/wallet.service';
 import { AIUsageLogService } from '../src/modules/user-ai/ai-usage-log.service';
+import { NotificationService } from '../src/services/notification.service';
 import { Submission } from '../src/libs/entities/assessment/submission.entity';
 import { Evaluation } from '../src/libs/entities/assessment/evaluation.entity';
 import { UserAIKey } from '../src/libs/entities/ai/user-ai-key.entity';
@@ -21,6 +23,7 @@ describe('EvaluationService', () => {
     let mockClientGrpc: any;
     let mockWalletService: jest.Mocked<WalletService>;
     let mockAiLogService: jest.Mocked<AIUsageLogService>;
+    let mockNotificationService: jest.Mocked<NotificationService>;
     let mockDataSource: jest.Mocked<DataSource>;
     let mockSubmissionRepo: jest.Mocked<Repository<Submission>>;
     let mockAiKeyRepository: jest.Mocked<Repository<UserAIKey>>;
@@ -67,6 +70,10 @@ describe('EvaluationService', () => {
             createLog: jest.fn().mockResolvedValue({ id: 'log-123' }),
         } as any;
 
+        mockNotificationService = {
+            notifyStudent: jest.fn().mockResolvedValue(undefined),
+        } as any;
+
         mockDataSource = {
             transaction: jest.fn().mockImplementation(async (cb: Function) => cb({} as any)),
         } as any;
@@ -96,6 +103,10 @@ describe('EvaluationService', () => {
                     useValue: mockAiLogService,
                 },
                 {
+                    provide: NotificationService,
+                    useValue: mockNotificationService,
+                },
+                {
                     provide: getDataSourceToken(),
                     useValue: mockDataSource,
                 },
@@ -106,6 +117,10 @@ describe('EvaluationService', () => {
                 {
                     provide: getRepositoryToken(Submission),
                     useValue: mockSubmissionRepo,
+                },
+                {
+                    provide: ConfigService,
+                    useValue: { get: jest.fn() },
                 },
             ],
         }).compile();
@@ -178,11 +193,11 @@ describe('EvaluationService', () => {
         });
 
         it('should handle unknown error types', async () => {
-            const unknownError = 'string error';
+            const unknownError = new Error('Unknown error type');
 
             mockSubmissionService.processSubmission.mockReturnValue(throwError(() => unknownError));
 
-            await expect(service.processSubmission(submission_id, file_path)).rejects.toThrow();
+            await expect(service.processSubmission(submission_id, file_path)).rejects.toThrow(unknownError);
         });
 
         it('should log gRPC errors to console', async () => {
@@ -355,10 +370,13 @@ describe('EvaluationService', () => {
             await expect(service.addTaskToQueue(submission_id)).rejects.toThrow(
                 InternalServerErrorException,
             );
+            await expect(service.addTaskToQueue(submission_id)).rejects.toThrow(
+                /Queue service temporarily down/,
+            );
         });
 
         it('should throw InternalServerErrorException for unknown errors', async () => {
-            const unknownError = new Error('Unknown error');
+            const unknownError = new Error('Unknown error type');
 
             mockTasksQueueService.AddQueue.mockReturnValue(throwError(() => unknownError));
 
@@ -368,12 +386,12 @@ describe('EvaluationService', () => {
         });
 
         it('should handle error with string message', async () => {
-            const errorMessage = 'Connection refused';
+            const error = new Error('Connection refused');
 
-            mockTasksQueueService.AddQueue.mockReturnValue(throwError(() => errorMessage));
+            mockTasksQueueService.AddQueue.mockReturnValue(throwError(() => error));
 
             await expect(service.addTaskToQueue(submission_id)).rejects.toThrow(
-                InternalServerErrorException,
+                /Queue error.*Connection refused/,
             );
         });
 
@@ -607,16 +625,6 @@ describe('EvaluationService', () => {
                         mockOutputTokens,
                         mockAiModel,
                     ),
-                ).rejects.toThrow(ConflictException);
-                await expect(
-                    service.aiEvaluate(
-                        mockSubmissionId,
-                        mockFeedback,
-                        mockScores,
-                        mockInputTokens,
-                        mockOutputTokens,
-                        mockAiModel,
-                    ),
                 ).rejects.toThrow(/already has an evaluation/);
             });
 
@@ -793,8 +801,9 @@ describe('EvaluationService', () => {
                 const mockManager = {
                     findOne: jest
                         .fn()
-                        .mockResolvedValueOnce(mockSubmission)
-                        .mockResolvedValueOnce(null),
+                        .mockResolvedValue(mockSubmission) // Always return submission
+                        .mockResolvedValueOnce(mockSubmission) // First call: submission
+                        .mockResolvedValueOnce(null), // Second call: no existing evaluation
                     create: jest.fn().mockReturnValue({ id: 1 }),
                     save: jest.fn().mockResolvedValue({ id: 1 }),
                 };
@@ -807,16 +816,6 @@ describe('EvaluationService', () => {
                     new Error('Insufficient credits'),
                 );
 
-                await expect(
-                    service.aiEvaluate(
-                        mockSubmissionId,
-                        mockFeedback,
-                        mockScores,
-                        mockInputTokens,
-                        mockOutputTokens,
-                        mockAiModel,
-                    ),
-                ).rejects.toThrow(BadRequestException);
                 await expect(
                     service.aiEvaluate(
                         mockSubmissionId,

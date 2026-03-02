@@ -64,7 +64,6 @@ interface TasksQueueService {
 export class EvaluationService implements OnModuleInit {
   private submissionService: SubmissionService;
   private tasksQueueService: TasksQueueService;
-  private notificationService: NotificationService;
   
   private readonly logger = new Logger(EvaluationService.name);
 
@@ -73,6 +72,7 @@ export class EvaluationService implements OnModuleInit {
     private readonly client: microservices.ClientGrpc,
     private walletService: WalletService,
     private readonly aiLogService: AIUsageLogService,
+    private notificationService: NotificationService,
     @InjectDataSource()
     private readonly dataSource: DataSource,
     @InjectRepository(UserAIKey)
@@ -150,28 +150,77 @@ export class EvaluationService implements OnModuleInit {
     }
   }
 
+  // async addTaskToQueue(submission_id: string): Promise<AddQueueResponseDto> {
+  //   try {
+  //     const res = await lastValueFrom<TasksResponse>(
+  //       this.tasksQueueService.AddQueue({ submission_id }).pipe(
+  //         catchError((err) => {
+  //           // throw new BadRequestException(err.details || 'Queue service error');
+  //             throw err; 
+  //         }),
+  //       ),
+  //     );
+  //     if (!res.success) {
+  //       throw new BadRequestException(res.message);
+  //     }
+  //     return res;
+  //   } catch (err) {
+  //     if (err instanceof BadRequestException) throw err;
+  //     const errorMsg =
+  //       err && typeof err === 'object' && 'message' in err
+  //         ? (err as any).message
+  //         : String(err);
+
+  // //     let errorMsg: string;
+  // // if (err && typeof err === 'object') {
+  // //   if ('message' in err && typeof (err as any).message === 'string') {
+  // //     errorMsg = (err as any).message;
+  // //   } else if ('details' in err && typeof (err as any).details === 'string') {
+  // //     errorMsg = (err as any).details;  // ← Added this
+  // //   } else {
+  // //     errorMsg = String(err);
+  // //   }
+  // // } else {
+  // //   errorMsg = String(err);
+  // // }
+  //     throw new InternalServerErrorException('Queue error: ' + errorMsg);
+  //   }
+  // }
   async addTaskToQueue(submission_id: string): Promise<AddQueueResponseDto> {
-    try {
-      const res = await lastValueFrom<TasksResponse>(
-        this.tasksQueueService.AddQueue({ submission_id }).pipe(
-          catchError((err) => {
-            throw new BadRequestException(err.details || 'Queue service error');
-          }),
-        ),
-      );
-      if (!res.success) {
-        throw new BadRequestException(res.message);
-      }
-      return res;
-    } catch (err) {
-      if (err instanceof BadRequestException) throw err;
-      const errorMsg =
-        err && typeof err === 'object' && 'message' in err
-          ? (err as any).message
-          : String(err);
-      throw new InternalServerErrorException('Queue error: ' + errorMsg);
+  try {
+    const res = await lastValueFrom<TasksResponse>(
+      this.tasksQueueService.AddQueue({ submission_id }).pipe(
+        catchError((err) => {
+          throw err;
+        }),
+      ),
+    );
+
+    if (!res.success) {
+      throw new BadRequestException(res.message);
     }
+    return res;
+  } catch (err) {
+    if (err instanceof BadRequestException) {
+      throw err;
+    }
+    let errorMsg: string;
+
+    if (err && typeof err === 'object') {
+      if ('details' in err && typeof (err as any).details === 'string') {
+        errorMsg = (err as any).details;
+      } else if ('message' in err && typeof (err as any).message === 'string') {
+        errorMsg = (err as any).message;
+      } else {
+        errorMsg = String(err);
+      }
+    } else {
+      errorMsg = String(err);
+    }
+
+    throw new InternalServerErrorException('Queue error: ' + errorMsg);
   }
+}
 
   async aiEvaluate(
     submission_id: number,
@@ -185,7 +234,7 @@ export class EvaluationService implements OnModuleInit {
     if (
       !Array.isArray(scores) ||
       scores.length === 0 ||
-      scores.some((s) => typeof s !== 'number' || s < 0)
+      scores.some((s) => typeof s !== 'number' || isNaN(s) || s < 0)
     ) {
       throw new BadRequestException(
         `[Submission: ${submission_id}] [Model: ${ai_model}] Invalid scores array`,
