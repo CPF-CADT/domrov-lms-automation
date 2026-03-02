@@ -56,8 +56,21 @@ export class TeamController {
   })
   @ApiBody({ type: CreateTeamDto })
   @ApiCreatedResponse({
-    description: 'Team created successfully',
-    type: TeamResponseDto,
+    schema: {
+      example: {
+        success: true,
+        data: {
+          id: 1,
+          name: 'Team A',
+          classId: 1,
+          leaderId: 5,
+          leaderName: 'John Doe',
+          joinCode: 'ABC123',
+          members: [],
+          createdAt: '2026-03-01T10:00:00Z',
+        },
+      },
+    },
   })
   @ApiForbiddenResponse({ description: 'User is not enrolled in this class' })
   @ApiNotFoundResponse({ description: 'User or class not found' })
@@ -65,8 +78,9 @@ export class TeamController {
   async createTeam(
     @Body() createTeamDto: CreateTeamDto,
     @UserId() userId: number,
-  ): Promise<TeamResponseDto> {
-    return this.teamService.createTeam(createTeamDto, userId);
+  ): Promise<{ success: true; data: TeamResponseDto }> {
+    const data = await this.teamService.createTeam(createTeamDto, userId);
+    return { success: true, data };
   }
 
   @UseGuards(ClassOwnerGuard)
@@ -77,8 +91,25 @@ export class TeamController {
   })
   @ApiBody({ type: CreateManyTeamsDto })
   @ApiCreatedResponse({
-    description: 'Teams created successfully',
-    type: CreateManyTeamsResponseDto,
+    schema: {
+      example: {
+        success: true,
+        data: {
+          teams: [
+            {
+              id: 1,
+              name: 'Team A',
+              classId: 1,
+              leaderId: 5,
+              leaderName: 'John Doe',
+              joinCode: 'ABC123',
+              members: [],
+              createdAt: '2026-03-01T10:00:00Z',
+            },
+          ],
+        },
+      },
+    },
   })
   @ApiForbiddenResponse({ description: 'User is not a teacher of this class' })
   @ApiBadRequestResponse({ description: 'leaderId is required when memberIds are provided' })
@@ -87,8 +118,9 @@ export class TeamController {
   async createManyTeams(
     @Body() createManyTeamsDto: CreateManyTeamsDto,
     @UserId() teacherId: number,
-  ): Promise<CreateManyTeamsResponseDto> {
-    return this.teamService.createManyTeams(createManyTeamsDto, teacherId);
+  ): Promise<{ success: true; data: CreateManyTeamsResponseDto }> {
+    const data = await this.teamService.createManyTeams(createManyTeamsDto, teacherId);
+    return { success: true, data };
   }
 
   // ==================== JOIN TEAM ====================
@@ -101,8 +133,17 @@ export class TeamController {
   })
   @ApiBody({ type: JoinTeamDto })
   @ApiOkResponse({
-    description: 'Successfully joined the team',
-    type: JoinTeamResponseDto,
+    schema: {
+      example: {
+        success: true,
+        data: {
+          teamId: 1,
+          teamName: 'Team A',
+          classId: 1,
+          joinedAt: '2026-03-01T10:00:00Z',
+        },
+      },
+    },
   })
   @ApiNotFoundResponse({ description: 'Team not found with this code' })
   @ApiConflictResponse({ description: 'User is already in this team or team is full' })
@@ -111,8 +152,9 @@ export class TeamController {
   async joinTeamWithCode(
     @Body() joinTeamDto: JoinTeamDto,
     @UserId() userId: number,
-  ): Promise<JoinTeamResponseDto> {
-    return this.teamService.joinTeamWithCode(joinTeamDto.joinCode, userId);
+  ): Promise<{ success: true; data: JoinTeamResponseDto }> {
+    const data = await this.teamService.joinTeamWithCode(joinTeamDto.joinCode, userId);
+    return { success: true, data };
   }
 
   @Post('join/token')
@@ -123,8 +165,17 @@ export class TeamController {
   })
   @ApiBody({ type: JoinTeamByTokenDto })
   @ApiOkResponse({
-    description: 'Successfully joined the team',
-    type: JoinTeamResponseDto,
+    schema: {
+      example: {
+        success: true,
+        data: {
+          teamId: 1,
+          teamName: 'Team A',
+          classId: 1,
+          joinedAt: '2026-03-01T10:00:00Z',
+        },
+      },
+    },
   })
   @ApiBadRequestResponse({ description: 'Invalid or expired invite link' })
   @ApiConflictResponse({ description: 'User is already in this team' })
@@ -133,8 +184,9 @@ export class TeamController {
   async joinTeamByToken(
     @Body() dto: JoinTeamByTokenDto,
     @UserId() userId: number,
-  ): Promise<JoinTeamResponseDto> {
-    return this.teamService.joinTeamWithLink(dto.token, userId);
+  ): Promise<{ success: true; data: JoinTeamResponseDto }> {
+    const data = await this.teamService.joinTeamWithLink(dto.token, userId);
+    return { success: true, data };
   }
 
   // ==================== GET TEAMS ====================
@@ -147,8 +199,23 @@ export class TeamController {
   })
   @ApiParam({ name: 'classId', type: Number, example: 1, description: 'The ID of the class' })
   @ApiOkResponse({
-    description: 'Teams retrieved successfully',
-    type: [TeamResponseDto],
+    schema: {
+      example: {
+        success: true,
+        data: [
+          {
+            id: 1,
+            name: 'Team A',
+            classId: 1,
+            leaderId: 5,
+            leaderName: 'John Doe',
+            joinCode: 'ABC123',
+            members: [],
+            createdAt: '2026-03-01T10:00:00Z',
+          },
+        ],
+      },
+    },
   })
   @ApiForbiddenResponse({ description: 'User is not a member of this class' })
   @ApiNotFoundResponse({ description: 'Class not found' })
@@ -156,8 +223,9 @@ export class TeamController {
   async getTeamsWithMembers(
     @Param('classId', ParseIntPipe) classId: number,
     @GetClassContext() context: ClassContext,
-  ): Promise<TeamResponseDto[]> {
-    return this.teamService.getTeamsWithMembersInClass(context);
+  ): Promise<{ success: true; data: TeamResponseDto[] }> {
+    const data = await this.teamService.getTeamsWithMembersInClass(context);
+    return { success: true, data };
   }
 
   @UseGuards(TeamMemberGuard)
@@ -168,8 +236,21 @@ export class TeamController {
   })
   @ApiParam({ name: 'teamId', type: Number, example: 1, description: 'The ID of the team' })
   @ApiOkResponse({
-    description: 'Team details retrieved successfully',
-    type: TeamResponseDto,
+    schema: {
+      example: {
+        success: true,
+        data: {
+          id: 1,
+          name: 'Team A',
+          classId: 1,
+          leaderId: 5,
+          leaderName: 'John Doe',
+          joinCode: 'ABC123',
+          members: [],
+          createdAt: '2026-03-01T10:00:00Z',
+        },
+      },
+    },
   })
   @ApiForbiddenResponse({ description: 'User is not enrolled in the class' })
   @ApiNotFoundResponse({ description: 'Team not found' })
@@ -177,8 +258,9 @@ export class TeamController {
   async getTeamDetails(
     @Param('teamId', ParseIntPipe) teamId: number,
     @GetTeamContext() context: TeamContext,
-  ): Promise<TeamResponseDto> {
-    return this.teamService.getTeamDetails(context);
+  ): Promise<{ success: true; data: TeamResponseDto }> {
+    const data = await this.teamService.getTeamDetails(context);
+    return { success: true, data };
   }
 
   // ==================== INVITE ====================
@@ -192,8 +274,14 @@ export class TeamController {
   @ApiParam({ name: 'teamId', type: Number, example: 1, description: 'The ID of the team' })
   @ApiBody({ type: InviteTeamByEmailDto })
   @ApiOkResponse({
-    description: 'Invitation email sent successfully',
-    type: MessageResponseDto,
+    schema: {
+      example: {
+        success: true,
+        data: {
+          message: 'Invitation email sent successfully',
+        },
+      },
+    },
   })
   @ApiForbiddenResponse({ description: 'Only the team leader can invite members' })
   @ApiNotFoundResponse({ description: 'Team or user not found' })
@@ -203,8 +291,9 @@ export class TeamController {
     @Param('teamId', ParseIntPipe) teamId: number,
     @Body() dto: InviteTeamByEmailDto,
     @GetTeamContext() context: TeamContext,
-  ): Promise<MessageResponseDto> {
-    return this.teamService.inviteByEmail(dto.email, context);
+  ): Promise<{ success: true; data: MessageResponseDto }> {
+    const data = await this.teamService.inviteByEmail(dto.email, context);
+    return { success: true, data };
   }
 
   // ==================== LEAVE / REMOVE ====================
@@ -217,8 +306,14 @@ export class TeamController {
   })
   @ApiParam({ name: 'teamId', type: Number, example: 1, description: 'The ID of the team to leave' })
   @ApiOkResponse({
-    description: 'Successfully left the team',
-    type: MessageResponseDto,
+    schema: {
+      example: {
+        success: true,
+        data: {
+          message: 'Successfully left the team',
+        },
+      },
+    },
   })
   @ApiForbiddenResponse({ description: 'Leader cannot leave the team. Transfer leadership first.' })
   @ApiNotFoundResponse({ description: 'You are not in this team' })
@@ -226,8 +321,9 @@ export class TeamController {
   async leaveTeam(
     @Param('teamId', ParseIntPipe) teamId: number,
     @GetTeamContext() context: TeamContext,
-  ): Promise<MessageResponseDto> {
-    return this.teamService.leaveTeam(context);
+  ): Promise<{ success: true; data: MessageResponseDto }> {
+    const data = await this.teamService.leaveTeam(context);
+    return { success: true, data };
   }
 
   @UseGuards(TeamLeaderGuard)
@@ -239,8 +335,14 @@ export class TeamController {
   @ApiParam({ name: 'teamId', type: Number, example: 1, description: 'The ID of the team' })
   @ApiParam({ name: 'memberId', type: Number, example: 5, description: 'The ID of the member to remove' })
   @ApiOkResponse({
-    description: 'Member removed successfully',
-    type: MessageResponseDto,
+    schema: {
+      example: {
+        success: true,
+        data: {
+          message: 'Member removed successfully',
+        },
+      },
+    },
   })
   @ApiForbiddenResponse({ description: 'Only the team leader can remove members' })
   @ApiBadRequestResponse({ description: 'The leader cannot be removed' })
@@ -250,7 +352,8 @@ export class TeamController {
     @Param('teamId', ParseIntPipe) teamId: number,
     @Param('memberId', ParseIntPipe) memberId: number,
     @GetTeamContext() context: TeamContext,
-  ): Promise<MessageResponseDto> {
-    return this.teamService.removeMember(memberId, context);
+  ): Promise<{ success: true; data: MessageResponseDto }> {
+    const data = await this.teamService.removeMember(memberId, context);
+    return { success: true, data };
   }
 }

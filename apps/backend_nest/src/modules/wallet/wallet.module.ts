@@ -39,6 +39,6 @@ import { PaymentController } from './payment.controller';
     PaymentFlowService,
     PaymentService,
   ],
-  exports: [WalletService, CreditPackageService],
+  exports: [WalletService, CreditPackageService, PaymentFlowService],
 })
 export class WalletModule { }

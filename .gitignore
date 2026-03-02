@@ -4,6 +4,7 @@
 /build
 /tmp
 /files_cache_data
+/result
 
 # Logs
 logs

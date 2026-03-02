@@ -2,6 +2,7 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, ExtractJwt } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
+import { SystemRole } from '../../../libs/enums/Role';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -16,7 +17,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
         });
     }
 
-    async validate(payload: { sub: string; email: string }) {
-        return { id: payload.sub, email: payload.email };
+    async validate(payload: { sub: string; email: string; role: SystemRole }) {
+        return { id: payload.sub, email: payload.email, role: payload.role };
     }
 }

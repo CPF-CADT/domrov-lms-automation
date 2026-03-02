@@ -1,20 +1,30 @@
-// /api/submission/submission.api.ts
-import axios from '../base/axios';
+// /api/submission/submission.api.ts  
+import axiosInstance from '../axios';
 import {
-  SubmitAssignmentDto,
-  SubmitAssignmentResponseDto,
+  SubmissionDetailTeacherDto,
+  SubmissionDetailStudentDto,
   ApproveSubmissionResponseDto,
-  GradeSubmissionDTO,
-  FeedbackItemDto,
+  SaveDraftResponseDto,
+  FinalSubmitResponseDto,
+  MySubmissionResponseDto,
+  SubmissionStatusResponseDto,
+  RosterResponseDto,
+  SubmissionStatsResponseDto,
   AddFeedbackResponseDto,
   UpdateFeedbackResponseDto,
-  EvaluationResponseDto
+  FeedbackItemDto,
+  SaveSubmissionDraftDto
 } from './dto';
 
-export async function approveSubmission(id: number): Promise<ApproveSubmissionResponseDto> {
+/**
+ * Get submission details for teacher view
+ */
+export async function getSubmissionTeacherView(submissionId: number): Promise<SubmissionDetailTeacherDto> {
   try {
-    const res = await axios.patch<ApproveSubmissionResponseDto>(`/submissions/approve/${id}`);
-    return res.data;
+    const response = await axiosInstance.get<SubmissionDetailTeacherDto>(
+      `/submissions/${submissionId}/teacher`
+    );
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
@@ -24,10 +34,15 @@ export async function approveSubmission(id: number): Promise<ApproveSubmissionRe
   }
 }
 
-export async function submitAssignment(data: SubmitAssignmentDto): Promise<SubmitAssignmentResponseDto> {
+/**
+ * Get submission details for student view
+ */
+export async function getSubmissionStudentView(submissionId: number): Promise<SubmissionDetailStudentDto> {
   try {
-    const res = await axios.post<SubmitAssignmentResponseDto>(`/submissions/submit`, data);
-    return res.data;
+    const response = await axiosInstance.get<SubmissionDetailStudentDto>(
+      `/submissions/${submissionId}/student`
+    );
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
@@ -37,10 +52,19 @@ export async function submitAssignment(data: SubmitAssignmentDto): Promise<Submi
   }
 }
 
-export async function gradeSubmission(id: number, data: GradeSubmissionDTO): Promise<EvaluationResponseDto> {
+/**
+ * Save submission as draft
+ */
+export async function saveSubmissionDraft(
+  assessmentId: number,
+  data: SaveSubmissionDraftDto
+): Promise<SaveDraftResponseDto> {
   try {
-    const res = await axios.patch<EvaluationResponseDto>(`/submissions/grade/${id}`, data);
-    return res.data;
+    const response = await axiosInstance.patch<SaveDraftResponseDto>(
+      `/submissions/${assessmentId}/submit`,
+      data
+    );
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
@@ -50,10 +74,19 @@ export async function gradeSubmission(id: number, data: GradeSubmissionDTO): Pro
   }
 }
 
-export async function addFeedback(id: number, items: FeedbackItemDto[]): Promise<AddFeedbackResponseDto> {
+/**
+ * Submit final submission for assessment
+ */
+export async function submitFinalSubmission(
+  assessmentId: number,
+  data?: SaveSubmissionDraftDto
+): Promise<FinalSubmitResponseDto> {
   try {
-    const res = await axios.post<AddFeedbackResponseDto>(`/submissions/${id}/feedback`, items);
-    return res.data;
+    const response = await axiosInstance.post<FinalSubmitResponseDto>(
+      `/submissions/${assessmentId}/submit`,
+      data || {}
+    );
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
@@ -63,10 +96,135 @@ export async function addFeedback(id: number, items: FeedbackItemDto[]): Promise
   }
 }
 
-export async function updateFeedback(id: string, data: FeedbackItemDto): Promise<UpdateFeedbackResponseDto> {
+/**
+ * Get current user's submission for an assessment
+ */
+export async function getMySubmission(assessmentId: number): Promise<MySubmissionResponseDto> {
   try {
-    const res = await axios.patch<UpdateFeedbackResponseDto>(`/submissions/feedback/${id}`, data);
-    return res.data;
+    const response = await axiosInstance.get<MySubmissionResponseDto>(
+      `/submissions/${assessmentId}/my-submission`
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(
+      error?.response?.data?.message ||
+      error?.message ||
+      'Unknown API error'
+    );
+  }
+}
+
+/**
+ * Get submission status for assessment
+ */
+export async function getSubmissionStatus(assessmentId: number): Promise<SubmissionStatusResponseDto> {
+  try {
+    const response = await axiosInstance.get<SubmissionStatusResponseDto>(
+      `/submissions/${assessmentId}/status`
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(
+      error?.response?.data?.message ||
+      error?.message ||
+      'Unknown API error'
+    );
+  }
+}
+
+/**
+ * Get submission roster (team or individual)
+ */
+export async function getSubmissionRoster(
+  assessmentId: number,
+  type: 'team' | 'individual'
+): Promise<RosterResponseDto> {
+  try {
+    const response = await axiosInstance.get<RosterResponseDto>(
+      `/submissions/${assessmentId}/roster/${type}`
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(
+      error?.response?.data?.message ||
+      error?.message ||
+      'Unknown API error'
+    );
+  }
+}
+
+/**
+ * Get submission statistics
+ */
+export async function getSubmissionStats(assessmentId: number): Promise<SubmissionStatsResponseDto> {
+  try {
+    const response = await axiosInstance.get<SubmissionStatsResponseDto>(
+      `/submissions/${assessmentId}/stats`
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(
+      error?.response?.data?.message ||
+      error?.message ||
+      'Unknown API error'
+    );
+  }
+}
+
+/**
+ * Approve a submission
+ */
+export async function approveSubmission(submissionId: number): Promise<ApproveSubmissionResponseDto> {
+  try {
+    const response = await axiosInstance.patch<ApproveSubmissionResponseDto>(
+      `/submissions/approve/${submissionId}`
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(
+      error?.response?.data?.message ||
+      error?.message ||
+      'Unknown API error'
+    );
+  }
+}
+
+/**
+ * Add feedback to a submission
+ */
+export async function addFeedback(
+  submissionId: number,
+  data: FeedbackItemDto
+): Promise<AddFeedbackResponseDto> {
+  try {
+    const response = await axiosInstance.post<AddFeedbackResponseDto>(
+      `/submissions/${submissionId}/feedback`,
+      data
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(
+      error?.response?.data?.message ||
+      error?.message ||
+      'Unknown API error'
+    );
+  }
+}
+
+/**
+ * Update feedback on a submission
+ */
+export async function updateFeedback(
+  submissionId: number,
+  feedbackId: number,
+  data: FeedbackItemDto
+): Promise<UpdateFeedbackResponseDto> {
+  try {
+    const response = await axiosInstance.patch<UpdateFeedbackResponseDto>(
+      `/submissions/${submissionId}/feedback/${feedbackId}`,
+      data
+    );
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||

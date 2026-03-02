@@ -1,78 +1,64 @@
 // /api/wallet/wallet.api.ts
-import axios from '../axios';
+
+import axiosInstance from '../axios';
 import {
-  AddCreditsDto,
-  DeductCreditsDto,
-  WalletTransactionResponseDto,
-  TransactionHistoryMetaDto,
-  StartPaymentDto,
-  StartPaymentResponseDto,
+  WalletBalanceResponseDto,
+  TransactionHistoryResponseDto,
   CreditPackageResponseDto,
 } from './dto';
 
-export async function addCredits(data: AddCreditsDto): Promise<WalletTransactionResponseDto> {
+/**
+ * Get user's current wallet balance
+ */
+export async function getWalletBalance(): Promise<WalletBalanceResponseDto> {
   try {
-    const res = await axios.post<WalletTransactionResponseDto>(`/wallet/add-credits`, data);
-    return res.data;
+    const response = await axiosInstance.get<WalletBalanceResponseDto>('/wallet/balance');
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
       error?.message ||
-      'Unknown API error'
+      'Failed to get wallet balance'
     );
   }
 }
 
-export async function deductCredits(data: DeductCreditsDto): Promise<WalletTransactionResponseDto> {
+/**
+ * Get transaction history with pagination
+ */
+export async function getTransactionHistory(
+  page: number = 1,
+  limit: number = 10
+): Promise<TransactionHistoryResponseDto> {
   try {
-    const res = await axios.post<WalletTransactionResponseDto>(`/wallet/deduct-credits`, data);
-    return res.data;
+    const response = await axiosInstance.get<TransactionHistoryResponseDto>(
+      '/wallet/transactions',
+      {
+        params: { page, limit },
+      }
+    );
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
       error?.message ||
-      'Unknown API error'
+      'Failed to get transaction history'
     );
   }
 }
 
-export async function getTransactionHistory(walletId: number, page: number = 1): Promise<{ meta: TransactionHistoryMetaDto; transactions: WalletTransactionResponseDto[] }> {
-  try {
-    const res = await axios.get<{ meta: TransactionHistoryMetaDto; transactions: WalletTransactionResponseDto[] }>(`/wallet/${walletId}/transactions`, {
-      params: { page }
-    });
-    return res.data;
-  } catch (error: any) {
-    throw new Error(
-      error?.response?.data?.message ||
-      error?.message ||
-      'Unknown API error'
-    );
-  }
-}
-
-export async function startPayment(data: StartPaymentDto): Promise<StartPaymentResponseDto> {
-  try {
-    const res = await axios.post<StartPaymentResponseDto>(`/wallet/start-payment`, data);
-    return res.data;
-  } catch (error: any) {
-    throw new Error(
-      error?.response?.data?.message ||
-      error?.message ||
-      'Unknown API error'
-    );
-  }
-}
-
+/**
+ * Get available credit packages for purchase
+ */
 export async function getCreditPackages(): Promise<CreditPackageResponseDto[]> {
   try {
-    const res = await axios.get<CreditPackageResponseDto[]>(`/wallet/packages`);
-    return res.data;
+    const response = await axiosInstance.get<CreditPackageResponseDto[]>('/wallet/packages');
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
       error?.message ||
-      'Unknown API error'
+      'Failed to get credit packages'
     );
   }
 }

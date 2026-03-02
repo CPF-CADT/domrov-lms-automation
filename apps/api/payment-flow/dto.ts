@@ -1,14 +1,28 @@
 // /api/payment-flow/dto.ts
-export interface AdminAdjustWalletDto {
-  walletId: number;
-  amount: number;
-  reason: string;
-  description?: string;
+
+export interface StartPaymentDto {
+  packageId: number;
+  paymentMethod?: string;
 }
 
-export interface AdminAdjustResponseDto {
+export interface StartPaymentResponseDto {
   message: string;
-  walletId: number;
-  balanceBefore: number;
-  balanceAfter: number;
+  paymentId: string;
+  packageId: number;
+  amount: number;
+  currency: string;
+  qrCodeUrl?: string;
+  paymentUrl?: string;
+  createdAt: Date;
+}
+
+export interface PaymentStatusResponseDto {
+  paymentId: string;
+  status: 'PENDING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  packageId: number;
+  amount: number;
+  currency: string;
+  createdAt: Date;
+  completedAt?: Date;
+  message?: string;
 }

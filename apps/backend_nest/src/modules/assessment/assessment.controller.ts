@@ -5,9 +5,9 @@ import {
   HttpCode,
   HttpStatus
 } from '@nestjs/common';
-import { 
-  ApiBearerAuth, 
-  ApiOperation, 
+import {
+  ApiBearerAuth,
+  ApiOperation,
   ApiTags,
   ApiOkResponse,
   ApiCreatedResponse,
@@ -52,74 +52,83 @@ export class AssessmentController {
   // ==================== LIST ASSESSMENTS BY CLASS ====================
   @Get('class/:classId')
   @UseGuards(ClassMemberGuard)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'List all assessments for a class',
     description: 'Returns all assessments (assignments, quizzes, etc.) for a specific class, ordered by due date ascending.'
   })
   @ApiParam({ name: 'classId', type: Number, description: 'Class ID', example: 1 })
-  @ApiOkResponse({ 
+  @ApiOkResponse({
     description: 'Assessments retrieved successfully',
-    type: [AssessmentListItemDto],
-    example: [
-      {
-        id: 1,
-        title: 'Assignment 1: Data Structures',
-        instruction: 'Implement a binary tree...',
-        dueDate: '2024-01-20T23:59:59Z',
-        startDate: '2024-01-10T00:00:00Z',
-        maxScore: 100,
-        session: 1,
-        isPublic: true,
-        submissionType: 'INDIVIDUAL',
-        allowLate: false,
-        aiEvaluationEnable: true,
-        allowedSubmissionMethod: 'GITHUB',
-        resources: []
+    schema: {
+      example: {
+        success: true,
+        data: [
+          {
+            id: 1,
+            title: 'Assignment 1: Data Structures',
+            instruction: 'Implement a binary tree...',
+            dueDate: '2024-01-20T23:59:59Z',
+            startDate: '2024-01-10T00:00:00Z',
+            maxScore: 100,
+            session: 1,
+            isPublic: true,
+            submissionType: 'INDIVIDUAL',
+            allowLate: false,
+            aiEvaluationEnable: true,
+            allowedSubmissionMethod: 'GITHUB',
+            resources: []
+          }
+        ]
       }
-    ]
+    }
   })
-  @ApiUnauthorizedResponse({ 
+  @ApiUnauthorizedResponse({
     description: 'User not authenticated',
     example: { statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' }
   })
   async getAllByClass(
     @Param('classId', ParseIntPipe) classId: number,
     @GetClassContext() context: ClassContext,
-  ): Promise<AssessmentListItemDto[]> {
-    return this.assessmentService.findAllByClass(context);
+  ) {
+    const data = await this.assessmentService.findAllByClass(context);
+    return { success: true, data };
   }
 
   // ==================== LIST ASSESSMENTS BY CLASS SESSION ====================
   @Get('class/:classId/:sessionId')
   @UseGuards(ClassMemberGuard)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'List all assessments for a class session',
     description: 'Returns all assessments for a specific class session/week, ordered by due date ascending.'
   })
   @ApiParam({ name: 'classId', type: Number, description: 'Class ID', example: 1 })
   @ApiParam({ name: 'sessionId', type: Number, description: 'Session/Week number', example: 1 })
-  @ApiOkResponse({ 
+  @ApiOkResponse({
     description: 'Assessments retrieved successfully',
-    type: [AssessmentListItemDto],
-    example: [
-      {
-        id: 1,
-        title: 'Week 1 Quiz',
-        instruction: 'Complete the following questions...',
-        dueDate: '2024-01-15T23:59:59Z',
-        startDate: '2024-01-10T00:00:00Z',
-        maxScore: 20,
-        session: 1,
-        isPublic: true,
-        submissionType: 'INDIVIDUAL',
-        allowLate: false,
-        aiEvaluationEnable: false,
-        allowedSubmissionMethod: 'FILE',
-        resources: []
+    schema: {
+      example: {
+        success: true,
+        data: [
+          {
+            id: 1,
+            title: 'Week 1 Quiz',
+            instruction: 'Complete the following questions...',
+            dueDate: '2024-01-15T23:59:59Z',
+            startDate: '2024-01-10T00:00:00Z',
+            maxScore: 20,
+            session: 1,
+            isPublic: true,
+            submissionType: 'INDIVIDUAL',
+            allowLate: false,
+            aiEvaluationEnable: false,
+            allowedSubmissionMethod: 'FILE',
+            resources: []
+          }
+        ]
       }
-    ]
+    }
   })
-  @ApiUnauthorizedResponse({ 
+  @ApiUnauthorizedResponse({
     description: 'User not authenticated',
     example: { statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' }
   })
@@ -127,67 +136,73 @@ export class AssessmentController {
     @Param('classId', ParseIntPipe) classId: number,
     @Param('sessionId', ParseIntPipe) sessionId: number,
     @GetClassContext() context: ClassContext,
-  ): Promise<AssessmentListItemDto[]> {
-    return this.assessmentService.findAllByClassSession(sessionId, context);
+  ) {
+    const data = await this.assessmentService.findAllByClassSession(sessionId, context);
+    return { success: true, data };
   }
 
   // ==================== GET ASSESSMENT DETAILS ====================
   @Get(':id')
   @UseGuards(AssessmentMemberGuard)
   @AssessmentIdParam('id')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get assessment details',
     description: 'Returns detailed information about an assessment including instructions, attached resources, and rubrics.'
   })
   @ApiParam({ name: 'id', type: Number, description: 'Assessment ID', example: 1 })
-  @ApiOkResponse({ 
+  @ApiOkResponse({
     description: 'Assessment details retrieved successfully',
-    type: AssessmentDetailDto,
-    example: {
-      id: 1,
-      title: 'Assignment 1: Binary Tree Implementation',
-      instruction: 'Implement a binary search tree with insert, search, and delete operations...',
-      dueDate: '2024-01-20T23:59:59Z',
-      startDate: '2024-01-10T00:00:00Z',
-      maxScore: 100,
-      session: 1,
-      isPublic: true,
-      submissionType: 'INDIVIDUAL',
-      allowLate: false,
-      penaltyCriteria: '10% off per day',
-      aiEvaluationEnable: true,
-      aiModelSelectionMode: 'SYSTEM',
-      allowedSubmissionMethod: 'GITHUB',
-      resources: [
-        { id: 1, resource: { id: 1, title: 'starter_code.zip', type: 'FILE', url: 'https://...' }}
-      ],
-      rubrics: [
-        { id: 1, definition: 'Code Quality', totalScore: 30 },
-        { id: 2, definition: 'Correctness', totalScore: 50 },
-        { id: 3, definition: 'Documentation', totalScore: 20 }
-      ]
+    schema: {
+      example: {
+        success: true,
+        data: {
+          id: 1,
+          title: 'Assignment 1: Binary Tree Implementation',
+          instruction: 'Implement a binary search tree with insert, search, and delete operations...',
+          dueDate: '2024-01-20T23:59:59Z',
+          startDate: '2024-01-10T00:00:00Z',
+          maxScore: 100,
+          session: 1,
+          isPublic: true,
+          submissionType: 'INDIVIDUAL',
+          allowLate: false,
+          penaltyCriteria: '10% off per day',
+          aiEvaluationEnable: true,
+          aiModelSelectionMode: 'SYSTEM',
+          allowedSubmissionMethod: 'GITHUB',
+          resources: [
+            { id: 1, resource: { id: 1, title: 'starter_code.zip', type: 'FILE', url: 'https://...' } }
+          ],
+          rubrics: [
+            { id: 1, definition: 'Code Quality', totalScore: 30 },
+            { id: 2, definition: 'Correctness', totalScore: 50 },
+            { id: 3, definition: 'Documentation', totalScore: 20 }
+          ]
+        }
+      }
     }
   })
-  @ApiNotFoundResponse({ 
+  @ApiNotFoundResponse({
     description: 'Assessment not found',
     example: { statusCode: 404, message: 'Assessment not found', error: 'Not Found' }
   })
-  @ApiUnauthorizedResponse({ 
+  @ApiUnauthorizedResponse({
     description: 'User not authenticated',
     example: { statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' }
   })
   async getOne(
     @Param('id', ParseIntPipe) id: number,
     @GetAssessmentContext() context: AssessmentContext,
-  ): Promise<AssessmentDetailDto> {
-    return this.assessmentService.findOne(context);
+  ) {
+    const data = await this.assessmentService.findOne(context);
+    return { success: true, data };
   }
 
   // ==================== CREATE DRAFT ====================
   @Post('class/:classId/draft')
   @UseGuards(ClassInstructorGuard)
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Create assessment draft (Teacher)',
     description: 'Creates a new assessment draft for a class. Only the class owner can create assessments. The draft needs to be published before students can see it.'
   })
@@ -212,20 +227,27 @@ export class AssessmentController {
       }
     }
   })
-  @ApiCreatedResponse({ 
+  @ApiCreatedResponse({
     description: 'Draft created successfully',
-    type: CreateDraftResponseDto,
-    example: { message: 'Draft created', assessmentId: 1 }
+    schema: {
+      example: {
+        success: true,
+        data: {
+          message: 'Draft created',
+          assessmentId: 1
+        }
+      }
+    }
   })
-  @ApiNotFoundResponse({ 
+  @ApiNotFoundResponse({
     description: 'Class not found',
     example: { statusCode: 404, message: 'Class not found', error: 'Not Found' }
   })
-  @ApiForbiddenResponse({ 
+  @ApiForbiddenResponse({
     description: 'Not authorized to create assessments in this class',
     example: { statusCode: 403, message: 'You do not have permission to create assessments in this class', error: 'Forbidden' }
   })
-  @ApiUnauthorizedResponse({ 
+  @ApiUnauthorizedResponse({
     description: 'User not authenticated',
     example: { statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' }
   })
@@ -233,8 +255,9 @@ export class AssessmentController {
     @Param('classId', ParseIntPipe) classId: number,
     @Body('session', ParseIntPipe) session: number,
     @GetClassContext() context: ClassContext,
-  ): Promise<CreateDraftResponseDto> {
-    return this.assessmentService.createDraft(session, context);
+  ) {
+    const data = await this.assessmentService.createDraft(session, context);
+    return { success: true, data };
   }
 
   // ==================== PUBLISH ASSESSMENT ====================
@@ -242,25 +265,31 @@ export class AssessmentController {
   @UseGuards(AssessmentInstructorGuard)
   @AssessmentIdParam('id')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Publish assessment (Teacher)',
     description: 'Publishes an assessment draft, making it visible to students. Validates that all required fields are filled: title, instruction, max score, dates, and rubrics totaling to max score.'
   })
   @ApiParam({ name: 'id', type: Number, description: 'Assessment ID', example: 1 })
-  @ApiOkResponse({ 
+  @ApiOkResponse({
     description: 'Assessment published successfully',
-    type: PublishAssessmentResponseDto,
-    example: { message: 'Assessment published successfully' }
+    schema: {
+      example: {
+        success: true,
+        data: {
+          message: 'Assessment published successfully'
+        }
+      }
+    }
   })
-  @ApiNotFoundResponse({ 
+  @ApiNotFoundResponse({
     description: 'Assessment not found',
     example: { statusCode: 404, message: 'Assessment not found', error: 'Not Found' }
   })
-  @ApiForbiddenResponse({ 
+  @ApiForbiddenResponse({
     description: 'Not authorized to publish this assessment',
     example: { statusCode: 403, message: 'You do not have permission to publish this assessment', error: 'Forbidden' }
   })
-  @ApiBadRequestResponse({ 
+  @ApiBadRequestResponse({
     description: 'Validation error',
     examples: {
       alreadyPublished: {
@@ -281,15 +310,16 @@ export class AssessmentController {
       }
     }
   })
-  @ApiUnauthorizedResponse({ 
+  @ApiUnauthorizedResponse({
     description: 'User not authenticated',
     example: { statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' }
   })
   async publishAssessment(
     @Param('id', ParseIntPipe) id: number,
     @GetAssessmentContext() context: AssessmentContext,
-  ): Promise<PublishAssessmentResponseDto> {
-    return this.assessmentService.publishAssessment(context);
+  ) {
+    const data = await this.assessmentService.publishAssessment(context);
+    return { success: true, data };
   }
 
   // ==================== UPDATE ASSESSMENT ====================
@@ -297,7 +327,7 @@ export class AssessmentController {
   @UseGuards(AssessmentInstructorGuard)
   @AssessmentIdParam('id')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Update assessment (Teacher)',
     description: `Updates an assessment draft with all details. This is where you configure the full assessment after creating a draft.
     
@@ -311,7 +341,7 @@ export class AssessmentController {
 - \`user_include_files\`: Glob patterns for files/folders to INCLUDE (overrides excludes)`
   })
   @ApiParam({ name: 'id', type: Number, description: 'Assessment ID', example: 1 })
-  @ApiBody({ 
+  @ApiBody({
     type: UpdateAssessmentDTO,
     description: 'Assessment update data - all fields are optional',
     examples: {
@@ -386,38 +416,42 @@ export class AssessmentController {
       }
     }
   })
-  @ApiOkResponse({ 
+  @ApiOkResponse({
     description: 'Assessment updated successfully',
-    type: UpdateAssessmentResponseDto,
-    example: {
-      message: 'Draft updated successfully',
-      assessment: {
-        id: 1,
-        title: 'Assignment 1: Binary Tree Implementation',
-        instruction: 'Implement a binary search tree with insert, delete, and search operations...',
-        dueDate: '2026-03-15T23:59:59Z',
-        startDate: '2026-03-01T00:00:00Z',
-        maxScore: 100,
-        session: 1,
-        isPublic: false,
-        submissionType: 'INDIVIDUAL',
-        allowLate: true,
-        penaltyCriteria: null,
-        aiEvaluationEnable: true,
-        aiModelSelectionMode: 'SYSTEM',
-        allowedSubmissionMethod: 'GITHUB',
-        user_exclude_files: ['node_modules/', '.git/', 'test/'],
-        user_include_files: ['src/**/*.ts'],
-        rubrics: [
-          { id: 1, definition: 'Code Quality', totalScore: 30 },
-          { id: 2, definition: 'Functionality', totalScore: 50 },
-          { id: 3, definition: 'Documentation', totalScore: 20 }
-        ],
-        resources: [{ id: 1, resource: { id: 12, title: 'starter_code.zip', type: 'FILE', url: 'https://...' }}]
+    schema: {
+      example: {
+        success: true,
+        data: {
+          message: 'Draft updated successfully',
+          assessment: {
+            id: 1,
+            title: 'Assignment 1: Binary Tree Implementation',
+            instruction: 'Implement a binary search tree with insert, delete, and search operations...',
+            dueDate: '2026-03-15T23:59:59Z',
+            startDate: '2026-03-01T00:00:00Z',
+            maxScore: 100,
+            session: 1,
+            isPublic: false,
+            submissionType: 'INDIVIDUAL',
+            allowLate: true,
+            penaltyCriteria: null,
+            aiEvaluationEnable: true,
+            aiModelSelectionMode: 'SYSTEM',
+            allowedSubmissionMethod: 'GITHUB',
+            user_exclude_files: ['node_modules/', '.git/', 'test/'],
+            user_include_files: ['src/**/*.ts'],
+            rubrics: [
+              { id: 1, definition: 'Code Quality', totalScore: 30 },
+              { id: 2, definition: 'Functionality', totalScore: 50 },
+              { id: 3, definition: 'Documentation', totalScore: 20 }
+            ],
+            resources: [{ id: 1, resource: { id: 12, title: 'starter_code.zip', type: 'FILE', url: 'https://...' } }]
+          }
+        }
       }
     }
   })
-  @ApiNotFoundResponse({ 
+  @ApiNotFoundResponse({
     description: 'Assessment or resource not found',
     examples: {
       assessment: {
@@ -430,11 +464,11 @@ export class AssessmentController {
       }
     }
   })
-  @ApiForbiddenResponse({ 
+  @ApiForbiddenResponse({
     description: 'Not authorized to update this assessment',
     example: { statusCode: 403, message: 'You do not have permission to update this assessment', error: 'Forbidden' }
   })
-  @ApiUnauthorizedResponse({ 
+  @ApiUnauthorizedResponse({
     description: 'User not authenticated',
     example: { statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' }
   })
@@ -442,8 +476,9 @@ export class AssessmentController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateAssessmentDTO,
     @GetAssessmentContext() context: AssessmentContext,
-  ): Promise<UpdateAssessmentResponseDto> {
-    return this.assessmentService.updateAssessment(dto, context);
+  ) {
+    const data = await this.assessmentService.updateAssessment(dto, context);
+    return { success: true, data };
   }
 
   // ==================== DELETE ASSESSMENT ====================
@@ -451,87 +486,82 @@ export class AssessmentController {
   @UseGuards(AssessmentInstructorGuard)
   @AssessmentIdParam('id')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Delete assessment (Teacher)',
     description: 'Permanently deletes an assessment and all associated submissions. Only the class owner can delete. This action cannot be undone.'
   })
   @ApiParam({ name: 'id', type: Number, description: 'Assessment ID', example: 1 })
-  @ApiOkResponse({ 
+  @ApiOkResponse({
     description: 'Assessment deleted successfully',
-    type: DeleteAssessmentResponseDto,
-    example: { id: 1, title: 'Assignment 1' }
+    schema: {
+      example: {
+        success: true,
+        data: {
+          id: 1,
+          title: 'Assignment 1'
+        }
+      }
+    }
   })
-  @ApiNotFoundResponse({ 
+  @ApiNotFoundResponse({
     description: 'Assessment not found',
     example: { statusCode: 404, message: 'Assessment not found', error: 'Not Found' }
   })
-  @ApiForbiddenResponse({ 
+  @ApiForbiddenResponse({
     description: 'Not authorized to delete this assessment',
     example: { statusCode: 403, message: 'You do not have permission to delete this assessment', error: 'Forbidden' }
   })
-  @ApiUnauthorizedResponse({ 
+  @ApiUnauthorizedResponse({
     description: 'User not authenticated',
     example: { statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' }
   })
   async remove(
     @Param('id', ParseIntPipe) id: number,
     @GetAssessmentContext() context: AssessmentContext,
-  ): Promise<DeleteAssessmentResponseDto> {
-    return this.assessmentService.deleteAssessment(context);
+  ) {
+    const data = await this.assessmentService.deleteAssessment(context);
+    return { success: true, data };
   }
 
   // ==================== GET TRACKING / ROSTER ====================
   @Get(':id/tracking')
   @UseGuards(AssessmentInstructorGuard)
   @AssessmentIdParam('id')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get assessment roster (Teacher)',
     description: 'Returns the submission status for all students or teams in the class. For team assessments, shows team-level status. For individual assessments, shows per-student status.'
   })
   @ApiParam({ name: 'id', type: Number, description: 'Assessment ID', example: 1 })
-  @ApiOkResponse({ 
+  @ApiOkResponse({
     description: 'Tracking data retrieved successfully',
     schema: {
-      oneOf: [
-        { type: 'array', items: { $ref: '#/components/schemas/TeamTrackingItemDto' } },
-        { type: 'array', items: { $ref: '#/components/schemas/IndividualTrackingItemDto' } }
-      ]
-    },
-    examples: {
-      teamTracking: {
-        summary: 'Team submission tracking',
-        value: [
+      example: {
+        success: true,
+        data: [
           { teamId: 1, name: 'Team Alpha', status: 'GRADED', score: 85 },
           { teamId: 2, name: 'Team Beta', status: 'SUBMITTED', score: null },
           { teamId: 3, name: 'Team Gamma', status: 'NOT_SUBMITTED', score: null }
         ]
-      },
-      individualTracking: {
-        summary: 'Individual submission tracking',
-        value: [
-          { studentId: 1, name: 'John Doe', status: 'GRADED', score: 90 },
-          { studentId: 2, name: 'Jane Smith', status: 'SUBMITTED', score: null },
-          { studentId: 3, name: 'Bob Wilson', status: 'NOT_SUBMITTED', score: null }
-        ]
       }
     }
   })
-  @ApiNotFoundResponse({ 
+  @ApiNotFoundResponse({
     description: 'Assessment not found',
     example: { statusCode: 404, message: 'Assessment not found', error: 'Not Found' }
   })
-  @ApiBadRequestResponse({ 
+  @ApiBadRequestResponse({
     description: 'Assessment not published yet',
     example: { statusCode: 400, message: 'Assessment is not published yet', error: 'Bad Request' }
   })
-  @ApiUnauthorizedResponse({ 
+  @ApiUnauthorizedResponse({
     description: 'User not authenticated',
     example: { statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' }
   })
   async getTracking(
     @Param('id', ParseIntPipe) assessmentId: number,
     @GetAssessmentContext() context: AssessmentContext,
-  ): Promise<TeamTrackingItemDto[] | IndividualTrackingItemDto[]> {
-    return this.assessmentService.getTracking(context);
+  ) {
+    const data = await this.assessmentService.getTracking(context);
+    return { success: true, data };
   }
 }

@@ -7,5 +7,8 @@ export enum UserRole {
 }
 
 export enum SystemRole{
-
+    SuperAdmin = 'SuperAdmin',
+    Admin = 'Admin',
+    Support = 'Support',
+    User = 'User'
 }

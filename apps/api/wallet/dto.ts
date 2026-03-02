@@ -1,6 +1,35 @@
 // /api/wallet/dto.ts
 
 import { Currency } from '../enums/Currency';
+import { TransactionType } from '../enums/TransactionType';
+export interface WalletBalanceResponseDto {
+  id: number;
+  userId: number;
+  credits: number;
+  updatedAt: Date;
+}
+
+export interface TransactionDto {
+  id: number;
+  walletId: number;
+  amount: number;
+  type: TransactionType;
+  reason?: string;
+  description?: string;
+  balanceBefore: number;
+  balanceAfter: number;
+  createdAt: Date;
+}
+
+export interface TransactionHistoryResponseDto {
+  transactions: TransactionDto[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
 
 export interface AddCreditsDto {
   amount: number;
@@ -30,15 +59,6 @@ export interface WalletTransactionResponseDto {
 export interface TransactionHistoryMetaDto {
   total: number;
   page: number;
-}
-
-export interface StartPaymentDto {
-  packageId: number;
-}
-
-export interface StartPaymentResponseDto {
-  paymentId: number;
-  message: string;
 }
 
 export interface CreditPackageResponseDto {

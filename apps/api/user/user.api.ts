@@ -1,48 +1,93 @@
 // /api/user/user.api.ts
-import axios from '../base/axios';
+
+import axiosInstance from '../axios';
 import {
   UserResponseDto,
   UpdateProfileDto,
   ChangePasswordDto,
   UserProfileResponseDto,
-  UpdateProfileResponseDto
+  UpdateProfileResponseDto,
+  SharedUserResponseDto
 } from './dto';
 
+/**
+ * Get user profile by ID
+ */
 export async function getUser(id: number): Promise<UserResponseDto> {
   try {
-    const res = await axios.get<UserResponseDto>(`/user/${id}`);
-    return res.data;
+    const response = await axiosInstance.get<UserResponseDto>(`/user/${id}`);
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
       error?.message ||
-      'Unknown API error'
+      'Failed to get user'
     );
   }
 }
 
-export async function updateProfile(id: number, data: UpdateProfileDto): Promise<UpdateProfileResponseDto> {
+/**
+ * Get current user's profile
+ */
+export async function getMyProfile(): Promise<UserProfileResponseDto> {
   try {
-    const res = await axios.patch<UpdateProfileResponseDto>(`/user/${id}/profile`, data);
-    return res.data;
+    const response = await axiosInstance.get<UserProfileResponseDto>(`/user/profile`);
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
       error?.message ||
-      'Unknown API error'
+      'Failed to get profile'
     );
   }
 }
 
-export async function changePassword(id: number, data: ChangePasswordDto): Promise<UserProfileResponseDto> {
+/**
+ * Update current user's profile
+ */
+export async function updateMyProfile(data: UpdateProfileDto): Promise<UpdateProfileResponseDto> {
   try {
-    const res = await axios.patch<UserProfileResponseDto>(`/user/${id}/change-password`, data);
-    return res.data;
+    const response = await axiosInstance.patch<UpdateProfileResponseDto>(`/user/profile`, data);
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
       error?.message ||
-      'Unknown API error'
+      'Failed to update profile'
+    );
+  }
+}
+
+/**
+ * Change user's password
+ */
+export async function changePassword(data: ChangePasswordDto): Promise<{ message: string }> {
+  try {
+    const response = await axiosInstance.post<{ message: string }>(`/user/change-password`, data);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(
+      error?.response?.data?.message ||
+      error?.message ||
+      'Failed to change password'
+    );
+  }
+}
+
+/**
+ * Search for users
+ */
+export async function searchUsers(query?: string): Promise<SharedUserResponseDto[]> {
+  try {
+    const response = await axiosInstance.get<SharedUserResponseDto[]>(`/user/search`, {
+      params: { query }
+    });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(
+      error?.response?.data?.message ||
+      error?.message ||
+      'Failed to search users'
     );
   }
 }

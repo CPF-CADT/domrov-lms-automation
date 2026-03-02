@@ -1,5 +1,5 @@
 // /api/auth/auth.api.ts
-import axios from '../base/axios';
+import axiosInstance from '../axios';
 import {
   RegisterUserDTO,
   LoginUserDTO,
@@ -12,10 +12,13 @@ import {
   MessageResponseDto
 } from './dto';
 
+/**
+ * Register a new user account
+ */
 export async function signUp(data: RegisterUserDTO): Promise<SignUpResponseDto> {
   try {
-    const res = await axios.post<SignUpResponseDto>('/auth/sign-up', data);
-    return res.data;
+    const response = await axiosInstance.post<SignUpResponseDto>('/auth/sign-up', data);
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
@@ -25,10 +28,13 @@ export async function signUp(data: RegisterUserDTO): Promise<SignUpResponseDto> 
   }
 }
 
+/**
+ * Login user with email and password
+ */
 export async function login(data: LoginUserDTO): Promise<LoginResponseDto> {
   try {
-    const res = await axios.post<LoginResponseDto>('/auth/login', data);
-    return res.data;
+    const response = await axiosInstance.post<LoginResponseDto>('/auth/login', data);
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
@@ -38,10 +44,25 @@ export async function login(data: LoginUserDTO): Promise<LoginResponseDto> {
   }
 }
 
+/**
+ * Logout user - clears token from storage
+ */
+export async function logout(): Promise<void> {
+  try {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+  } catch (error: any) {
+    throw new Error('Failed to logout');
+  }
+}
+
+/**
+ * Refresh access token using refresh token
+ */
 export async function refreshToken(): Promise<RefreshTokenResponseDto> {
   try {
-    const res = await axios.post<RefreshTokenResponseDto>('/auth/refresh-token');
-    return res.data;
+    const response = await axiosInstance.post<RefreshTokenResponseDto>('/auth/refresh-token');
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
@@ -51,10 +72,14 @@ export async function refreshToken(): Promise<RefreshTokenResponseDto> {
   }
 }
 
+
+/**
+ * Verify OTP for email confirmation
+ */
 export async function verifyOtp(data: VerifyOtpDTO): Promise<AuthMessageResponseDto> {
   try {
-    const res = await axios.post<AuthMessageResponseDto>('/auth/verify-otp', data);
-    return res.data;
+    const response = await axiosInstance.post<AuthMessageResponseDto>('/auth/verify-otp', data);
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
@@ -64,10 +89,13 @@ export async function verifyOtp(data: VerifyOtpDTO): Promise<AuthMessageResponse
   }
 }
 
+/**
+ * Resend OTP to user email
+ */
 export async function resendOtp(data: ResendOtpDTO): Promise<MessageResponseDto> {
   try {
-    const res = await axios.post<MessageResponseDto>('/auth/resend-otp', data);
-    return res.data;
+    const response = await axiosInstance.post<MessageResponseDto>('/auth/resend-otp', data);
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||

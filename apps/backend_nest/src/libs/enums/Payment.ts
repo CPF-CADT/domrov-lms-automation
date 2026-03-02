@@ -5,5 +5,5 @@ export enum PaymentMethod {
 }
 export enum Currency {
   USD = 'USD',
-  EUR = 'EUR',
+  KHR = 'KHR',
 }

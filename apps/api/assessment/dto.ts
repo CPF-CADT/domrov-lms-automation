@@ -112,7 +112,7 @@ export interface UpdateRubricDTO {
   // Define fields as per backend update-rubric.dto.ts
 }
 
-export interface UpdateAssessmentDTO {
+export interface UpdateAssessmentDto {
   title?: string;
   instruction?: string;
   startDate?: Date;
@@ -129,4 +129,56 @@ export interface UpdateAssessmentDTO {
   resources?: UpdateResourceDTO[];
   user_exclude_files?: string[];
   user_include_files?: string[];
+}
+
+export interface CreateAssessmentDto {
+  title: string;
+  instruction: string;
+  startDate: Date;
+  dueDate: Date;
+  maxScore: number;
+  session: number;
+  allowLate?: boolean;
+  penaltyCriteria?: string;
+  submissionType: SubmissionType;
+  aiEvaluationEnable?: boolean;
+  aiModelSelectionMode?: AIModelSelectionMode;
+  allowedSubmissionMethod: SubmissionMethod;
+  classId: number;
+  rubrics?: RubricDto[];
+  resources?: ResourceInfoDto[];
+  allowedTeamIds?: number[];
+  user_exclude_files?: string[];
+  user_include_files?: string[];
+}
+
+export interface AssessmentTrackingResponseDto {
+  assessmentId: number;
+  type: 'TEAM' | 'INDIVIDUAL';
+  items: (TeamTrackingItemDto | IndividualTrackingItemDto)[];
+  totalItems: number;
+  submittedCount: number;
+  gradedCount: number;
+}
+
+export interface AssessmentStatsResponseDto {
+  assessmentId: number;
+  classId: number;
+  title: string;
+  totalStudents: number;
+  totalSubmissions: number;
+  submissionRate: number;
+  averageScore: number;
+  highestScore: number;
+  lowestScore: number;
+  medianScore: number;
+  standardDeviation: number;
+  activeTeams?: number;
+  completedTeams?: number;
+}
+
+export interface CompleteAssessmentResponseDto {
+  message: string;
+  assessmentId: number;
+  status: string;
 }

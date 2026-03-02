@@ -13,6 +13,7 @@ import { AssessmentModule } from './modules/assessment/assessment.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { EvaluationModule } from './modules/evaluation/evaluation.module';
 import { TasksModule } from './modules/tasks/tasks.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -45,6 +46,7 @@ import { Notification } from './libs/entities/user/notification.entity';
         WalletModule,
         EvaluationModule,
         TasksModule,
+        AdminModule,
         UserAiModule,
         HttpModule.register({}),
         TypeOrmModule.forFeature([Payment, CreditPackage, UserCreditBalance, WalletTransaction, Notification,Assessment,]),

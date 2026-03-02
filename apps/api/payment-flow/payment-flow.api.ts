@@ -1,14 +1,39 @@
 // /api/payment-flow/payment-flow.api.ts
-import axios from '../base/axios';
+import axiosInstance from '../axios';
 import {
-  AdminAdjustWalletDto,
-  AdminAdjustResponseDto
+  StartPaymentDto,
+  StartPaymentResponseDto,
+  PaymentStatusResponseDto
 } from './dto';
 
-export async function adminAdjustWallet(data: AdminAdjustWalletDto): Promise<AdminAdjustResponseDto> {
+/**
+ * Start payment for a credit package
+ */
+export async function startPayment(packageId: number, data: StartPaymentDto): Promise<StartPaymentResponseDto> {
   try {
-    const res = await axios.post<AdminAdjustResponseDto>(`/payment-flow/admin-adjust-wallet`, data);
-    return res.data;
+    const response = await axiosInstance.post<StartPaymentResponseDto>(
+      `/payment/start-payment/${packageId}`,
+      data
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(
+      error?.response?.data?.message ||
+      error?.message ||
+      'Unknown API error'
+    );
+  }
+}
+
+/**
+ * Get payment status
+ */
+export async function getPaymentStatus(paymentId: string): Promise<PaymentStatusResponseDto> {
+  try {
+    const response = await axiosInstance.get<PaymentStatusResponseDto>(
+      `/payment/status/${paymentId}`
+    );
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||

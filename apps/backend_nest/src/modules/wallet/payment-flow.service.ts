@@ -4,9 +4,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { PaymentGateway } from './payment.gateway';
-import { PaymentService } from '../../services/payment.service';
+import { PaymentService, TransactionData } from '../../services/payment.service';
 import { Payment } from '../../libs/entities/ai/payment.entity';
 import { CreditPackage } from '../../libs/entities/ai/credit-package.entity';
+import { User } from '../../libs/entities/user/user.entity';
 import { UserCreditBalance } from '../../libs/entities/ai/user-credit-balance.entity';
 import {
   TransactionType,
@@ -86,9 +87,9 @@ export class PaymentFlowService implements OnModuleInit {
       const startTime = Date.now();
       while (Date.now() - startTime < timeoutMs) {
         try {
-          const status = await this.paymentService.checkPayment(md5);
-          this.gateway.sendStatus(userId, status);
-          if (status === 'PAID') {
+          const response = await this.paymentService.checkPayment(md5);
+          this.gateway.sendStatus(userId, response.responseCode === 0 ? 'PAID' : 'UNPAID');
+          if (response.responseCode === 0) {
             await this.handleSuccess(paymentId);
             return;
           }
@@ -103,7 +104,7 @@ export class PaymentFlowService implements OnModuleInit {
     }
   }
 
-  private async handleSuccess(paymentId: number) {
+  private async handleSuccess(paymentId: number, paymentData?: TransactionData) {
     try {
       if (!paymentId) throw new BadRequestException('Payment ID is required');
       const payment = await this.paymentRepo.findOne({
@@ -139,7 +140,10 @@ export class PaymentFlowService implements OnModuleInit {
         description: `Purchased credit package: ${creditPackage.name}`,
         metadata: { paymentId: payment.id, packageId: creditPackage.id },
       });
+      //payment data store
       payment.status = PaymentStatus.COMPLETED;
+      payment.transactionId = paymentData.hash;
+      payment.transactionDetails = paymentData;
       await this.paymentRepo.save(payment);
       this.logger.log(
         `Payment ${paymentId} completed. Credited ${totalCredits} credits to user ${user.id}.`,
@@ -150,5 +154,247 @@ export class PaymentFlowService implements OnModuleInit {
   }
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async verifyTransactionByHash(
+    hash: string,
+    amount: number,
+    currency: Currency,
+  ): Promise<any> {
+    try {
+      // ✅ 1. Validate input properly
+      if (!hash || typeof hash !== 'string') {
+        throw new BadRequestException('Hash is required');
+      }
+
+      if (typeof amount !== 'number' || amount <= 0) {
+        throw new BadRequestException('Amount must be a positive number');
+      }
+
+      if (!['USD', 'KHR'].includes(currency)) {
+        throw new BadRequestException('Currency must be either USD or KHR');
+      }
+
+      const existingTransaction = await this.paymentRepo.findOne({
+        where: { transactionId: hash },
+        relations: ['user', 'creditPackage'],
+      });
+
+      if (existingTransaction) {
+        return {
+          responseCode: 0,
+          responseMessage: 'Transaction already verified',
+          data: existingTransaction.transactionDetails,
+        };
+      }
+
+      const bakongResponse = await this.paymentService.checkPaymentByHash(
+        hash,
+        amount,
+        currency,
+      );
+
+      if (bakongResponse.responseCode !== 0) {
+        return {
+          responseCode: 1,
+          responseMessage: bakongResponse.responseMessage,
+          errorCode: bakongResponse.errorCode ?? 1,
+          data: null,
+        };
+      }
+
+      const txn = bakongResponse.data;
+      if (txn.amount !== amount || txn.currency !== currency) {
+        this.logger.warn(
+          `Transaction mismatch: expected ${amount} ${currency}, got ${txn.amount} ${txn.currency}`,
+        );
+        throw new BadRequestException('Transaction amount or currency mismatch');
+      }
+      return {
+        responseCode: 0,
+        responseMessage: 'Getting transaction successfully.',
+        data: txn,
+      };
+    } catch (err) {
+      if (err instanceof BadRequestException || err instanceof NotFoundException) {
+        throw err;
+      }
+      this.logger.error('Failed to verify transaction by hash', err);
+      throw new BadRequestException('Failed to verify transaction');
+    }
+  }
+
+  /**
+   * User self-submit payment proof endpoint
+   * Implements complete verification flow with transaction and wallet crediting
+   */
+  async submitPaymentProof(
+    userId: number,
+    paymentHash: string,
+    imageUrl: string,
+    packageId: number,
+  ): Promise<{ transactionId: number; message: string; creditsApplied: number }> {
+    try {
+      // ✅ 1. Validate input
+      if (!userId) {
+        throw new BadRequestException('User ID is required');
+      }
+
+      if (!paymentHash || typeof paymentHash !== 'string') {
+        throw new BadRequestException('Payment hash is required');
+      }
+
+      if (paymentHash.length !== 8) {
+        throw new BadRequestException('Payment hash must be exactly 8 characters');
+      }
+
+      if (!imageUrl || typeof imageUrl !== 'string') {
+        throw new BadRequestException('Image URL is required');
+      }
+
+      // Basic URL validation
+      try {
+        new URL(imageUrl);
+      } catch {
+        throw new BadRequestException('Image URL must be a valid URL');
+      }
+
+      if (!packageId || typeof packageId !== 'number' || packageId <= 0) {
+        throw new BadRequestException('Package ID must be a positive number');
+      }
+
+      // ✅ 2. Prevent duplicate payment
+      const existingTransaction = await this.paymentRepo.findOne({
+        where: { transactionId: paymentHash },
+      });
+
+      if (existingTransaction) {
+        throw new BadRequestException('Payment already used');
+      }
+
+      // ✅ 3. Load the package
+      const pkg = await this.packageRepo.findOne({
+        where: { id: packageId },
+      });
+
+      if (!pkg) {
+        throw new NotFoundException('Credit package not found');
+      }
+
+      // ✅ 4. Call Bakong verification
+      const bakongResponse = await this.paymentService.checkPaymentByHash(
+        paymentHash,
+        pkg.price,
+        pkg.currency || Currency.USD,
+      );
+
+      if (bakongResponse.responseCode !== 0) {
+        throw new BadRequestException(
+          bakongResponse.responseMessage || 'Payment verification failed with Bakong',
+        );
+      }
+
+      if (!bakongResponse.data) {
+        throw new BadRequestException('No transaction data returned from Bakong');
+      }
+
+      // ✅ 5. Validate amount matches package (CRITICAL SECURITY CHECK)
+      const bakongAmount = bakongResponse.data.amount;
+      const bakongCurrency = bakongResponse.data.currency;
+      const packageAmount = pkg.price;
+      const packageCurrency = pkg.currency || Currency.USD;
+
+      if (bakongAmount !== packageAmount || bakongCurrency !== packageCurrency) {
+        this.logger.warn(
+          `Payment amount mismatch: Bakong ${bakongAmount} ${bakongCurrency} vs Package ${packageAmount} ${packageCurrency}`,
+        );
+        throw new BadRequestException(
+          'Payment amount does not match selected package',
+        );
+      }
+
+      // ✅ 6. Load user
+      const user = await this.paymentRepo.query(
+        'SELECT * FROM "user" WHERE id = $1',
+        [userId],
+      );
+
+      if (!user || user.length === 0) {
+        throw new BadRequestException('User not found');
+      }
+
+      // ✅ 7. Save transaction (SUCCESS CASE) with image proof
+      const payment = await this.paymentRepo.save({
+        transactionId: paymentHash,
+        user: { id: userId },
+        creditPackage: { id: packageId },
+        amount: bakongAmount,
+        currency: bakongCurrency,
+        paymentMethod: PaymentMethod.BAKOGN,
+        status: PaymentStatus.COMPLETED,
+        imgProof: imageUrl, 
+        // Store the Cloudinary image URL as proof
+        transactionDetails: {
+          ...bakongResponse.data,
+        },
+      });
+
+      // ✅ 8. Credit user wallet (atomic/transactional + idempotent)
+      const totalCredits = pkg.credits + (pkg.bonusCredits || 0);
+
+      let userWallet = await this.balanceRepo.findOne({
+        where: { user: { id: userId } },
+        relations: ['user'],
+      });
+
+      if (!userWallet) {
+        userWallet = this.balanceRepo.create({
+          user: { id: userId },
+          creditBalance: 0,
+        });
+        userWallet = await this.balanceRepo.save(userWallet);
+      }
+
+      const balanceBefore = userWallet.creditBalance;
+      const balanceAfter = balanceBefore + totalCredits;
+      userWallet.creditBalance = balanceAfter;
+      await this.balanceRepo.save(userWallet);
+
+      // Create wallet transaction record
+      await this.walletRepo.save({
+        wallet: userWallet,
+        type: TransactionType.CREDIT,
+        reason: TransactionReason.PURCHASE,
+        amount: totalCredits,
+        balanceBefore,
+        balanceAfter,
+        description: `Purchased credit package: ${pkg.name}`,
+        metadata: {
+          paymentId: payment.id,
+          packageId: pkg.id,
+          transactionHash: paymentHash,
+          proofImageUrl: imageUrl,
+        },
+      });
+
+      this.logger.log(
+        `Payment ${paymentHash} verified by user ${userId}. Credited ${totalCredits} credits.`,
+      );
+
+      return {
+        transactionId: payment.id,
+        message: 'Payment verified and credits applied',
+        creditsApplied: totalCredits,
+      };
+    } catch (err) {
+      if (
+        err instanceof BadRequestException ||
+        err instanceof NotFoundException
+      ) {
+        throw err;
+      }
+      this.logger.error('Failed to submit payment proof', err);
+      throw new BadRequestException('Failed to process payment proof submission');
+    }
   }
 }

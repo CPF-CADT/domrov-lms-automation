@@ -20,16 +20,41 @@ interface CreateQRParams {
     isStatic?: boolean;
 }
 
+export enum TransactionStatus {
+    SUCCESS = "SUCCESS",
+    FAILED = "FAILED",
+    NOT_FOUND = "NOT_FOUND",
+    STATIC_QR = "STATIC_QR",
+}
+
+// Interface for transaction details returned by MD5 API
+export interface TransactionData {
+    hash: string;               // Full transaction hash
+    fromAccountId: string;      // Sender Bakong Account ID
+    toAccountId: string;        // Receiver Bakong Account ID
+    currency: string;           // Currency code, e.g., USD
+    amount: number;             // Transaction amount
+    description: string;        // Transaction description
+    createdDateMs: number;      // Transaction creation timestamp (ms)
+    acknowledgedDateMs: number; // Transaction acknowledgment timestamp (ms)
+    trackingStatus?: string;    // Optional transaction status
+    receiverBank?: string;      // Optional: receiver bank name
+    receiverBankAccount?: string; // Optional: receiver bank account (masked)
+}
+
+// Updated interface for MD5 check response
+
 interface DeeplinkResponse {
     responseCode: number;
     data?: { shortLink: string };
     message?: string;
 }
 
-interface CheckPaymentResponse {
-    responseCode: number;
-    data?: any;
-    message?: string;
+export interface CheckPaymentResponse {
+    responseCode: number;       // 0 = success, 1 = fail
+    errorCode?: number | null;  // Optional API error code
+    responseMessage?: string;   // Optional API message
+    data?: TransactionData;     // Transaction details if successful
 }
 
 @Injectable()
@@ -61,7 +86,7 @@ export class PaymentService {
         // CRITICAL FIX: The CRC must be calculated on the data + "6304"
         const dataToCrc = data + '6304';
         const buffer = Buffer.from(dataToCrc, 'utf-8');
-        
+
         let crc = 0xffff;
         const poly = 0x1021;
 
@@ -97,7 +122,7 @@ export class PaymentService {
         const merchantCity = params.merchantCity || this.defaultMerchantCity;
         const currency = params.currency;
         const amount = params.amount;
-        
+
         // Optional fields
         const storeLabel = params.storeLabel || '';
         const phoneNumber = params.phoneNumber || this.defaultPhone;
@@ -117,18 +142,18 @@ export class PaymentService {
         // FIX: Merchant Account Information (Tag 29) needs to be nested
         // Structure: 29 -> Length -> 00 -> Length -> BankAccount
         const merchantAccountInfo = this.tlv('00', bankAccount);
-        qr += this.tlv('29', merchantAccountInfo); 
+        qr += this.tlv('29', merchantAccountInfo);
 
         qr += this.tlv('52', '5999'); // MCC
         qr += this.tlv('58', 'KH'); // Country
         qr += this.tlv('59', merchantName); // Merchant Name
         qr += this.tlv('60', merchantCity); // City
         qr += this.getTimestamp(); // Timestamp (now includes nested fix)
-        
+
         if (!isStatic && amount) {
             qr += this.formatAmount(amount);
         }
-        
+
         qr += this.tlv('53', currencyCode); // Currency
 
         // Additional data field (Tag 62)
@@ -142,7 +167,7 @@ export class PaymentService {
 
         // Finalize with CRC
         qr += this.generateCrc(qr);
-        
+
         return qr;
     }
 
@@ -171,7 +196,7 @@ export class PaymentService {
         }
     }
 
-    async checkPayment(md5: string): Promise<'PAID' | 'UNPAID'> {
+    async checkPayment(md5: string): Promise<CheckPaymentResponse> {
         try {
             const res: AxiosResponse<CheckPaymentResponse> = await firstValueFrom(
                 this.http.post(`${this.apiUrl}/check_transaction_by_md5`, { md5 }, {
@@ -179,7 +204,21 @@ export class PaymentService {
                 }),
             );
             console.log('CHECK PAYMENT RESPONSE:', res.data);
-            return res.data?.responseCode === 0 ? 'PAID' : 'UNPAID';
+            // return res.data?.responseCode === 0 ? 'PAID' : 'UNPAID';
+            return res.data;
+        } catch (err) {
+            throw new HttpException(this.extractError(err), 400);
+        }
+    }
+
+    async checkPaymentByHash(hash: string, amount: number, currency: Currency): Promise<CheckPaymentResponse> {
+        try {
+            const res: AxiosResponse<CheckPaymentResponse> = await firstValueFrom(
+                this.http.post(`${this.apiUrl}/check_transaction_by_short_hash`, { hash, amount, currency }, {
+                    headers: { Authorization: `Bearer ${this.token}` },
+                }),
+            );
+            return res.data;
         } catch (err) {
             throw new HttpException(this.extractError(err), 400);
         }

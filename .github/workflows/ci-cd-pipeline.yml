@@ -11,6 +11,7 @@ jobs:
     outputs:
       nestjs: ${{ steps.filter.outputs.nestjs }}
       python: ${{ steps.filter.outputs.python }}
+      frontend: ${{ steps.filter.outputs.frontend }}
     steps:
       - uses: actions/checkout@v3
 
@@ -22,6 +23,8 @@ jobs:
               - 'apps/backend_nest/**'
             python:
               - 'apps/code_eval/**'
+            frontend:
+              - 'apps/admin/**'
 
   test-nestjs:
     needs: changes
@@ -29,16 +32,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 20
-
       - name: Install Dependencies
         working-directory: ./apps/backend_nest
         run: npm ci
-
       - name: Run NestJS Tests
         working-directory: ./apps/backend_nest
         run: npm run test:ci
@@ -49,14 +49,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
       - uses: docker/setup-buildx-action@v2
-
       - uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
       - name: Build & Push NestJS
         uses: docker/build-push-action@v5
         with:
@@ -67,7 +64,6 @@ jobs:
           tags: |
             phyvathanak/nestjs-backend:latest
             phyvathanak/nestjs-backend:${{ github.sha }}
-
       - name: Deploy NestJS to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -76,20 +72,11 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY_NEST_JS }}
           script: |
             set -e
-
             IMAGE=phyvathanak/nestjs-backend:${{ github.sha }}
-
-            echo "Stopping old container..."
             docker stop nestjs-backend || true
             docker rm nestjs-backend || true
-
-            echo "Removing old images..."
             docker image prune -af || true
-
-            echo "Pulling fresh image..."
             docker pull $IMAGE
-
-            echo "Running new container..."
             docker run -d \
               --name nestjs-backend \
               --restart unless-stopped \
@@ -104,14 +91,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
       - uses: docker/setup-buildx-action@v2
-
       - uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
       - name: Build & Push Python
         uses: docker/build-push-action@v5
         with:
@@ -122,7 +106,6 @@ jobs:
           tags: |
             phyvathanak/code_eval:latest
             phyvathanak/code_eval:${{ github.sha }}
-
       - name: Deploy Python to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -131,23 +114,54 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY_CODE_EVAL }}
           script: |
             set -e
-
             IMAGE=phyvathanak/code_eval:${{ github.sha }}
-
-            echo "Stopping old container..."
             docker stop code_eval || true
             docker rm code_eval || true
-
-            echo "Removing old images..."
             docker image prune -af || true
-
-            echo "Pulling fresh image..."
             docker pull $IMAGE
-
-            echo "Running new container..."
             docker run -d \
               --name code_eval \
               --restart unless-stopped \
               --env-file /home/ubuntu/.env \
               -p 50051:50051 \
               $IMAGE
+
+  # build-frontend:
+  #   needs: changes
+  #   if: needs.changes.outputs.frontend == 'true'
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v3
+  #       with:
+  #         node-version: 20
+
+  #     - name: Install Dependencies
+  #       working-directory: ./apps/admin
+  #       run: npm ci
+
+  #     - name: Build React Frontend
+  #       working-directory: ./apps/admin
+  #       run: npm run build
+
+  #     - name: Deploy to S3
+  #       uses: jakejarvis/s3-sync-action@v0.5.1
+  #       with:
+  #         args: --delete
+  #       env:
+  #         AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET_ADMIN }}
+  #         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #         AWS_REGION: ${{ secrets.AWS_REGION }}
+  #         SOURCE_DIR: ./apps/admin/dist
+
+  #     - name: Invalidate CloudFront
+  #       uses: chetan/invalidate-cloudfront-action@v1
+  #       with:
+  #         distribution-id: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_ADMIN }}
+  #         paths: "/*"
+  #         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #         aws-region: ${{ secrets.AWS_REGION }}

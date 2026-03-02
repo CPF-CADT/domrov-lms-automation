@@ -24,7 +24,6 @@ import { ResendOtpDTO, VerifyOtpDTO } from '../../libs/dtos/user/email-verificat
 import { SignUpResponseDto } from '../../libs/dtos/auth/sign-up-response.dto';
 import { MessageResponseDto } from '../../libs/dtos/common/message-response.dto';
 import { OAuthProfileDecorator, User as UserDecorator } from '../../common/decorators/user.decorator';
-import { User } from '../../libs/entities/user/user.entity';
 import { DynamicOAuthGuard, OAuthProvider } from '../../common/decorators/oauth.decorator';
 import type { OAuthProfile } from '../../libs/dtos/auth/oauth-profile.interface';
 
@@ -60,13 +59,16 @@ export class AuthController {
         }
     })
     @ApiCreatedResponse({
-        description: 'User registered successfully',
-        type: SignUpResponseDto,
-        example: {
-            userId: 1,
-            firstName: 'John',
-            lastName: 'Doe',
-            email: 'john.doe@example.com'
+        schema: {
+            example: {
+                success: true,
+                data: {
+                    userId: 1,
+                    firstName: 'John',
+                    lastName: 'Doe',
+                    email: 'john.doe@example.com'
+                }
+            }
         }
     })
     @ApiConflictResponse({
@@ -93,8 +95,9 @@ export class AuthController {
             error: 'Internal Server Error'
         }
     })
-    async signUp(@Body() createUserDto: RegisterUserDTO): Promise<SignUpResponseDto> {
-        return this.authService.signUp(createUserDto);
+    async signUp(@Body() createUserDto: RegisterUserDTO): Promise<{ success: true; data: SignUpResponseDto }> {
+        const data = await this.authService.signUp(createUserDto);
+        return { success: true, data };
     }
 
     // ==================== LOGIN ====================
@@ -109,22 +112,35 @@ export class AuthController {
         description: 'User login credentials',
         examples: {
             example1: {
-                summary: 'Standard login',
+                summary: 'Teacher login',
                 value: {
-                    email: 'john.doe@example.com',
+                    email: 'sophea.heng0@example.com',
                     password: 'password123'
                 }
+            },
+            example2: {
+                summary: 'Student login',
+                value: {
+                    email: 'vannak.chhun1@example.com',
+                    password: 'password123'
+                }
+            },
+            example3: {
+                summary: 'Admin login',
+                value: {
+                    email: 'cpf.cadt@gmail.com',
+                    password: 'Admin@123'
+                }
             }
+
         }
     })
     @ApiOkResponse({
-        description: 'Login successful',
         schema: {
-            type: 'object',
-            properties: {
-                accessToken: {
-                    type: 'string',
-                    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+            example: {
+                success: true,
+                data: {
+                    accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
                 }
             }
         }
@@ -141,7 +157,7 @@ export class AuthController {
         @Req() req: Request,
         @Res({ passthrough: true }) res: Response,
         @Body() loginDto: LoginUserDTO
-    ) {
+    ): Promise<{ success: true; data: any }> {
         const { refreshToken, ...loginResponse } = await this.authService.login(loginDto);
         res.cookie('refresh_token', refreshToken, {
             httpOnly: true,
@@ -149,7 +165,7 @@ export class AuthController {
             sameSite: 'strict',
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         });
-        return loginResponse;
+        return { success: true, data: loginResponse };
     }
 
     // ==================== REFRESH TOKEN ====================
@@ -162,21 +178,13 @@ export class AuthController {
         description: 'Issues a new access token using the refresh token from HTTP-only cookie.'
     })
     @ApiOkResponse({
-        description: 'Token refreshed successfully',
         schema: {
-            type: 'object',
-            properties: {
-                status: {
-                    type: 'string',
-                    example: 'success'
-                },
-                accessToken: {
-                    type: 'string',
-                    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
-                },
-                issuedAt: {
-                    type: 'number',
-                    example: 1704067200
+            example: {
+                success: true,
+                data: {
+                    status: 'success',
+                    accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+                    issuedAt: 1704067200
                 }
             }
         }
@@ -189,15 +197,16 @@ export class AuthController {
             error: 'Unauthorized'
         }
     })
-    async refreshToken(@Req() req, @Res({ passthrough: true }) res: Response) {
+    async refreshToken(@Req() req, @Res({ passthrough: true }) res: Response): Promise<{ success: true; data: any }> {
         const user = req.user;
         const { accessToken } = await this.authService.refreshToken(user.id, user.email);
         const issuedAt = Math.floor(Date.now() / 1000);
-        return {
+        const data = {
             status: 'success',
             accessToken,
             issuedAt
         };
+        return { success: true, data };
     }
 
     // ==================== LOGOUT ====================
@@ -210,17 +219,12 @@ export class AuthController {
         description: 'Invalidates the current refresh token and clears the HTTP-only cookie.'
     })
     @ApiOkResponse({
-        description: 'Logged out successfully',
         schema: {
-            type: 'object',
-            properties: {
-                status: {
-                    type: 'string',
-                    example: 'success'
-                },
-                message: {
-                    type: 'string',
-                    example: 'Logged out from current device'
+            example: {
+                success: true,
+                data: {
+                    status: 'success',
+                    message: 'Logged out from current device'
                 }
             }
         }
@@ -241,7 +245,7 @@ export class AuthController {
             error: 'Not Found'
         }
     })
-    async logout(@Req() req, @Res({ passthrough: true }) res: Response) {
+    async logout(@Req() req, @Res({ passthrough: true }) res: Response): Promise<{ success: true; data: any }> {
         const user = req.user;
         const refreshToken = req.cookies['refresh_token'];
         if (!refreshToken) {
@@ -253,7 +257,8 @@ export class AuthController {
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
         });
-        return { status: 'success', message: 'Logged out from current device' };
+        const data = { status: 'success', message: 'Logged out from current device' };
+        return { success: true, data };
     }
 
     // ==================== VERIFY EMAIL ====================
@@ -277,10 +282,13 @@ export class AuthController {
         }
     })
     @ApiOkResponse({
-        description: 'Email verified successfully',
-        type: MessageResponseDto,
-        example: {
-            message: 'Email verified successfully'
+        schema: {
+            example: {
+                success: true,
+                data: {
+                    message: 'Email verified successfully'
+                }
+            }
         }
     })
     @ApiNotFoundResponse({
@@ -328,8 +336,9 @@ export class AuthController {
             }
         }
     })
-    async verifyOtp(@Body() body: VerifyOtpDTO): Promise<MessageResponseDto> {
-        return this.authService.verifyEmailOtp(body.email, body.otp);
+    async verifyOtp(@Body() body: VerifyOtpDTO): Promise<{ success: true; data: MessageResponseDto }> {
+        const data = await this.authService.verifyEmailOtp(body.email, body.otp);
+        return { success: true, data };
     }
 
     // ==================== RESEND VERIFICATION OTP ====================
@@ -352,10 +361,13 @@ export class AuthController {
         }
     })
     @ApiOkResponse({
-        description: 'OTP sent successfully',
-        type: MessageResponseDto,
-        example: {
-            message: 'Verification OTP sent successfully'
+        schema: {
+            example: {
+                success: true,
+                data: {
+                    message: 'Verification OTP sent successfully'
+                }
+            }
         }
     })
     @ApiNotFoundResponse({
@@ -382,8 +394,9 @@ export class AuthController {
             error: 'Internal Server Error'
         }
     })
-    async resendOtp(@Body() body: ResendOtpDTO): Promise<MessageResponseDto> {
-        return this.authService.sendVerificationEmail(body.email);
+    async resendOtp(@Body() body: ResendOtpDTO): Promise<{ success: true; data: MessageResponseDto }> {
+        const data = await this.authService.sendVerificationEmail(body.email);
+        return { success: true, data };
     }
 
     // ==================== GOOGLE AUTH ====================
@@ -391,7 +404,7 @@ export class AuthController {
     @ApiOperation({ summary: 'Initiate OAuth login', description: 'Redirects to provider OAuth consent screen.' })
     @ApiParam({ name: 'provider', description: 'OAuth provider (google, microsoft, etc.)', required: true })
     @ApiOkResponse({ description: 'Redirects to OAuth provider consent screen' })
-    @UseGuards(DynamicOAuthGuard) // dynamic guard handles provider internally
+    @UseGuards(DynamicOAuthGuard)
     async oauthLogin(@OAuthProvider() provider: string) {
         console.log('Logging in with provider:', provider);
     }
@@ -402,7 +415,6 @@ export class AuthController {
     @ApiOkResponse({ description: 'Login successful and sets accessToken cookie' })
     @ApiCookieAuth()
     @UseGuards(DynamicOAuthGuard)
-
     async oauthCallback(
         @OAuthProfileDecorator() profile: OAuthProfile,
         @Res() res: Response

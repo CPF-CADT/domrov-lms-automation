@@ -57,8 +57,15 @@ export class EvaluationController {
     example: 'main.cpp'
   })
   @ApiOkResponse({
-    description: 'File content retrieved successfully',
-    type: ProcessSubmissionResponseDto
+    schema: {
+      example: {
+        success: true,
+        data: {
+          fileContent: 'file content here',
+          fileName: 'main.cpp'
+        }
+      }
+    }
   })
   @ApiNotFoundResponse({
     description: 'File not found'
@@ -66,9 +73,10 @@ export class EvaluationController {
   async processSubmission(
     @Param('submission_id', new ValidationPipe({ transform: true })) submission_id: number,
     @Query(new ValidationPipe({ transform: true })) query: GetFilesSubmissionDto
-  ): Promise<ProcessSubmissionResponseDto> {
+  ): Promise<{ success: true; data: ProcessSubmissionResponseDto }> {
     const { file_path } = query;
-    return this.evaluationService.processSubmission(String(submission_id), file_path);
+    const data = await this.evaluationService.processSubmission(String(submission_id), file_path);
+    return { success: true, data };
   }
 
   // ==================== GET FOLDER STRUCTURE ====================
@@ -85,16 +93,25 @@ export class EvaluationController {
     example: 1
   })
   @ApiOkResponse({
-    description: 'Folder structure retrieved successfully',
-    type: FolderStructureResponseDto
+    schema: {
+      example: {
+        success: true,
+        data: {
+          folderName: 'root',
+          files: [],
+          subfolders: []
+        }
+      }
+    }
   })
   @ApiNotFoundResponse({
     description: 'Submission not found'
   })
   async getSubmissionFolderStructure(
     @Param('submission_id', new ValidationPipe({ transform: true })) submission_id: number,
-  ): Promise<FolderStructureResponseDto> {
-    return this.evaluationService.getSubmissionFolderStructure(String(submission_id));
+  ): Promise<{ success: true; data: FolderStructureResponseDto }> {
+    const data = await this.evaluationService.getSubmissionFolderStructure(String(submission_id));
+    return { success: true, data };
   }
 
   // ==================== ADD TO AI EVALUATION QUEUE ====================
@@ -129,11 +146,14 @@ export class EvaluationController {
     }
   })
   @ApiOkResponse({
-    description: 'Submission queued successfully',
-    type: AddQueueResponseDto,
-    example: {
-      success: true,
-      message: 'Task queued successfully'
+    schema: {
+      example: {
+        success: true,
+        data: {
+          success: true,
+          message: 'Task queued successfully'
+        }
+      }
     }
   })
   @ApiBadRequestResponse({
@@ -173,38 +193,14 @@ export class EvaluationController {
       }
     }
   })
-
-  @Post('queue')
-  @UseGuards(JwtAuthGuard,SubmissionInstructorGuard)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Queue submission for AI evaluation',
-    description: `Adds a submission to the AI evaluation queue.`,
-  })
-  @ApiBody({
-    type: AddQueueDto,
-    description: 'Submission to queue for AI evaluation',
-    examples: {
-      single: {
-        summary: 'Queue single submission',
-        value: { submission_id: 123 },
-      },
-    },
-  })
-  @ApiOkResponse({
-    description: 'Submission queued successfully',
-    example: { success: true, message: 'Task queued successfully' },
-  })
   async addQueue(
     @Body(new ValidationPipe({ transform: true })) body: AddQueueDto,
-  ): Promise<AddQueueResponseDto> {
+  ): Promise<{ success: true; data: AddQueueResponseDto }> {
     console.log('addQueue called with:', body);
     const { submission_id } = body;
-    return this.evaluationService.addTaskToQueue(String(submission_id));
+    const data = await this.evaluationService.addTaskToQueue(String(submission_id));
+    return { success: true, data };
   }
-
-
-
 
   // ==================== EVALUATE SUBMISSION ====================
   @GrpcMethod('EvaluateWithAI', 'EvaluateSubmission')

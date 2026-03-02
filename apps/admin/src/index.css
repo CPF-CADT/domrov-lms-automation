@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+/* Global clickable style: all buttons, [role=button], and links get cursor-pointer */
+button, [role=button], a, input[type="button"], input[type="submit"], input[type="reset"] {
+	cursor: pointer;
+}

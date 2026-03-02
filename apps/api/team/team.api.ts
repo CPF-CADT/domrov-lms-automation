@@ -1,5 +1,5 @@
 // /api/team/team.api.ts
-import axios from '../base/axios';
+import axiosInstance from '../axios';
 import {
   CreateTeamDto,
   CreateManyTeamsDto,
@@ -14,8 +14,8 @@ import {
 
 export async function createTeam(data: CreateTeamDto): Promise<TeamResponseDto> {
   try {
-    const res = await axios.post<TeamResponseDto>(`/team`, data);
-    return res.data;
+    const response = await axiosInstance.post<TeamResponseDto>(`/team`, data);
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
@@ -27,8 +27,8 @@ export async function createTeam(data: CreateTeamDto): Promise<TeamResponseDto> 
 
 export async function createManyTeams(data: CreateManyTeamsDto): Promise<CreateManyTeamsResponseDto> {
   try {
-    const res = await axios.post<CreateManyTeamsResponseDto>(`/team/many`, data);
-    return res.data;
+    const response = await axiosInstance.post<CreateManyTeamsResponseDto>(`/team/many`, data);
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
@@ -38,10 +38,10 @@ export async function createManyTeams(data: CreateManyTeamsDto): Promise<CreateM
   }
 }
 
-export async function joinTeamWithCode(data: JoinTeamDto): Promise<JoinTeamResponseDto> {
+export async function joinTeamByCode(data: JoinTeamByCodeDto): Promise<JoinTeamResponseDto> {
   try {
-    const res = await axios.post<JoinTeamResponseDto>(`/team/join/code`, data);
-    return res.data;
+    const response = await axiosInstance.post<JoinTeamResponseDto>(`/team/join/code`, data);
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
@@ -53,8 +53,8 @@ export async function joinTeamWithCode(data: JoinTeamDto): Promise<JoinTeamRespo
 
 export async function joinTeamByToken(data: JoinTeamByTokenDto): Promise<JoinTeamResponseDto> {
   try {
-    const res = await axios.post<JoinTeamResponseDto>(`/team/join/token`, data);
-    return res.data;
+    const response = await axiosInstance.post<JoinTeamResponseDto>(`/team/join/token`, data);
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
@@ -64,10 +64,10 @@ export async function joinTeamByToken(data: JoinTeamByTokenDto): Promise<JoinTea
   }
 }
 
-export async function getTeamsWithMembers(classId: number): Promise<TeamResponseDto[]> {
+export async function getTeamsByClass(classId: number): Promise<TeamResponseDto[]> {
   try {
-    const res = await axios.get<TeamResponseDto[]>(`/team/class/${classId}`);
-    return res.data;
+    const response = await axiosInstance.get<TeamResponseDto[]>(`/team/class/${classId}`);
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
@@ -79,8 +79,8 @@ export async function getTeamsWithMembers(classId: number): Promise<TeamResponse
 
 export async function getTeamDetails(teamId: number): Promise<TeamResponseDto> {
   try {
-    const res = await axios.get<TeamResponseDto>(`/team/${teamId}`);
-    return res.data;
+    const response = await axiosInstance.get<TeamResponseDto>(`/team/${teamId}`);
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
@@ -92,8 +92,8 @@ export async function getTeamDetails(teamId: number): Promise<TeamResponseDto> {
 
 export async function inviteTeamByEmail(teamId: number, data: InviteTeamByEmailDto): Promise<MessageResponseDto> {
   try {
-    const res = await axios.post<MessageResponseDto>(`/team/${teamId}/invite`, data);
-    return res.data;
+    const response = await axiosInstance.post<MessageResponseDto>(`/team/${teamId}/invite`, data);
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
@@ -105,8 +105,8 @@ export async function inviteTeamByEmail(teamId: number, data: InviteTeamByEmailD
 
 export async function leaveTeam(teamId: number): Promise<MessageResponseDto> {
   try {
-    const res = await axios.delete<MessageResponseDto>(`/team/${teamId}/leave`);
-    return res.data;
+    const response = await axiosInstance.delete<MessageResponseDto>(`/team/${teamId}/leave`);
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
@@ -118,8 +118,8 @@ export async function leaveTeam(teamId: number): Promise<MessageResponseDto> {
 
 export async function removeMember(teamId: number, memberId: number): Promise<MessageResponseDto> {
   try {
-    const res = await axios.delete<MessageResponseDto>(`/team/${teamId}/members/${memberId}`);
-    return res.data;
+    const response = await axiosInstance.delete<MessageResponseDto>(`/team/${teamId}/members/${memberId}`);
+    return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||

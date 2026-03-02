@@ -59,7 +59,8 @@ export class WalletService {
         amount: number,
         reason: TransactionReason,
         description?: string,
-    ): Promise<UserCreditBalance> {
+        metadata?: Record<string, any>,
+    ): Promise<{ wallet: UserCreditBalance; transactionId: number }> {
         if (!userId) throw new BadRequestException('User ID is required');
         if (typeof amount !== 'number' || amount <= 0) throw new BadRequestException('Amount must be a positive number');
         if (!reason) throw new BadRequestException('Transaction reason is required');
@@ -80,10 +81,11 @@ export class WalletService {
                     balanceBefore,
                     balanceAfter,
                     description: description || `Added ${amount} credits`,
+                    ...(metadata ? { metadata } : {}),
                 });
 
-                await manager.save(transaction);
-                return wallet;
+                const savedTransaction = await manager.save(transaction);
+                return { wallet, transactionId: savedTransaction.id };
             });
         } catch (err) {
             if (err instanceof BadRequestException) throw err;
@@ -98,7 +100,7 @@ export class WalletService {
         description?: string,
         type: TransactionType = TransactionType.DEBIT,
         metadata?: Record<string, any>,
-    ): Promise<UserCreditBalance> {
+    ): Promise<{ wallet: UserCreditBalance; transactionId: number }> {
         if (!userId) throw new BadRequestException('User ID is required');
         if (typeof amount !== 'number' || amount <= 0) throw new BadRequestException('Amount must be a positive number');
         if (!reason) throw new BadRequestException('Transaction reason is required');
@@ -127,8 +129,8 @@ export class WalletService {
                     metadata,
                 });
 
-                await manager.save(transaction);
-                return wallet;
+                const savedTransaction = await manager.save(transaction);
+                return { wallet, transactionId: savedTransaction.id };
             });
         } catch (err) {
             throw new BadRequestException('Failed to deduct credits');

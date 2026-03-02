@@ -12,313 +12,6 @@ export abstract class BaseEntity {
   updated_at: Date;
 }
 
-
-================================================================================
-FILE: .\seed.ts
-================================================================================
-
-import { DataSource } from 'typeorm';
-import { faker } from '@faker-js/faker';
-import * as dotenv from 'dotenv';
-import path from 'path';
-
-// ==========================================
-// 1. IMPORT YOUR ENTITIES HERE
-// ==========================================
-import { User } from './user/user.entity';
-import { UserTokenBalance } from './ai/user-token-balance.entity';
-import { TokenPackage } from './ai/token-package.entity';
-import { PlatformAIModel } from './ai/platform-ai-model.entity';
-import { WalletTransaction } from './ai/wallet-transaction.entity';
-import { Class } from './classroom/class.entity';
-import { Enrollment } from './classroom/enrollment.entity';
-import { Team } from './classroom/team.entity';
-import { TeamMember } from './classroom/user-team.entity';
-import { Resource } from './resource/resource.entity';
-import { Assessment } from './assessment/assessment.entity';
-import { Rubrics } from './assessment/rubic.entity';
-import { Submission } from './assessment/submission.entity';
-import { Evaluation } from './assessment/evaluation.entity';
-import { Payment } from './ai/payment.entity';
-import { AIUsageLog } from './ai/ai-usage-log.entity';
-import { Currency, PaymentMethod } from '../enums/Payment';
-import { PaymentStatus, SubmissionStatus, UserStatus } from '../enums/Status';
-import { UserRole } from '../enums/Role';
-import { EvaluationType, SubmissionType, SubmissionMethod } from '../enums/Assessment';
-import { OAuthAccount } from './user/oauth-account.entity';
-import { OAuthProvider } from './user/oauth-provider.entity';
-import { TelegramChat } from './user/telegram-chat.entity';
-import { UserEmailOtp } from './user/user-email-otp.entity';
-import { UserRefreshToken } from './user/user-refresh-token.entity';
-import { AssessmentResource } from './resource/assessment-resource.entity';
-import { ClassResource } from './resource/class-resource.entity';
-import { ModuleResource } from './resource/module-resource.entity';
-import { SubmissionResource } from './resource/submission-resource.entity';
-import { TopicResource } from './resource/topic-resource.entity';
-import { Encryption } from '../utils/Encryption';
-import { Module as LessonModule } from '../../libs/entities/lesson/module.entity';
-import { EvaluationFeedback } from './assessment/evaluation-feedback.entity';
-// import { EvaluationRubricScore } from './assessment/evaluation-rubric-score.entity';
-import { Topic } from './lesson/topic.entity';
-import { ResourceType } from '../enums/Resource';
-
-dotenv.config({ path: path.join(__dirname, '../../.env') });
-
-// ==========================================
-// 3. DATABASE CONFIGURATION
-// ==========================================
-const AppDataSource = new DataSource({
-    type: 'postgres',
-    host: process.env.POSTGRES_HOST || 'localhost',
-    port: parseInt(process.env.POSTGRES_PORT, 10) || 5432,
-    username: process.env.POSTGRES_USER,
-    password: process.env.POSTGRES_PASSWORD,
-    database: process.env.POSTGRES_DB,
-    entities: [
-        User,
-        OAuthAccount,
-        OAuthProvider,
-        TelegramChat,
-        UserEmailOtp,
-        UserRefreshToken,
-        Class,
-        Enrollment,
-        Team,
-        TeamMember,
-        Assessment,
-        Submission,
-        Evaluation,
-        Rubrics,
-        LessonModule,
-        Topic,
-        Resource,
-        AssessmentResource,
-        ClassResource,
-        ModuleResource,
-        SubmissionResource,
-        TopicResource,
-        AIUsageLog,
-        Payment,
-        PlatformAIModel,
-        TokenPackage,
-        UserTokenBalance,
-        WalletTransaction,
-        EvaluationFeedback,
-    ],
-    synchronize: true, // Set to false in production
-    logging: false,
-});
-
-async function seed() {
-    await AppDataSource.initialize();
-    console.log('🌱 DataSource initialized. Starting seeding...');
-    const queryRunner = AppDataSource.createQueryRunner();
-    await queryRunner.connect();
-
-    await queryRunner.startTransaction();
-
-    // ==========================================
-    // 4. TRUNCATE DATA
-    // ==========================================
-    console.log('🧹 Clearing existing data...');
-    // Updated to match your entities
-    await queryRunner.query(`
-        TRUNCATE TABLE 
-            "submission_resources", "topic_resources", "module_resources", 
-            "class_resources", "assessment_resources", "resources",
-            "evaluation_feedback", "evaluations",
-            "submissions", "rubrics", "assessments",
-            "team_members", "teams", "enrollments", "classes",
-            "wallet_transactions", "user_token_balances", "payments",
-            "token_packages", "ai_usage_logs", "platform_ai_models",
-            "telegram_chats", "oauth_accounts", "oauth_providers",
-            "user_email_otp", "user_refresh_token", "users"
-        RESTART IDENTITY CASCADE;
-    `);
-
-    try {
-        // --- 1. SEED USERS ---
-        console.log('👤 Seeding Users...');
-        const users: User[] = [];
-        for (let i = 0; i < 15; i++) {
-            const user = new User();
-            user.firstName = faker.person.firstName();
-            user.lastName = faker.person.lastName();
-            user.gender = faker.person.sexType();
-            user.dob = faker.date.birthdate({ min: 18, max: 60, mode: 'age' });
-            user.phoneNumber = faker.string.numeric(10);
-            user.status = UserStatus.ACTIVE;
-            user.isVerified = true;
-            user.email = faker.internet.email();
-            user.password = await Encryption.hashPassword('password123');
-
-            users.push(await queryRunner.manager.save(user));
-        }
-
-        // --- 2. SEED AI MODELS ---
-        console.log('🤖 Seeding AI Models...');
-        const models: PlatformAIModel[] = [];
-        const modelNames = ['GPT-4o', 'Claude 3.5 Sonnet', 'Gemini 1.5 Pro'];
-        for (const name of modelNames) {
-            const model = new PlatformAIModel();
-            model.name = name;
-            model.apiUrl = faker.internet.url();
-            model.accuracy = faker.number.float({ min: 0.8, max: 0.99, fractionDigits: 2 });
-            model.costPerInputToken = faker.number.float({ min: 0.0001, max: 0.001, fractionDigits: 5 });
-            model.costPerOutputToken = faker.number.float({ min: 0.0002, max: 0.002, fractionDigits: 5 });
-            models.push(await queryRunner.manager.save(model));
-        }
-
-        // --- 3. SEED WALLETS & PACKAGES ---
-        console.log('💰 Seeding Wallets & Packages...');
-        const tokenPackages: TokenPackage[] = [];
-        for (let i = 0; i < 3; i++) {
-            const pkg = new TokenPackage();
-            pkg.name = `${faker.commerce.productName()} Pack`;
-            pkg.tokenAmount = faker.number.int({ min: 1000, max: 10000 });
-            pkg.price = faker.number.float({ min: 5, max: 50, fractionDigits: 2 });
-            tokenPackages.push(await queryRunner.manager.save(pkg));
-        }
-
-        for (const user of users) {
-            const wallet = new UserTokenBalance();
-            wallet.user = user;
-            wallet.tokenBalance = faker.number.int({ min: 500, max: 5000 });
-            await queryRunner.manager.save(wallet);
-        }
-
-        // --- 4. SEED CLASSES, ENROLLMENTS & TEAMS ---
-        console.log('🏫 Seeding Classes & Teams...');
-        const teacher = users[0];
-        const studentUsers = users.slice(1);
-
-        const myClass = new Class();
-        myClass.name = `Advanced Software Engineering ${faker.number.int({ min: 100, max: 999 })}`;
-        myClass.joinCode = faker.string.alphanumeric(6).toUpperCase();
-        myClass.owner = teacher;
-        await queryRunner.manager.save(myClass);
-
-        // Enroll students
-        for (const student of studentUsers) {
-            const enrollment = new Enrollment();
-            enrollment.user = student;
-            enrollment.class = myClass;
-            enrollment.role = UserRole.Student;
-            await queryRunner.manager.save(enrollment);
-        }
-
-        // Create Teams
-        for (let i = 0; i < 3; i++) {
-            const team = new Team();
-            team.name = `Team ${faker.animal.type()}`;
-            team.joinCode = faker.string.alphanumeric(6).toUpperCase();
-            team.maxMember = 4;
-            team.class = myClass;
-            team.leader = studentUsers[i];
-            const savedTeam = await queryRunner.manager.save(team);
-
-            // Add members
-            for (let j = 0; j < 3; j++) {
-                const member = new TeamMember();
-                member.team = savedTeam;
-                member.user = studentUsers[i + j + 1];
-                member.isApproved = true;
-                await queryRunner.manager.save(member);
-            }
-        }
-
-        // --- 5. SEED ASSESSMENTS ---
-        console.log('📝 Seeding Assessments...');
-        const assessment = new Assessment();
-        assessment.title = 'Final Project Proposal';
-        assessment.instruction = faker.lorem.paragraph();
-        assessment.startDate = new Date();
-        assessment.dueDate = faker.date.future();
-        assessment.maxScore = 100;
-        assessment.submissionType = SubmissionType.INDIVIDUAL;
-        assessment.class = myClass;
-        assessment.aiModel = models[0];
-        assessment.aiEvaluationEnable = true;
-        assessment.allowTeamSubmition = true;
-        assessment.allowedSubmissionMethod = SubmissionMethod.ANY; // 👈 Updated
-        const savedAssessment = await queryRunner.manager.save(assessment);
-
-        // Add Rubrics
-        for (let i = 0; i < 3; i++) {
-            const rubric = new Rubrics();
-            rubric.definition = faker.lorem.sentence();
-            rubric.totalScore = 100 / 3;
-            rubric.assessment = savedAssessment;
-            await queryRunner.manager.save(rubric);
-        }
-
-        // --- 6. SEED SUBMISSIONS & EVALUATIONS ---
-        console.log('📊 Seeding Submissions & Evaluations...');
-        const student = studentUsers[0];
-
-        const submission = new Submission();
-        submission.assessment = savedAssessment;
-        submission.user = student;
-        submission.status = SubmissionStatus.SUBMITTED;
-        const savedSubmission = await queryRunner.manager.save(submission);
-
-        // 👈 Updated: Seed Submission Resource instead of direct URL
-        const submissionResource = new SubmissionResource();
-        submissionResource.submission = savedSubmission;
-        const resource = new Resource();
-        resource.title = 'Project Proposal.pdf';
-        resource.type = ResourceType.FILE;
-        resource.url = faker.internet.url();
-        resource.owner = `Student:${student.id}`;
-        await queryRunner.manager.save(resource);
-
-        submissionResource.resource = resource;
-        await queryRunner.manager.save(submissionResource);
-
-        const evaluation = new Evaluation();
-        evaluation.submission = savedSubmission;
-        evaluation.score = faker.number.int({ min: 60, max: 100 });
-        evaluation.evaluationType = EvaluationType.AI;
-        evaluation.feedback = "Good work.";
-        await queryRunner.manager.save(evaluation);
-
-        // --- 7. SEED USAGE LOGS & PAYMENTS ---
-        console.log('📊 Seeding Usage & Payments...');
-        for (const user of users) {
-            // Usage
-            const log = new AIUsageLog();
-            log.title = 'Code Analysis';
-            log.usingDate = new Date();
-            log.inputTokenCount = faker.number.int({ min: 100, max: 1000 });
-            log.outputTokenCount = faker.number.int({ min: 50, max: 500 });
-            log.user = user;
-            log.model = faker.helpers.arrayElement(models);
-            await queryRunner.manager.save(log);
-
-            // Payment
-            const payment = new Payment();
-            payment.paymentMethod = faker.helpers.enumValue(PaymentMethod);
-            payment.amount = faker.number.float({ min: 5, max: 20, fractionDigits: 2 });
-            payment.currency = Currency.USD;
-            payment.status = PaymentStatus.COMPLETED;
-            payment.user = user;
-            payment.tokenPackage = faker.helpers.arrayElement(tokenPackages);
-            await queryRunner.manager.save(payment);
-        }
-
-        await queryRunner.commitTransaction();
-        console.log('✅ Seeding completed successfully!');
-    } catch (err) {
-        console.error('❌ Seeding Failed:', err);
-        await queryRunner.rollbackTransaction();
-    } finally {
-        await queryRunner.release();
-        await AppDataSource.destroy();
-    }
-}
-
-seed();
-
 ================================================================================
 FILE: .\ai\ai-usage-log.entity.ts
 ================================================================================
@@ -332,7 +25,7 @@ import {
 } from 'typeorm';
 import { BaseEntity } from '../base.entity';
 import { User } from '../user/user.entity';
-import { PlatformAIModel } from './platform-ai-model.entity';
+import { UserAIKey } from './user-ai-key.entity';
 
 @Entity({ name: 'ai_usage_logs' })
 export class AIUsageLog extends BaseEntity {
@@ -350,114 +43,22 @@ export class AIUsageLog extends BaseEntity {
     @Column({ type: 'int' })
     outputTokenCount: number;
 
-    @ManyToOne(() => User, (user) => user.usageLogs)
+    @ManyToOne(() => User, (user) => user.usageLogs, { onDelete: 'CASCADE' })
     @JoinColumn()
     user: User;
 
-    @ManyToOne(() => PlatformAIModel, (model) => model.usageLogs)
-    @JoinColumn()
-    model: PlatformAIModel;
+    // Which AI key was used
+    @ManyToOne(() => UserAIKey, (key) => key.usageLogs, { onDelete: 'SET NULL' })
+    @JoinColumn({ name: 'user_ai_key_id' })
+    userKey: UserAIKey;
+
 }
 
 ================================================================================
-FILE: .\ai\payment.entity.ts
+FILE: .\ai\credit-package.entity.ts
 ================================================================================
 
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  ManyToOne,
-  JoinColumn,
-  CreateDateColumn,
-} from 'typeorm';
-import { BaseEntity } from '../base.entity';
-import { User } from '../user/user.entity';
-import { TokenPackage } from './token-package.entity';
-import { Currency, PaymentMethod } from '../../enums/Payment';
-import { PaymentStatus } from '../../enums/Status';
-
-
-@Entity({ name: 'payments' })
-export class Payment extends BaseEntity {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @Column({ type: 'enum', enum: PaymentMethod })
-  paymentMethod: PaymentMethod;
-
-  @Column({ type: 'float' })
-  amount: number; // Real Money Amount (e.g. $10.00)
-
-  @Column({ type: 'enum', enum: Currency })
-  currency: Currency;
-
-  // Store the External ID from Stripe/PayPal
-  @Column({ nullable: true })
-  providerTransactionId: string;
-
-  @CreateDateColumn()
-  transactionDate: Date;
-
-  @Column({
-    type: 'enum',
-    enum: PaymentStatus,
-    default: PaymentStatus.PENDING,
-  })
-  status: PaymentStatus;
-
-  @ManyToOne(() => User)
-  @JoinColumn()
-  user: User;
-
-  @ManyToOne(() => TokenPackage)
-  @JoinColumn()
-  tokenPackage: TokenPackage;
-
-  
-}
-
-================================================================================
-FILE: .\ai\platform-ai-model.entity.ts
-================================================================================
-
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
-import { BaseEntity } from '../base.entity';
-import { AIUsageLog } from './ai-usage-log.entity';
-import { Assessment } from '../assessment/assessment.entity';
-
-@Entity({ name: 'platform_ai_models' })
-export class PlatformAIModel extends BaseEntity {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @Column({ length: 100 })
-  name: string;
-
-  @Column()
-  apiUrl: string;
-
-  @Column({ type: 'float', nullable: true })
-  accuracy: number;
-
-  // Cost per token usage (to calculate how much to deduct from wallet)
-  @Column({ type: 'float', default: 1 })
-  costPerInputToken: number;
-
-  @Column({ type: 'float', default: 1 })
-  costPerOutputToken: number;
-
-  @OneToMany(() => AIUsageLog, (log) => log.model)
-  usageLogs: AIUsageLog[];
-
-  @OneToMany(() => Assessment, (assessment) => assessment.aiModel)
-  assessments: Assessment[];
-}
-
-================================================================================
-FILE: .\ai\token-package.entity.ts
-================================================================================
-
+// credit-package.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -468,19 +69,22 @@ import { BaseEntity } from '../base.entity';
 import { Currency } from '../../enums/Payment';
 import { Payment } from './payment.entity';
 
-@Entity({ name: 'token_packages' })
-export class TokenPackage extends BaseEntity {
+@Entity({ name: 'credit_packages' })
+export class CreditPackage extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column({ length: 150 })
   name: string;
 
+  @Column({ type: 'text', nullable: true })
+  description?: string;
+
   @Column({ type: 'float' })
-  tokenAmount: number;
+  credits: number;
 
   @Column({ type: 'float', default: 0 })
-  bonusTokenAmount: number; 
+  bonusCredits: number;
 
   @Column({ type: 'float' })
   price: number;
@@ -492,16 +96,137 @@ export class TokenPackage extends BaseEntity {
   discountInPercent: number;
 
   @Column({ default: true })
-  isActive: boolean; 
+  isActive: boolean;
 
-  @OneToMany(() => Payment, (payment) => payment.tokenPackage)
+  @Column({ type: 'int', nullable: true })
+  sortOrder?: number;
+
+  @OneToMany(() => Payment, (payment) => payment.creditPackage)
   payments: Payment[];
 }
 
 ================================================================================
-FILE: .\ai\user-token-balance.entity.ts
+FILE: .\ai\payment.entity.ts
 ================================================================================
 
+// payment.entity.ts
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+import { BaseEntity } from '../base.entity';
+import { User } from '../user/user.entity';
+import { CreditPackage } from './credit-package.entity';
+import { Currency, PaymentMethod } from '../../enums/Payment';
+import { PaymentStatus } from '../../enums/Status';
+
+@Entity({ name: 'payments' })
+export class Payment extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ type: 'enum', enum: PaymentMethod })
+  paymentMethod: PaymentMethod;
+
+  @Column({ type: 'float' })
+  amount: number;
+
+  @Column({
+    type: 'enum',
+    enum: Currency,
+    default: Currency.USD,
+  })
+  currency: Currency;
+
+  @Column({
+    type: 'enum',
+    enum: PaymentStatus,
+    default: PaymentStatus.PENDING,
+  })
+  status: PaymentStatus;
+
+  @Column({ nullable: true })
+  transactionId?: string;
+
+  @ManyToOne(() => User, (user) => user.payments, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'userId' })
+  user?: User;
+
+  @ManyToOne(() => CreditPackage, (pkg) => pkg.payments, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'creditPackageId' })
+  creditPackage?: CreditPackage;
+}
+
+================================================================================
+FILE: .\ai\user-ai-key.entity.ts
+================================================================================
+
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
+import { BaseEntity } from '../base.entity';
+import { User } from '../user/user.entity';
+import { AIUsageLog } from './ai-usage-log.entity';
+
+@Entity({ name: 'user_ai_keys' })
+export class UserAIKey extends BaseEntity {
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    // Owner of the key
+    @ManyToOne(() => User, (user) => user.aiKeys, { onDelete: 'CASCADE' })
+    @JoinColumn({ name: 'user_id' })
+    user: User;
+
+    @Column()
+    userId: number;
+
+    // Provider name (openai, anthropic, openrouter, etc.)
+    @Column({ length: 50 })
+    provider: string;
+
+    // Optional model preference
+    @Column({ length: 100, nullable: true })
+    model: string;
+
+    // Encrypted API key (AES-256)
+    @Column({ type: 'text' })   
+    encryptedKey: string;
+
+    // Encrypted API key (AES-256)
+    @Column({ type: 'text' })
+    apiEndpoint: string;
+
+    // Whether the key is active
+    @Column({ default: true })
+    isActive: boolean;
+
+    // TODO check before user uplaod to ensure it valid
+    // Whether the key was validated successfully
+    @Column({ default: true }) 
+    isValid: boolean;
+
+    // Optional label for teacher to identify key
+    @Column({ length: 100, nullable: true })
+    label: string;
+
+    // Track AI usage logs for this key
+    @OneToMany(() => AIUsageLog, (log) => log.userKey)
+    usageLogs: AIUsageLog[];
+}
+
+================================================================================
+FILE: .\ai\user-credit-balance.entity.ts
+================================================================================
+
+// user-credit-balance.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -514,20 +239,20 @@ import { BaseEntity } from '../base.entity';
 import { User } from '../user/user.entity';
 import { WalletTransaction } from './wallet-transaction.entity';
 
-@Entity({ name: 'user_token_balances' })
-export class UserTokenBalance extends BaseEntity {
+@Entity({ name: 'user_credit_balances' })
+export class UserCreditBalance extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column({ type: 'float', default: 0 })
-  tokenBalance: number;
+  creditBalance: number;
 
-  // Changed to OneToOne: One user has exactly one wallet
-  @OneToOne(() => User)
-  @JoinColumn()
+  @OneToOne(() => User, (user) => user.creditBalance, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'userId' })
   user: User;
 
-  // Link to transaction history
   @OneToMany(() => WalletTransaction, (tx) => tx.wallet)
   transactions: WalletTransaction[];
 }
@@ -536,54 +261,65 @@ export class UserTokenBalance extends BaseEntity {
 FILE: .\ai\wallet-transaction.entity.ts
 ================================================================================
 
+// wallet-transaction.entity.ts
 import {
-    Entity,
-    PrimaryGeneratedColumn,
-    Column,
-    ManyToOne,
-    JoinColumn,
-    CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { BaseEntity } from '../base.entity';
-import { UserTokenBalance } from './user-token-balance.entity';
-import { Payment } from './payment.entity';
+import { UserCreditBalance } from './user-credit-balance.entity';
 
 export enum TransactionType {
-    PURCHASE = 'PURCHASE',   // Bought tokens
-    SPEND = 'SPEND',         // Used AI
-    REFUND = 'REFUND',       // Admin refunded
-    GIFT = 'GIFT',           // Sent to another user
-    BONUS = 'BONUS'          // System reward
+  CREDIT = 'credit',
+  DEBIT = 'debit',
+  PURCHASE = 'purchase',
+}
+
+export enum TransactionReason {
+  AI_USAGE = 'ai_usage',
+  PURCHASE = 'purchase',
+  REFUND = 'refund',
+  BONUS = 'bonus',
+  ADMIN_ADJUSTMENT = 'admin_adjustment',
 }
 
 @Entity({ name: 'wallet_transactions' })
 export class WalletTransaction extends BaseEntity {
-    @PrimaryGeneratedColumn()
-    id: number;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-    @Column({ type: 'enum', enum: TransactionType })
-    type: TransactionType;
+  @Column({ nullable: true })
+  walletId?: number;
 
-    @Column({ type: 'float' })
-    amount: number; // Positive for add, Negative for deduct
+  @Column({ type: 'float' })
+  amount: number;
 
-    @Column({ type: 'float' })
-    balanceAfter: number; // Snapshot of balance after tx
+  @Column({ type: 'enum', enum: TransactionType })
+  type: TransactionType;
 
-    @Column({ nullable: true })
-    description: string; // e.g. "Usage for GPT-4", "Gold Package Purchase"
+  @Column({ type: 'enum', enum: TransactionReason, nullable: true })
+  reason?: TransactionReason;
 
-    @CreateDateColumn()
-    createdAt: Date;
+  @Column({ type: 'float', nullable: true })
+  balanceBefore?: number;
 
-    @ManyToOne(() => UserTokenBalance, (wallet) => wallet.transactions)
-    @JoinColumn()
-    wallet: UserTokenBalance;
+  @Column({ type: 'float' })
+  balanceAfter: number;
 
-    // Optional: Link to a specific Payment if this was a Purchase
-    @ManyToOne(() => Payment, { nullable: true })
-    @JoinColumn()
-    payment: Payment;
+  @Column({ type: 'text', nullable: true })
+  description?: string;
+
+  @Column({ type: 'json', nullable: true })
+  metadata?: Record<string, any>;
+
+  @ManyToOne(() => UserCreditBalance, (wallet) => wallet.transactions, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'walletId' })
+  wallet: UserCreditBalance;
 }
 
 ================================================================================
@@ -599,13 +335,12 @@ import {
   OneToMany,
 } from 'typeorm';
 import { BaseEntity } from '../base.entity';
-import { SubmissionMethod, SubmissionType } from '../../enums/Assessment';
+import { AIModelSelectionMode, SubmissionMethod, SubmissionType } from '../../enums/Assessment';
 import { Class } from '../classroom/class.entity';
-import { PlatformAIModel } from '../ai/platform-ai-model.entity';
 import { Submission } from './submission.entity';
 import { AssessmentResource } from '../resource/assessment-resource.entity';
 import { Rubrics } from './rubic.entity';
-// import { EvaluationRubricScore } from './evaluation-rubric-score.entity';
+import { TeamAssessment } from '../classroom/team-assessment.entity';
 
 
 @Entity({ name: 'assessments' })
@@ -623,8 +358,11 @@ export class Assessment extends BaseEntity {
   @Column({ type: 'timestamp' })
   startDate: Date;
 
-  @Column({ type: 'int' })
+  @Column({ type: 'int', default: 100 })
   maxScore: number;
+
+  @Column({ type: 'int', default: 1 })
+  session: number;
 
   @Column({ default: false })
   isPublic: boolean;
@@ -639,29 +377,34 @@ export class Assessment extends BaseEntity {
   })
   rubrics: Rubrics[];
 
-
   @Column({ type: 'text', nullable: true })
   penaltyCriteria: string;
 
   @Column({ default: false })
   aiEvaluationEnable: boolean;
 
+  @Column('text', { array: true, default: [] })
+  user_exclude_files: string[];
+
+  @Column('text', { array: true, default: [] })
+  user_include_files: string[];
+
+
+  @Column({ type: 'enum', enum: AIModelSelectionMode, default: AIModelSelectionMode.SYSTEM })
+  aiModelSelectionMode: AIModelSelectionMode;
+
   @Column({ type: 'enum', enum: SubmissionMethod, default: SubmissionMethod.ANY })
-  allowedSubmissionMethod: SubmissionMethod; 
+  allowedSubmissionMethod: SubmissionMethod;
 
-  @Column({ default: false })
-  allowTeamSubmition: boolean;
-
-  @ManyToOne(() => Class)
+  @ManyToOne(() => Class, { onDelete: 'CASCADE' })
   @JoinColumn()
-  class: Class;
-
-  @ManyToOne(() => PlatformAIModel)
-  @JoinColumn()
-  aiModel: PlatformAIModel;
+  class: Class;;
 
   @OneToMany(() => Submission, (submission) => submission.assessment)
   submissions: Submission[];
+
+  @OneToMany(() => TeamAssessment, (ta) => ta.assessment)
+  teamAssessments: TeamAssessment[];
 
   @OneToMany(() => AssessmentResource, (ar) => ar.assessment)
   resources: AssessmentResource[];
@@ -795,7 +538,7 @@ export class Evaluation extends BaseEntity {
   @Column({ length: 100, nullable: true })
   confidencePoint: string;
 
-  @OneToOne(() => Submission, (submission) => submission.evaluation)
+  @OneToOne(() => Submission, (submission) => submission.evaluation, { onDelete: 'CASCADE' })
   @JoinColumn()
   submission: Submission;
 
@@ -809,7 +552,7 @@ export class Evaluation extends BaseEntity {
   // })
   // rubricScores: EvaluationRubricScore[];
 
-  
+
 }
 
 
@@ -884,14 +627,14 @@ export class Submission extends BaseEntity {
   @Column({ default: 1 })
   attemptNumber: number;
 
-  @ManyToOne(() => User, { nullable: true })
+  @ManyToOne(() => User, { nullable: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
   user: User;
 
   @Column({ nullable: true })
   userId: number;
 
-  @ManyToOne(() => Team, { nullable: true })
+  @ManyToOne(() => Team, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'teamId' })
   team: Team;
 
@@ -913,6 +656,8 @@ export class Submission extends BaseEntity {
   resources: SubmissionResource[];
 }
 
+
+
 ================================================================================
 FILE: .\classroom\class.entity.ts
 ================================================================================
@@ -930,26 +675,23 @@ import { User } from '../user/user.entity';
 import { Enrollment } from './enrollment.entity';
 import { Team } from './team.entity';
 import { Assessment } from '../assessment/assessment.entity';
-import { ClassResource } from '../resource/class-resource.entity';
-import { ClassStatus } from '../../enums/Status'; 
-import { Module } from '../lesson/module.entity';
-
+import { ClassStatus } from '../../enums/Status';
 @Entity({ name: 'classes' })
 export class Class extends BaseEntity {
   @PrimaryGeneratedColumn()
-  id: number; 
+  id: number;
 
   @Column({ length: 300 })
-  name: string; 
+  name: string;
 
   @Column({ nullable: true })
-  description: string; 
+  description: string;
 
   @Column({ unique: true, length: 6 })
-  joinCode: string; 
+  joinCode: string;
 
   @Column({ nullable: true })
-  coverImageUrl: string; 
+  coverImageUrl: string;
 
   @Column({
     type: 'enum',
@@ -958,26 +700,19 @@ export class Class extends BaseEntity {
   })
   status: ClassStatus;
 
-
-  @ManyToOne(() => User, (user) => user.classes)
-  @JoinColumn() 
-  owner: User; 
+  @ManyToOne(() => User, (user) => user.classes, { onDelete: 'CASCADE' })
+  @JoinColumn()
+  owner: User;
 
   @OneToMany(() => Enrollment, (enrollment) => enrollment.class)
-  enrollments: Enrollment[]; 
+  enrollments: Enrollment[];
 
   @OneToMany(() => Team, (team) => team.class)
-  teams: Team[]; 
-
-  @OneToMany(() => Module, (module) => module.class)
-  modules: Module[]; 
-
+  teams: Team[];
 
   @OneToMany(() => Assessment, (assessment) => assessment.class)
-  assessments: Assessment[]; 
+  assessments: Assessment[];
 
-  @OneToMany(() => ClassResource, (cr) => cr.class)
-  resources: ClassResource[]; 
 }
 
 ================================================================================
@@ -1001,11 +736,11 @@ export class Enrollment extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => User, (user) => user.enrollments)
+  @ManyToOne(() => User, (user) => user.enrollments, { onDelete: 'CASCADE' })
   @JoinColumn()
   user: User;
 
-  @ManyToOne(() => Class, (cls) => cls.enrollments)
+  @ManyToOne(() => Class, (cls) => cls.enrollments, { onDelete: 'CASCADE' })
   @JoinColumn()
   class: Class;
 
@@ -1014,6 +749,32 @@ export class Enrollment extends BaseEntity {
 
 }
 
+
+================================================================================
+FILE: .\classroom\team-assessment.entity.ts
+================================================================================
+
+import { Entity, ManyToOne, JoinColumn, BaseEntity, PrimaryColumn, Unique } from 'typeorm';
+import { Team } from './team.entity';
+import { Assessment } from '../assessment/assessment.entity';
+
+@Entity({ name: 'team_assessments' })
+@Unique(['team', 'assessment'])
+export class TeamAssessment extends BaseEntity {
+    @PrimaryColumn()
+    assessment_id: number;
+
+    @PrimaryColumn()
+    team_id: number;
+
+    @ManyToOne(() => Team, (team) => team.teamAssessments, { onDelete: 'CASCADE' })
+    @JoinColumn({ name: 'team_id' })
+    team: Team;
+
+    @ManyToOne(() => Assessment, (assessment) => assessment.teamAssessments, { onDelete: 'CASCADE' })
+    @JoinColumn({ name: 'assessment_id' })
+    assessment: Assessment;
+}
 
 ================================================================================
 FILE: .\classroom\team.entity.ts
@@ -1027,10 +788,14 @@ import {
     ManyToOne,
     JoinColumn,
     OneToMany,
+    JoinTable,
+    ManyToMany,
 } from 'typeorm';
 import { User } from '../user/user.entity';
 import { Class } from './class.entity';
 import { TeamMember } from './user-team.entity';
+import { Assessment } from '../assessment/assessment.entity';
+import { TeamAssessment } from './team-assessment.entity';
 
 @Entity({ name: 'teams' })
 export class Team extends BaseEntity {
@@ -1046,13 +811,17 @@ export class Team extends BaseEntity {
     @Column()
     maxMember: number;
 
-    @ManyToOne(() => User, (user) => user.leadTeams ,{nullable: true})
+    @ManyToOne(() => User, (user) => user.leadTeams, { nullable: true, onDelete: 'SET NULL' })
     @JoinColumn()
     leader: User;
 
-    @ManyToOne(() => Class, (cls) => cls.teams)
+    @ManyToOne(() => Class, (cls) => cls.teams, { onDelete: 'CASCADE' })
     @JoinColumn()
     class: Class;
+    
+    @OneToMany(() => TeamAssessment, (ta) => ta.team)
+    teamAssessments: TeamAssessment[];
+
 
     @OneToMany(() => TeamMember, (member) => member.team)
     members: TeamMember[];
@@ -1081,11 +850,11 @@ export class TeamMember extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Team, (team) => team.members)
+  @ManyToOne(() => Team, (team) => team.members, { onDelete: 'CASCADE' })
   @JoinColumn()
   team: Team;
 
-  @ManyToOne(() => User, (user) => user.teamMemberships)
+  @ManyToOne(() => User, (user) => user.teamMemberships, { onDelete: 'CASCADE' })
   @JoinColumn()
   user: User;
 
@@ -1096,80 +865,6 @@ export class TeamMember extends BaseEntity {
   isApproved: boolean;
 }
 
-
-================================================================================
-FILE: .\lesson\module.entity.ts
-================================================================================
-
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  ManyToOne,
-  JoinColumn,
-  OneToMany,
-} from 'typeorm';
-import { BaseEntity } from '../base.entity';
-import { Class } from '../classroom/class.entity';
-import { Topic } from './topic.entity';
-import { ModuleResource } from '../resource/module-resource.entity';
-
-@Entity({ name: 'modules' })
-export class Module extends BaseEntity {
-  @PrimaryGeneratedColumn()
-  id: number; 
-
-  @Column({ length: 255 })
-  title: string; 
-
-  @Column({ type: 'text', nullable: true })
-  description: string; 
-
-  @ManyToOne(() => Class)
-  @JoinColumn()
-  class: Class; 
-
-  @OneToMany(() => Topic, (topic) => topic.module)
-  topics: Topic[];
-
-  @OneToMany(() => ModuleResource, (mr) => mr.module)
-  resources: ModuleResource[];
-}
-
-================================================================================
-FILE: .\lesson\topic.entity.ts
-================================================================================
-
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  ManyToOne,
-  JoinColumn,
-  OneToMany,
-} from 'typeorm';
-import { BaseEntity } from '../base.entity';
-import { Module } from './module.entity';
-import { TopicResource } from '../resource/topic-resource.entity';
-
-@Entity({ name: 'topics' })
-export class Topic extends BaseEntity {
-  @PrimaryGeneratedColumn()
-  id: number; 
-
-  @Column({ length: 255 })
-  title: string; 
-
-  @Column({ type: 'text', nullable: true })
-  description: string; 
-
-  @ManyToOne(() => Module, (module) => module.topics)
-  @JoinColumn()
-  module: Module; 
-
-  @OneToMany(() => TopicResource, (tr) => tr.topic)
-  resources: TopicResource[];
-}
 
 ================================================================================
 FILE: .\resource\assessment-resource.entity.ts
@@ -1185,59 +880,13 @@ export class AssessmentResource extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Assessment, (assessment) => assessment.resources)
+  @ManyToOne(() => Assessment, (assessment) => assessment.resources, { onDelete: 'CASCADE' })
   @JoinColumn()
-  assessment: Assessment; 
+  assessment: Assessment;
 
-  @ManyToOne(() => Resource)
+  @ManyToOne(() => Resource, { onDelete: 'CASCADE' })
   @JoinColumn()
-  resource: Resource; 
-}
-
-================================================================================
-FILE: .\resource\class-resource.entity.ts
-================================================================================
-
-import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
-import { BaseEntity } from '../base.entity';
-import { Class } from '../classroom/class.entity';
-import { Resource } from './resource.entity';
-
-@Entity({ name: 'class_resources' })
-export class ClassResource extends BaseEntity {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @ManyToOne(() => Class)
-  @JoinColumn()
-  class: Class; 
-
-  @ManyToOne(() => Resource)
-  @JoinColumn()
-  resource: Resource; 
-}
-
-================================================================================
-FILE: .\resource\module-resource.entity.ts
-================================================================================
-
-import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
-import { BaseEntity } from '../base.entity';
-import { Resource } from './resource.entity';
-import { Module } from '../lesson/module.entity';
-
-@Entity({ name: 'module_resources' })
-export class ModuleResource extends BaseEntity {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @ManyToOne(() => Module, (module) => module.resources)
-  @JoinColumn({ name: 'module_id' })
-  module: Module; 
-
-  @ManyToOne(() => Resource)
-  @JoinColumn()
-  resource: Resource; 
+  resource: Resource;
 }
 
 ================================================================================
@@ -1247,9 +896,6 @@ FILE: .\resource\resource.entity.ts
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { BaseEntity } from '../base.entity';
 import { ResourceType } from '../../enums/Resource';
-import { ModuleResource } from './module-resource.entity';
-import { TopicResource } from './topic-resource.entity';
-import { ClassResource } from './class-resource.entity';
 import { SubmissionResource } from './submission-resource.entity';
 import { AssessmentResource } from './assessment-resource.entity';
 
@@ -1273,17 +919,8 @@ export class Resource extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   description: string; 
 
-  @OneToMany(() => ModuleResource, (mr) => mr.resource)
-  moduleResources: ModuleResource[]; 
-
-  @OneToMany(() => TopicResource, (tr) => tr.resource)
-  topicResources: TopicResource[]; 
-
   @OneToMany(() => AssessmentResource, (ar) => ar.resource)
   assessmentResource: AssessmentResource[]; 
-
-  @OneToMany(() => ClassResource, (cr) => cr.resource)
-  classResources: ClassResource[]; 
 
   @OneToMany(() => SubmissionResource, (sr) => sr.resource)
   submissionResources: SubmissionResource[]; 
@@ -1303,36 +940,58 @@ export class SubmissionResource extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Submission, (submission) => submission.resources)
+  @ManyToOne(() => Submission, (submission) => submission.resources, { onDelete: 'CASCADE' })
   @JoinColumn()
   submission: Submission;
 
-  @ManyToOne(() => Resource)
+  @ManyToOne(() => Resource, { onDelete: 'CASCADE' })
   @JoinColumn()
   resource: Resource;
 }
 
 ================================================================================
-FILE: .\resource\topic-resource.entity.ts
+FILE: .\user\notification.entity.ts
 ================================================================================
 
-import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
-import { BaseEntity } from '../base.entity';
-import { Topic } from '../lesson/topic.entity';
-import { Resource } from './resource.entity';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { User } from './user.entity';
 
-@Entity({ name: 'topic_resources' })
-export class TopicResource extends BaseEntity {
-  @PrimaryGeneratedColumn()
-  id: number;
+export enum NotificationType {
+    INFO = 'info',
+    WARNING = 'warning',
+    ALERT = 'alert',
+}
 
-  @ManyToOne(() => Topic, (topic) => topic.resources)
-  @JoinColumn()
-  topic: Topic;
+export enum NotificationStatus {
+    UNREAD = 'unread',
+    READ = 'read',
+}
 
-  @ManyToOne(() => Resource)
-  @JoinColumn()
-  resource: Resource; 
+@Entity({ name: 'notifications' })
+export class Notification {
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    @Column({ type: 'enum', enum: NotificationType, default: NotificationType.INFO })
+    type: NotificationType;
+
+    @Column({ type: 'enum', enum: NotificationStatus, default: NotificationStatus.UNREAD })
+    status: NotificationStatus;
+
+    @Column({ length: 255 })
+    title: string;
+
+    @Column({ type: 'text', nullable: true })
+    message: string;
+
+    @ManyToOne(() => User, (user) => user.notifications, { onDelete: 'CASCADE' })
+    user: User;
+
+    @CreateDateColumn()
+    createdAt: Date;
+
+    @UpdateDateColumn()
+    updatedAt: Date;
 }
 
 ================================================================================
@@ -1353,18 +1012,18 @@ import { OAuthProvider } from './oauth-provider.entity';
 @Entity({ name: 'oauth_accounts' })
 export class OAuthAccount extends BaseEntity {
   @PrimaryGeneratedColumn()
-  id: number; 
+  id: number;
 
   @Column()
-  accountId: string; 
+  accountId: string;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn()
-  user: User; 
+  user: User;
 
-  @ManyToOne(() => OAuthProvider, (provider) => provider.accounts)
+  @ManyToOne(() => OAuthProvider, (provider) => provider.accounts, { onDelete: 'CASCADE' })
   @JoinColumn()
-  provider: OAuthProvider; 
+  provider: OAuthProvider;
 }
 
 ================================================================================
@@ -1413,12 +1072,12 @@ import { User } from './user.entity';
 @Entity({ name: 'telegram_chats' })
 export class TelegramChat extends BaseEntity {
   @PrimaryGeneratedColumn()
-  id: number; 
+  id: number;
 
   @Column({ unique: true })
-  chatId: string; 
+  chatId: string;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn()
   user: User;
 }
@@ -1435,12 +1094,12 @@ export class UserEmailOtp extends BaseEntity {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @OneToOne(() => User, (user) => user.emailOtps)
+    @OneToOne(() => User, (user) => user.emailOtps, { onDelete: 'CASCADE' })
     @JoinColumn()
     user: User;
 
     @Column()
-    otp: string; 
+    otp: string;
 
     @Column({ type: 'timestamp' })
     expiresAt: Date;
@@ -1468,7 +1127,7 @@ export class UserRefreshToken extends BaseEntity {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @ManyToOne(() => User, (user) => user.refreshTokens)
+    @ManyToOne(() => User, (user) => user.refreshTokens, { onDelete: 'CASCADE' })
     user: User;
 
     @Column()
@@ -1489,7 +1148,6 @@ import {
   PrimaryGeneratedColumn,
   Column,
   OneToMany,
-  BaseEntity,
   OneToOne,
 } from 'typeorm';
 import { UserStatus } from '../../enums/Status';
@@ -1500,11 +1158,14 @@ import { TeamMember } from '../classroom/user-team.entity';
 import { OAuthAccount } from './oauth-account.entity';
 import { TelegramChat } from './telegram-chat.entity';
 import { AIUsageLog } from '../ai/ai-usage-log.entity';
-import { UserTokenBalance } from '../ai/user-token-balance.entity';
+import { UserCreditBalance } from '../ai/user-credit-balance.entity';
 import { Payment } from '../ai/payment.entity';
 import { Submission } from '../assessment/submission.entity';
 import { UserRefreshToken } from './user-refresh-token.entity';
 import { UserEmailOtp } from './user-email-otp.entity';
+import { UserAIKey } from '../ai/user-ai-key.entity';
+import { Notification } from './notification.entity';
+import { BaseEntity } from '../base.entity';
 
 @Entity({ name: 'users' })
 export class User extends BaseEntity {
@@ -1514,17 +1175,17 @@ export class User extends BaseEntity {
   @Column({ length: 100 })
   firstName: string;
 
-  @Column({ length: 100 ,nullable:true})
+  @Column({ length: 100, nullable: true })
   lastName?: string;
 
   @Column({ length: 10, nullable: true })
-  gender: string;
+  gender?: string;
 
-  @Column({ nullable: true })
-  dob: Date;
+  @Column({ type: 'date', nullable: true })
+  dob?: Date;
 
   @Column({ length: 50, unique: true, nullable: true })
-  phoneNumber: string;
+  phoneNumber?: string;
 
   @Column({ length: 150, unique: true })
   email: string;
@@ -1533,7 +1194,7 @@ export class User extends BaseEntity {
   password: string;
 
   @Column({ nullable: true })
-  profilePictureUrl: string;
+  profilePictureUrl?: string;
 
   @Column({ default: false })
   isVerified: boolean;
@@ -1548,41 +1209,46 @@ export class User extends BaseEntity {
   })
   status: UserStatus;
 
+  @OneToMany(() => UserAIKey, (key) => key.user)
+  aiKeys?: UserAIKey[];
+
   @OneToMany(() => Class, (cls) => cls.owner)
-  classes: Class[];
+  classes?: Class[];
 
   @OneToMany(() => Enrollment, (enrollment) => enrollment.user)
-  enrollments: Enrollment[];
+  enrollments?: Enrollment[];
+
+  @OneToMany(() => Notification, (notification) => notification.user)
+  notifications?: Notification[];
 
   @OneToMany(() => Team, (team) => team.leader)
-  leadTeams: Team[];
+  leadTeams?: Team[];
 
   @OneToMany(() => TeamMember, (member) => member.user)
-  teamMemberships: TeamMember[];
+  teamMemberships?: TeamMember[];
 
   @OneToMany(() => OAuthAccount, (account) => account.user)
-  oauthAccounts: OAuthAccount[];
+  oauthAccounts?: OAuthAccount[];
 
   @OneToMany(() => TelegramChat, (chat) => chat.user)
-  telegramChats: TelegramChat[];
+  telegramChats?: TelegramChat[];
 
   @OneToMany(() => AIUsageLog, (log) => log.user)
-  usageLogs: AIUsageLog[];
+  usageLogs?: AIUsageLog[];
 
-  @OneToMany(() => UserTokenBalance, (balance) => balance.user)
-  tokenBalances: UserTokenBalance[];
+  @OneToOne(() => UserCreditBalance, (balance) => balance.user, { nullable: true })
+  creditBalance?: UserCreditBalance;
 
   @OneToMany(() => Payment, (payment) => payment.user)
-  payments: Payment[];
+  payments?: Payment[];
 
   @OneToMany(() => Submission, (submission) => submission.user)
-  submissions: Submission[];
+  submissions?: Submission[];
 
   @OneToMany(() => UserRefreshToken, (token) => token.user)
-  refreshTokens: UserRefreshToken[];
+  refreshTokens?: UserRefreshToken[];
 
-  @OneToOne(() => UserEmailOtp, (ueo) => ueo.user)
-  emailOtps: UserEmailOtp;
-
+  @OneToOne(() => UserEmailOtp, (ueo) => ueo.user, { nullable: true })
+  emailOtps?: UserEmailOtp;
 }
 

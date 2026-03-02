@@ -25,6 +25,7 @@ import {
   ApiForbiddenResponse,
   ApiUnauthorizedResponse,
   ApiBadRequestResponse,
+  ApiNoContentResponse,
 } from '@nestjs/swagger';
 import { UserId } from '../../common/decorators/user.decorator';
 import {
@@ -56,7 +57,7 @@ import type { ClassContext } from '../../common/security';
 @UseGuards(JwtAuthGuard)
 @Controller('class')
 export class ClassController {
-  constructor(private readonly classService: ClassService) {}
+  constructor(private readonly classService: ClassService) { }
 
   // ==================== CLASS MANAGEMENT ====================
 
@@ -67,16 +68,29 @@ export class ClassController {
   })
   @ApiBody({ type: CreateClassDto })
   @ApiCreatedResponse({
-    description: 'Class created successfully',
-    type: ClassResponseDto,
+    schema: {
+      example: {
+        success: true,
+        data: {
+          id: 1,
+          name: 'Introduction to TypeScript',
+          description: 'Learn the basics of TypeScript',
+          coverImage: 'https://example.com/image.jpg',
+          joinCode: 'ABC123',
+          status: 'ACTIVE',
+          createdAt: '2026-03-01T10:00:00Z',
+        },
+      },
+    },
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized - Invalid or missing JWT token' })
   @ApiNotFoundResponse({ description: 'User not found' })
   async createClass(
     @Body() createClassDto: CreateClassDto,
     @UserId() userId: number,
-  ): Promise<ClassResponseDto> {
-    return this.classService.createClass(createClassDto, userId);
+  ): Promise<{ success: true; data: ClassResponseDto }> {
+    const data = await this.classService.createClass(createClassDto, userId);
+    return { success: true, data };
   }
 
   @Get('my-classes')
@@ -85,12 +99,29 @@ export class ClassController {
     description: 'Returns all classes where the user is enrolled as student, teacher, or owner.',
   })
   @ApiOkResponse({
-    description: 'Classes retrieved successfully',
-    type: [ClassResponseDto],
+    schema: {
+      example: {
+        success: true,
+        data: [
+          {
+            id: 1,
+            name: 'Introduction to TypeScript',
+            description: 'Learn the basics of TypeScript',
+            coverImage: 'https://example.com/image.jpg',
+            joinCode: 'ABC123',
+            status: 'ACTIVE',
+            createdAt: '2026-03-01T10:00:00Z',
+          },
+        ],
+      },
+    },
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized - Invalid or missing JWT token' })
-  async getMyClasses(@UserId() userId: number): Promise<ClassResponseDto[]> {
-    return this.classService.getClassesForUser(userId);
+  async getMyClasses(
+    @UserId() userId: number,
+  ): Promise<{ success: true; data: ClassResponseDto[] }> {
+    const data = await this.classService.getClassesForUser(userId);
+    return { success: true, data };
   }
 
   @Patch(':classId')
@@ -102,8 +133,20 @@ export class ClassController {
   @ApiParam({ name: 'classId', type: Number, example: 1, description: 'The ID of the class to update' })
   @ApiBody({ type: UpdateClassDto })
   @ApiOkResponse({
-    description: 'Class updated successfully',
-    type: ClassResponseDto,
+    schema: {
+      example: {
+        success: true,
+        data: {
+          id: 1,
+          name: 'Introduction to TypeScript',
+          description: 'Learn the basics of TypeScript',
+          coverImage: 'https://example.com/image.jpg',
+          joinCode: 'ABC123',
+          status: 'ACTIVE',
+          createdAt: '2026-03-01T10:00:00Z',
+        },
+      },
+    },
   })
   @ApiForbiddenResponse({ description: 'Forbidden - User is not a teacher of this class' })
   @ApiNotFoundResponse({ description: 'Class not found' })
@@ -112,8 +155,9 @@ export class ClassController {
     @Param('classId', ParseIntPipe) classId: number,
     @Body() dto: UpdateClassDto,
     @GetClassContext() context: ClassContext,
-  ): Promise<ClassResponseDto> {
-    return this.classService.updateClass(dto, context);
+  ): Promise<{ success: true; data: ClassResponseDto }> {
+    const data = await this.classService.updateClass(dto, context);
+    return { success: true, data };
   }
 
   @Delete(':classId')
@@ -124,8 +168,14 @@ export class ClassController {
   })
   @ApiParam({ name: 'classId', type: Number, example: 1, description: 'The ID of the class to delete' })
   @ApiOkResponse({
-    description: 'Class deleted successfully',
-    type: MessageResponseDto,
+    schema: {
+      example: {
+        success: true,
+        data: {
+          message: 'Class deleted successfully',
+        },
+      },
+    },
   })
   @ApiForbiddenResponse({ description: 'Forbidden - Only the class owner can delete' })
   @ApiBadRequestResponse({ description: 'Cannot delete due to existing dependencies (assessments, submissions, etc.)' })
@@ -134,8 +184,9 @@ export class ClassController {
   async deleteClass(
     @Param('classId', ParseIntPipe) classId: number,
     @GetClassContext() context: ClassContext,
-  ): Promise<MessageResponseDto> {
-    return this.classService.deleteClass(context);
+  ): Promise<{ success: true; data: MessageResponseDto }> {
+    const data = await this.classService.deleteClass(context);
+    return { success: true, data };
   }
 
   @Post(':classId/complete')
@@ -146,8 +197,14 @@ export class ClassController {
   })
   @ApiParam({ name: 'classId', type: Number, example: 1, description: 'The ID of the class to mark complete' })
   @ApiOkResponse({
-    description: 'Class marked as completed',
-    type: MessageResponseDto,
+    schema: {
+      example: {
+        success: true,
+        data: {
+          message: 'Class marked as completed',
+        },
+      },
+    },
   })
   @ApiForbiddenResponse({ description: 'Forbidden - User is not a teacher of this class' })
   @ApiNotFoundResponse({ description: 'Class not found' })
@@ -155,8 +212,9 @@ export class ClassController {
   async markComplete(
     @Param('classId', ParseIntPipe) classId: number,
     @GetClassContext() context: ClassContext,
-  ): Promise<MessageResponseDto> {
-    return this.classService.markClassComplete(context);
+  ): Promise<{ success: true; data: MessageResponseDto }> {
+    const data = await this.classService.markClassComplete(context);
+    return { success: true, data };
   }
 
   // ==================== JOIN CLASS ====================
@@ -168,8 +226,16 @@ export class ClassController {
   })
   @ApiBody({ type: JoinClassDto })
   @ApiOkResponse({
-    description: 'Successfully joined the class',
-    type: JoinClassResponseDto,
+    schema: {
+      example: {
+        success: true,
+        data: {
+          classId: 1,
+          className: 'Introduction to TypeScript',
+          joinedAt: '2026-03-01T10:00:00Z',
+        },
+      },
+    },
   })
   @ApiNotFoundResponse({ description: 'Class not found with this code' })
   @ApiConflictResponse({ description: 'User is already enrolled in this class' })
@@ -177,8 +243,9 @@ export class ClassController {
   async joinClassWithCode(
     @Body() joinClassDto: JoinClassDto,
     @UserId() userId: number,
-  ): Promise<JoinClassResponseDto> {
-    return this.classService.joinClassWithCode(joinClassDto.joinCode, userId);
+  ): Promise<{ success: true; data: JoinClassResponseDto }> {
+    const data = await this.classService.joinClassWithCode(joinClassDto.joinCode, userId);
+    return { success: true, data };
   }
 
   @Get('join/link')
@@ -194,8 +261,16 @@ export class ClassController {
     description: 'JWT invite token from the invite link',
   })
   @ApiOkResponse({
-    description: 'Successfully joined the class',
-    type: JoinClassResponseDto,
+    schema: {
+      example: {
+        success: true,
+        data: {
+          classId: 1,
+          className: 'Introduction to TypeScript',
+          joinedAt: '2026-03-01T10:00:00Z',
+        },
+      },
+    },
   })
   @ApiBadRequestResponse({ description: 'Invalid or expired invite link' })
   @ApiConflictResponse({ description: 'User is already enrolled in this class' })
@@ -204,8 +279,9 @@ export class ClassController {
   async joinByLink(
     @Query() dto: JoinClassByTokenDto,
     @UserId() userId: number,
-  ): Promise<JoinClassResponseDto> {
-    return this.classService.joinClassByInviteToken(dto.token, userId);
+  ): Promise<{ success: true; data: JoinClassResponseDto }> {
+    const data = await this.classService.joinClassByInviteToken(dto.token, userId);
+    return { success: true, data };
   }
 
   // ==================== STUDENTS MANAGEMENT ====================
@@ -218,8 +294,19 @@ export class ClassController {
   })
   @ApiParam({ name: 'classId', type: Number, example: 1, description: 'The ID of the class' })
   @ApiOkResponse({
-    description: 'Students list retrieved successfully',
-    type: [UserResponseDto],
+    schema: {
+      example: {
+        success: true,
+        data: [
+          {
+            id: 5,
+            name: 'John Doe',
+            email: 'john@example.com',
+            createdAt: '2026-03-01T10:00:00Z',
+          },
+        ],
+      },
+    },
   })
   @ApiForbiddenResponse({ description: 'Forbidden - User is not a member of this class' })
   @ApiNotFoundResponse({ description: 'Class not found' })
@@ -227,8 +314,9 @@ export class ClassController {
   async getStudentsInClass(
     @Param('classId', ParseIntPipe) classId: number,
     @GetClassContext() context: ClassContext,
-  ): Promise<UserResponseDto[]> {
-    return this.classService.getStudentsInClass(context);
+  ): Promise<{ success: true; data: UserResponseDto[] }> {
+    const data = await this.classService.getStudentsInClass(context);
+    return { success: true, data };
   }
 
   @Delete(':classId/student/:studentId')
@@ -240,8 +328,14 @@ export class ClassController {
   @ApiParam({ name: 'classId', type: Number, example: 1, description: 'The ID of the class' })
   @ApiParam({ name: 'studentId', type: Number, example: 5, description: 'The ID of the student to remove' })
   @ApiOkResponse({
-    description: 'Student removed successfully',
-    type: MessageResponseDto,
+    schema: {
+      example: {
+        success: true,
+        data: {
+          message: 'Student removed successfully',
+        },
+      },
+    },
   })
   @ApiForbiddenResponse({ description: 'Forbidden - Cannot remove another teacher or yourself' })
   @ApiNotFoundResponse({ description: 'Student not found in this class' })
@@ -251,8 +345,9 @@ export class ClassController {
     @Param('classId', ParseIntPipe) classId: number,
     @Param('studentId', ParseIntPipe) studentId: number,
     @GetClassContext() context: ClassContext,
-  ): Promise<MessageResponseDto> {
-    return this.classService.removeStudent(studentId, context);
+  ): Promise<{ success: true; data: MessageResponseDto }> {
+    const data = await this.classService.removeStudent(studentId, context);
+    return { success: true, data };
   }
 
   // ==================== INVITE ====================
@@ -266,8 +361,14 @@ export class ClassController {
   @ApiParam({ name: 'classId', type: Number, example: 1, description: 'The ID of the class' })
   @ApiBody({ type: InviteClassByEmailDto })
   @ApiOkResponse({
-    description: 'Invitation email sent successfully',
-    type: MessageResponseDto,
+    schema: {
+      example: {
+        success: true,
+        data: {
+          message: 'Invitation email sent successfully',
+        },
+      },
+    },
   })
   @ApiForbiddenResponse({ description: 'Forbidden - User is not a teacher of this class' })
   @ApiNotFoundResponse({ description: 'User with this email not found. They must register first.' })
@@ -277,8 +378,9 @@ export class ClassController {
     @Param('classId', ParseIntPipe) classId: number,
     @Body() dto: InviteClassByEmailDto,
     @GetClassContext() context: ClassContext,
-  ): Promise<MessageResponseDto> {
-    return this.classService.inviteByEmail(dto.email, context);
+  ): Promise<{ success: true; data: MessageResponseDto }> {
+    const data = await this.classService.inviteByEmail(dto.email, context);
+    return { success: true, data };
   }
 
   // ==================== TEACHER MANAGEMENT ====================
@@ -292,8 +394,14 @@ export class ClassController {
   @ApiParam({ name: 'classId', type: Number, example: 1, description: 'The ID of the class' })
   @ApiBody({ type: TransferOwnershipDto })
   @ApiOkResponse({
-    description: 'Ownership transferred successfully',
-    type: MessageResponseDto,
+    schema: {
+      example: {
+        success: true,
+        data: {
+          message: 'Ownership transferred successfully',
+        },
+      },
+    },
   })
   @ApiForbiddenResponse({ description: 'Forbidden - Only the current owner can transfer ownership' })
   @ApiNotFoundResponse({ description: 'Class not found or new owner not enrolled' })
@@ -302,8 +410,9 @@ export class ClassController {
     @Param('classId', ParseIntPipe) classId: number,
     @Body() dto: TransferOwnershipDto,
     @GetClassContext() context: ClassContext,
-  ): Promise<MessageResponseDto> {
-    return this.classService.transferOwnership(dto.newOwnerId, context);
+  ): Promise<{ success: true; data: MessageResponseDto }> {
+    const data = await this.classService.transferOwnership(dto.newOwnerId, context);
+    return { success: true, data };
   }
 
   @Post(':classId/assign-ta')
@@ -315,8 +424,14 @@ export class ClassController {
   @ApiParam({ name: 'classId', type: Number, example: 1, description: 'The ID of the class' })
   @ApiBody({ type: AssignTADto })
   @ApiOkResponse({
-    description: 'TA assigned successfully',
-    type: MessageResponseDto,
+    schema: {
+      example: {
+        success: true,
+        data: {
+          message: 'TA assigned successfully',
+        },
+      },
+    },
   })
   @ApiForbiddenResponse({ description: 'Forbidden - User is not a teacher of this class' })
   @ApiNotFoundResponse({ description: 'Class or user not found' })
@@ -325,8 +440,9 @@ export class ClassController {
     @Param('classId', ParseIntPipe) classId: number,
     @Body() dto: AssignTADto,
     @GetClassContext() context: ClassContext,
-  ): Promise<MessageResponseDto> {
-    return this.classService.assignTA(dto.taId, context);
+  ): Promise<{ success: true; data: MessageResponseDto }> {
+    const data = await this.classService.assignTA(dto.taId, context);
+    return { success: true, data };
   }
 
   // ==================== LEADERBOARD ====================
@@ -339,8 +455,19 @@ export class ClassController {
   })
   @ApiParam({ name: 'classId', type: Number, example: 1, description: 'The ID of the class' })
   @ApiOkResponse({
-    description: 'Leaderboard retrieved successfully',
-    type: [LeaderboardItemDto],
+    schema: {
+      example: {
+        success: true,
+        data: [
+          {
+            studentId: 5,
+            studentName: 'John Doe',
+            totalScore: 95,
+            rank: 1,
+          },
+        ],
+      },
+    },
   })
   @ApiForbiddenResponse({ description: 'Forbidden - User is not a teacher of this class' })
   @ApiNotFoundResponse({ description: 'Class not found' })
@@ -348,7 +475,8 @@ export class ClassController {
   async getLeaderboard(
     @Param('classId', ParseIntPipe) classId: number,
     @GetClassContext() context: ClassContext,
-  ): Promise<LeaderboardItemDto[]> {
-    return this.classService.getLeaderboard(context);
+  ): Promise<{ success: true; data: LeaderboardItemDto[] }> {
+    const data = await this.classService.getLeaderboard(context);
+    return { success: true, data };
   }
 }

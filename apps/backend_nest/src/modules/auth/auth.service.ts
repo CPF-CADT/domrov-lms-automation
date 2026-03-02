@@ -15,7 +15,6 @@ import { RefreshTokenResponseDto } from '../../libs/dtos/auth/refresh-token-resp
 import { MessageResponseDto } from '../../libs/dtos/common/message-response.dto'
 import { OAuthProfile } from '../../libs/dtos/auth/oauth-profile.interface'
 import { UserService } from '../user/user.service'
-import { User } from '../../libs/entities/user/user.entity'
 
 @Injectable()
 export class AuthService {
@@ -54,7 +53,7 @@ export class AuthService {
         if (!user) throw new UnauthorizedException('User not found with this email')
         const passwordMatches = await Encryption.verifyPassword(user.password, login.password)
         if (!passwordMatches) throw new UnauthorizedException('Password Incorrect Please Try Again')
-        const payload = { sub: user.id, email: user.email }
+        const payload = { sub: user.id, email: user.email ,role: user.role }
         const accessToken = await this.accessJwtService.signAsync(payload)
         const refreshToken = await this.refreshJwtService.signAsync(payload)
         const expiresAt = new Date()
@@ -84,7 +83,7 @@ export class AuthService {
         }
 
         // Generate JWT payload
-        const payload = { sub: existingUser.id, email: existingUser.email };
+        const payload = { sub: existingUser.id, email: existingUser.email, role: existingUser.role };
         const accessToken = await this.accessJwtService.signAsync(payload);
         const refreshToken = await this.refreshJwtService.signAsync(payload);
 

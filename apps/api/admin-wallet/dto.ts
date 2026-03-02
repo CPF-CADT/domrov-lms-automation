@@ -1,18 +1,59 @@
 // /api/admin-wallet/dto.ts
-export interface AdminAdjustWalletDTO {
-  userId: number;
-  amount: number;
-  type: string;
-  reason: string;
-  description: string;
+
+export interface CreatePackageDto {
+  name: string;
+  credits: number;
+  price: number;
+  currency: string;
+  description?: string;
+  isActive?: boolean;
 }
 
-export interface AdminAdjustWalletResponseDto {
+export interface UpdatePackageDto {
+  name?: string;
+  credits?: number;
+  price?: number;
+  currency?: string;
+  description?: string;
+  isActive?: boolean;
+}
+
+export interface PackageResponseDto {
   id: number;
-  creditBalance: number;
-  updated_at: Date;
+  name: string;
+  credits: number;
+  price: number;
+  currency: string;
+  description?: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-export interface AdminDeductResponseDto {
-  success: boolean;
+export interface DeletePackageResponseDto {
+  message: string;
+  packageId: number;
+}
+
+export interface AdjustWalletDto {
+  userId: number;
+  credits: number;
+  reason: string;
+  description?: string;
+}
+
+export interface AdjustWalletResponseDto {
+  message: string;
+  userId: number;
+  creditsBefore: number;
+  creditsAfter: number;
+  transactionId: number;
+}
+
+export interface AdminWalletResponseDto {
+  totalPackagesSold: number;
+  totalRevenueUSD: number;
+  totalCreditsIssued: number;
+  totalUsersWithWallet: number;
+  createdAt: Date;
 }

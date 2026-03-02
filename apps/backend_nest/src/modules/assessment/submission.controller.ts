@@ -43,8 +43,7 @@ import type { SubmissionContext } from '../../common/security/dtos/guard.dto';
 export class SubmissionController {
     constructor(private readonly submissionService: SubmissionService) { }
 
-    // ==================== APPROVE SUBMISSION ====================
-    // ==================== GET SUBMISSION DETAILS ====================
+    // ==================== GET SUBMISSION DETAILS (TEACHER) ====================
     @Get(':id/teacher')
     @UseGuards(SubmissionInstructorGuard)
     @SubmissionIdParam('id')
@@ -55,42 +54,46 @@ export class SubmissionController {
     @ApiParam({ name: 'id', type: Number, description: 'Submission ID', example: 1 })
     @ApiOkResponse({
         description: 'Submission details retrieved successfully',
-        type: SubmissionViewerResponseDto,
-        example: {
-            id: 1,
-            created_at: '2024-01-15T10:30:00Z',
-            updated_at: '2024-01-15T10:30:00Z',
-            submissionTime: '2024-01-15T10:30:00Z',
-            status: 'SUBMITTED',
-            attemptNumber: 1,
-            user: { id: 1, firstName: 'John', lastName: 'Doe' },
-            team: null,
-            assessment: {
-                id: 1,
-                title: 'Assignment 1',
-                maxScore: 100,
-                class: { id: 1, name: 'Data Structures' }
-            },
-            evaluation: {
-                id: 1,
-                score: 85,
-                feedback: 'Good work!',
-                penaltyScore: 0,
-                isApproved: true,
-                isModified: false,
-                evaluationType: 'MANUAL',
-                aiOutput: null,
-                confidencePoint: null,
-                feedbacks: [],
-                created_at: '2024-01-15T10:30:00Z',
-                updated_at: '2024-01-15T10:30:00Z'
-            },
-            resources: [
-                {
+        schema: {
+            example: {
+                success: true,
+                data: {
                     id: 1,
-                    resource: { id: 1, title: 'main.cpp', type: 'URL', url: 'https://github.com/user/repo' }
+                    created_at: '2024-01-15T10:30:00Z',
+                    updated_at: '2024-01-15T10:30:00Z',
+                    submissionTime: '2024-01-15T10:30:00Z',
+                    status: 'SUBMITTED',
+                    attemptNumber: 1,
+                    user: { id: 1, firstName: 'John', lastName: 'Doe' },
+                    team: null,
+                    assessment: {
+                        id: 1,
+                        title: 'Assignment 1',
+                        maxScore: 100,
+                        class: { id: 1, name: 'Data Structures' }
+                    },
+                    evaluation: {
+                        id: 1,
+                        score: 85,
+                        feedback: 'Good work!',
+                        penaltyScore: 0,
+                        isApproved: true,
+                        isModified: false,
+                        evaluationType: 'MANUAL',
+                        aiOutput: null,
+                        confidencePoint: null,
+                        feedbacks: [],
+                        created_at: '2024-01-15T10:30:00Z',
+                        updated_at: '2024-01-15T10:30:00Z'
+                    },
+                    resources: [
+                        {
+                            id: 1,
+                            resource: { id: 1, title: 'main.cpp', type: 'URL', url: 'https://github.com/user/repo' }
+                        }
+                    ]
                 }
-            ]
+            }
         }
     })
     @ApiNotFoundResponse({
@@ -117,13 +120,14 @@ export class SubmissionController {
             error: 'Unauthorized'
         }
     })
-    // ==================== GET SUBMISSION DETAILS (TEACHER) ====================
     async getSubmissionForTeacher(
         @GetSubmissionContext() context: SubmissionContext,
-    ): Promise<SubmissionViewerResponseDto> {
-        return this.submissionService.getSubmissionForTeacher(context);
+    ) {
+        const data = await this.submissionService.getSubmissionForTeacher(context);
+        return { success: true, data };
     }
 
+    // ==================== GET SUBMISSION DETAILS (STUDENT) ====================
     @Get(':id/student')
     @UseGuards(SubmissionMemberGuard)
     @SubmissionIdParam('id')
@@ -134,42 +138,46 @@ export class SubmissionController {
     @ApiParam({ name: 'id', type: Number, description: 'Submission ID', example: 1 })
     @ApiOkResponse({
         description: 'Submission details retrieved successfully',
-        type: SubmissionViewerResponseDto,
-        example: {
-            id: 1,
-            created_at: '2024-01-15T10:30:00Z',
-            updated_at: '2024-01-15T10:30:00Z',
-            submissionTime: '2024-01-15T10:30:00Z',
-            status: 'SUBMITTED',
-            attemptNumber: 1,
-            user: { id: 1, firstName: 'John', lastName: 'Doe' },
-            team: null,
-            assessment: {
-                id: 1,
-                title: 'Assignment 1',
-                maxScore: 100,
-                class: { id: 1, name: 'Data Structures' }
-            },
-            evaluation: {
-                id: 1,
-                score: 85,
-                feedback: 'Good work!',
-                penaltyScore: 0,
-                isApproved: true,
-                isModified: false,
-                evaluationType: 'MANUAL',
-                aiOutput: null,
-                confidencePoint: null,
-                feedbacks: [],
-                created_at: '2024-01-15T10:30:00Z',
-                updated_at: '2024-01-15T10:30:00Z'
-            },
-            resources: [
-                {
+        schema: {
+            example: {
+                success: true,
+                data: {
                     id: 1,
-                    resource: { id: 1, title: 'main.cpp', type: 'URL', url: 'https://github.com/user/repo' }
+                    created_at: '2024-01-15T10:30:00Z',
+                    updated_at: '2024-01-15T10:30:00Z',
+                    submissionTime: '2024-01-15T10:30:00Z',
+                    status: 'SUBMITTED',
+                    attemptNumber: 1,
+                    user: { id: 1, firstName: 'John', lastName: 'Doe' },
+                    team: null,
+                    assessment: {
+                        id: 1,
+                        title: 'Assignment 1',
+                        maxScore: 100,
+                        class: { id: 1, name: 'Data Structures' }
+                    },
+                    evaluation: {
+                        id: 1,
+                        score: 85,
+                        feedback: 'Good work!',
+                        penaltyScore: 0,
+                        isApproved: true,
+                        isModified: false,
+                        evaluationType: 'MANUAL',
+                        aiOutput: null,
+                        confidencePoint: null,
+                        feedbacks: [],
+                        created_at: '2024-01-15T10:30:00Z',
+                        updated_at: '2024-01-15T10:30:00Z'
+                    },
+                    resources: [
+                        {
+                            id: 1,
+                            resource: { id: 1, title: 'main.cpp', type: 'URL', url: 'https://github.com/user/repo' }
+                        }
+                    ]
                 }
-            ]
+            }
         }
     })
     @ApiNotFoundResponse({
@@ -196,13 +204,14 @@ export class SubmissionController {
             error: 'Unauthorized'
         }
     })
-    // ==================== GET SUBMISSION DETAILS (TEACHER) ====================
     async getSubmissionForStudent(
         @GetSubmissionContext() context: SubmissionContext,
-    ): Promise<SubmissionViewerResponseDto> {
-        return this.submissionService.getSubmissionForStudent(context);
+    ) {
+        const data = await this.submissionService.getSubmissionForStudent(context);
+        return { success: true, data };
     }
 
+    // ==================== APPROVE SUBMISSION ====================
     @Patch('approve/:id')
     @UseGuards(SubmissionOwnerGuard)
     @SubmissionIdParam('id')
@@ -214,12 +223,16 @@ export class SubmissionController {
     @ApiParam({ name: 'id', type: Number, description: 'Submission ID', example: 1 })
     @ApiOkResponse({
         description: 'Submission approved successfully',
-        type: ApproveSubmissionResponseDto,
-        example: {
-            message: 'Submission approved successfully',
-            submissionId: 1,
-            evaluationId: 1,
-            isApproved: true
+        schema: {
+            example: {
+                success: true,
+                data: {
+                    message: 'Submission approved successfully',
+                    submissionId: 1,
+                    evaluationId: 1,
+                    isApproved: true
+                }
+            }
         }
     })
     @ApiNotFoundResponse({
@@ -256,11 +269,12 @@ export class SubmissionController {
     })
     async approveSubmission(
         @GetSubmissionContext() context: SubmissionContext,
-    ): Promise<ApproveSubmissionResponseDto> {
-        return this.submissionService.approveSubmission(context);
+    ) {
+        const data = await this.submissionService.approveSubmission(context);
+        return { success: true, data };
     }
 
-    // ==================== SUBMIT ASSIGNMENT ====================
+    // ==================== SAVE DRAFT ASSIGNMENT ====================
     @Patch(':assessmentId/submit')
     @UseGuards(AssessmentStudentGuard)
     @AssessmentIdParam('assessmentId')
@@ -274,15 +288,29 @@ export class SubmissionController {
         type: SubmitAssignmentDto,
         description: 'Draft submission details',
     })
+    @ApiOkResponse({
+        description: 'Draft saved successfully',
+        schema: {
+            example: {
+                success: true,
+                data: {
+                    message: 'Draft saved',
+                    submissionId: 1,
+                    status: 'DRAFT'
+                }
+            }
+        }
+    })
     async saveDraft(
         @UserId() userId: number,
         @Param('assessmentId', ParseIntPipe) assessmentId: number,
         @Body() submitAssignmentDto: SubmitAssignmentDto,
-    ): Promise<SubmitAssignmentResponseDto> {
-        return this.submissionService.saveDraftAssignment(userId, assessmentId, submitAssignmentDto);
+    ) {
+        const data = await this.submissionService.saveDraftAssignment(userId, assessmentId, submitAssignmentDto);
+        return { success: true, data };
     }
 
-    // POST: Final submit (change state only, handle queue, prevent duplicate)
+    // ==================== SUBMIT ASSIGNMENT (FINAL) ====================
     @Post(':assessmentId/submit')
     @UseGuards(AssessmentStudentGuard)
     @AssessmentIdParam('assessmentId')
@@ -292,14 +320,28 @@ export class SubmissionController {
         description: 'Final submit of assignment. Changes state, triggers async queue, prevents duplicate submissions.'
     })
     @ApiParam({ name: 'assessmentId', type: Number, description: 'Assessment ID', example: 1 })
+    @ApiOkResponse({
+        description: 'Assignment submitted successfully',
+        schema: {
+            example: {
+                success: true,
+                data: {
+                    message: 'Assignment submitted',
+                    submissionId: 1,
+                    status: 'SUBMITTED'
+                }
+            }
+        }
+    })
     async submit(
         @UserId() userId: number,
         @Param('assessmentId', ParseIntPipe) assessmentId: number,
-    ): Promise<SubmitAssignmentResponseDto> {
-        return this.submissionService.submitAssignment(userId, assessmentId);
+    ) {
+        const data = await this.submissionService.submitAssignment(userId, assessmentId);
+        return { success: true, data };
     }
 
-    // POST: Unsubmit (revert to draft, if allowed)
+    // ==================== UNSUBMIT ASSIGNMENT ====================
     @Post(':assessmentId/unsubmit')
     @UseGuards(AssessmentStudentGuard)
     @AssessmentIdParam('assessmentId')
@@ -309,11 +351,25 @@ export class SubmissionController {
         description: 'Revert a submitted assignment back to draft (if allowed).'
     })
     @ApiParam({ name: 'assessmentId', type: Number, description: 'Assessment ID', example: 1 })
+    @ApiOkResponse({
+        description: 'Assignment unsubmitted successfully',
+        schema: {
+            example: {
+                success: true,
+                data: {
+                    message: 'Assignment reverted to draft',
+                    submissionId: 1,
+                    status: 'DRAFT'
+                }
+            }
+        }
+    })
     async unsubmit(
         @UserId() userId: number,
         @Param('assessmentId', ParseIntPipe) assessmentId: number,
-    ): Promise<SubmitAssignmentResponseDto> {
-        return this.submissionService.unsubmitAssignment(userId, assessmentId);
+    ) {
+        const data = await this.submissionService.unsubmitAssignment(userId, assessmentId);
+        return { success: true, data };
     }
 
     // ==================== GET MY SUBMISSIONS STATUS IN CLASS ====================
@@ -326,25 +382,29 @@ export class SubmissionController {
     @ApiParam({ name: 'classId', type: Number, description: 'Class ID', example: 1 })
     @ApiOkResponse({
         description: 'Submission statuses retrieved successfully',
-        type: [SubmissionStatusItemDto],
-        example: [
-            {
-                assessmentId: 1,
-                title: 'Assignment 1: Data Structures',
-                dueDate: '2024-01-20T23:59:59Z',
-                status: 'SUBMITTED',
-                submissionId: 5,
-                grade: 85
-            },
-            {
-                assessmentId: 2,
-                title: 'Assignment 2: Algorithms',
-                dueDate: '2024-01-27T23:59:59Z',
-                status: 'PENDING',
-                submissionId: null,
-                grade: null
+        schema: {
+            example: {
+                success: true,
+                data: [
+                    {
+                        assessmentId: 1,
+                        title: 'Assignment 1: Data Structures',
+                        dueDate: '2024-01-20T23:59:59Z',
+                        status: 'SUBMITTED',
+                        submissionId: 5,
+                        grade: 85
+                    },
+                    {
+                        assessmentId: 2,
+                        title: 'Assignment 2: Algorithms',
+                        dueDate: '2024-01-27T23:59:59Z',
+                        status: 'PENDING',
+                        submissionId: null,
+                        grade: null
+                    }
+                ]
             }
-        ]
+        }
     })
     @ApiUnauthorizedResponse({
         description: 'User not authenticated',
@@ -357,8 +417,9 @@ export class SubmissionController {
     async getMySubmissionStatus(
         @UserId() userId: number,
         @Param('classId', ParseIntPipe) classId: number,
-    ): Promise<SubmissionStatusItemDto[]> {
-        return this.submissionService.getMySubmissionsStatus(userId, classId);
+    ) {
+        const data = await this.submissionService.getMySubmissionsStatus(userId, classId);
+        return { success: true, data };
     }
 
     // ==================== GET MY SUBMISSION FOR ASSESSMENT ====================
@@ -372,11 +433,10 @@ export class SubmissionController {
     @ApiParam({ name: 'assessmentId', type: Number, description: 'Assessment ID', example: 1 })
     @ApiOkResponse({
         description: 'Submission status retrieved successfully',
-        type: MySubmissionResponseDto,
-        examples: {
-            submitted: {
-                summary: 'Submitted assignment',
-                value: {
+        schema: {
+            example: {
+                success: true,
+                data: {
                     id: 1,
                     status: 'SUBMITTED',
                     attemptNumber: 2,
@@ -392,23 +452,6 @@ export class SubmissionController {
                         aiFeedback: null,
                         isApproved: true
                     }
-                }
-            },
-            pending: {
-                summary: 'Not submitted yet',
-                value: {
-                    status: 'PENDING',
-                    resources: [],
-                    evaluation: null
-                }
-            },
-            notInTeam: {
-                summary: 'Not in team (for team assessments)',
-                value: {
-                    status: 'PENDING',
-                    message: 'Not in an allowed team for this assessment',
-                    resources: [],
-                    evaluation: null
                 }
             }
         }
@@ -440,11 +483,12 @@ export class SubmissionController {
     async getMyStatus(
         @UserId() userId: number,
         @Param('assessmentId', ParseIntPipe) assessmentId: number,
-    ): Promise<MySubmissionResponseDto> {
-        return this.submissionService.getMySubmission(userId, assessmentId);
+    ) {
+        const data = await this.submissionService.getMySubmission(userId, assessmentId);
+        return { success: true, data };
     }
 
-    // ==================== GET ASSIGNMENT ROSTER ====================
+    // ==================== GET ASSESSMENT ROSTER ====================
     @Get('assessment/:assessmentId/roster')
     @UseGuards(AssessmentInstructorGuard)
     @AssessmentIdParam('assessmentId')
@@ -456,15 +500,9 @@ export class SubmissionController {
     @ApiOkResponse({
         description: 'Roster retrieved successfully',
         schema: {
-            oneOf: [
-                { type: 'array', items: { $ref: '#/components/schemas/TeamRosterItemDto' } },
-                { type: 'array', items: { $ref: '#/components/schemas/IndividualRosterItemDto' } }
-            ]
-        },
-        examples: {
-            teamRoster: {
-                summary: 'Team submission roster',
-                value: [
+            example: {
+                success: true,
+                data: [
                     {
                         type: 'TEAM',
                         id: 1,
@@ -477,33 +515,6 @@ export class SubmissionController {
                         submissionId: 5,
                         score: 85,
                         submittedAt: '2024-01-15T10:30:00Z'
-                    }
-                ]
-            },
-            individualRoster: {
-                summary: 'Individual submission roster',
-                value: [
-                    {
-                        type: 'INDIVIDUAL',
-                        id: 1,
-                        name: 'John Doe',
-                        email: 'john@example.com',
-                        profileUrl: 'https://example.com/avatar.jpg',
-                        status: 'SUBMITTED',
-                        submissionId: 5,
-                        score: 85,
-                        submittedAt: '2024-01-15T10:30:00Z'
-                    },
-                    {
-                        type: 'INDIVIDUAL',
-                        id: 2,
-                        name: 'Jane Smith',
-                        email: 'jane@example.com',
-                        profileUrl: null,
-                        status: 'NOT_SUBMITTED',
-                        submissionId: null,
-                        score: null,
-                        submittedAt: null
                     }
                 ]
             }
@@ -535,8 +546,9 @@ export class SubmissionController {
     })
     async getStudentStatusList(
         @Param('assessmentId', ParseIntPipe) assessmentId: number,
-    ): Promise<TeamRosterItemDto[] | IndividualRosterItemDto[]> {
-        return this.submissionService.getAssignmentRoster(assessmentId);
+    ) {
+        const data = await this.submissionService.getAssignmentRoster(assessmentId);
+        return { success: true, data };
     }
 
     // ==================== GET ASSESSMENT STATS ====================
@@ -550,12 +562,16 @@ export class SubmissionController {
     @ApiParam({ name: 'assessmentId', type: Number, description: 'Assessment ID', example: 1 })
     @ApiOkResponse({
         description: 'Statistics retrieved successfully',
-        type: AssessmentStatsResponseDto,
-        example: {
-            totalStudentsOrTeams: 30,
-            submittedCount: 25,
-            pendingCount: 5,
-            gradedCount: 20
+        schema: {
+            example: {
+                success: true,
+                data: {
+                    totalStudentsOrTeams: 30,
+                    submittedCount: 25,
+                    pendingCount: 5,
+                    gradedCount: 20
+                }
+            }
         }
     })
     @ApiNotFoundResponse({
@@ -584,8 +600,9 @@ export class SubmissionController {
     })
     async getStats(
         @Param('assessmentId', ParseIntPipe) assessmentId: number,
-    ): Promise<AssessmentStatsResponseDto> {
-        return this.submissionService.getAssessmentStats(assessmentId);
+    ) {
+        const data = await this.submissionService.getAssessmentStats(assessmentId);
+        return { success: true, data };
     }
 
     // ==================== GRADE SUBMISSION ====================
@@ -619,20 +636,24 @@ export class SubmissionController {
     })
     @ApiOkResponse({
         description: 'Submission graded successfully',
-        type: EvaluationResponseDto,
-        example: {
-            id: 1,
-            score: 85,
-            feedback: 'Good work!',
-            penaltyScore: 0,
-            isApproved: false,
-            isModified: false,
-            evaluationType: 'MANUAL',
-            aiOutput: null,
-            confidencePoint: null,
-            feedbacks: [],
-            created_at: '2024-01-15T10:30:00Z',
-            updated_at: '2024-01-15T10:30:00Z'
+        schema: {
+            example: {
+                success: true,
+                data: {
+                    id: 1,
+                    score: 85,
+                    feedback: 'Good work!',
+                    penaltyScore: 0,
+                    isApproved: false,
+                    isModified: false,
+                    evaluationType: 'MANUAL',
+                    aiOutput: null,
+                    confidencePoint: null,
+                    feedbacks: [],
+                    created_at: '2024-01-15T10:30:00Z',
+                    updated_at: '2024-01-15T10:30:00Z'
+                }
+            }
         }
     })
     @ApiNotFoundResponse({
@@ -662,11 +683,10 @@ export class SubmissionController {
     async grade(
         @GetSubmissionContext() context: SubmissionContext,
         @Body() dto: GradeSubmissionDTO,
-    ): Promise<EvaluationResponseDto> {
-        return this.submissionService.gradeSubmission(context, dto);
+    ) {
+        const data = await this.submissionService.gradeSubmission(context, dto);
+        return { success: true, data };
     }
-
-    
 
     // ==================== ADD LINE-BY-LINE FEEDBACK ====================
     @Post(':id/feedback')
@@ -716,11 +736,15 @@ export class SubmissionController {
     })
     @ApiOkResponse({
         description: 'Feedback added successfully',
-        type: AddFeedbackResponseDto,
-        example: {
-            message: 'Feedback item added successfully',
-            evaluationId: 1,
-            addedItemsCount: 1
+        schema: {
+            example: {
+                success: true,
+                data: {
+                    message: 'Feedback item added successfully',
+                    evaluationId: 1,
+                    addedItemsCount: 1
+                }
+            }
         }
     })
     @ApiNotFoundResponse({
@@ -750,8 +774,9 @@ export class SubmissionController {
     async addFeedbackLineByLine(
         @GetSubmissionContext() context: SubmissionContext,
         @Body() dto: FeedbackItemDto,
-    ): Promise<AddFeedbackResponseDto> {
-        return this.submissionService.addFeedbackLineByLine(context, dto);
+    ) {
+        const data = await this.submissionService.addFeedbackLineByLine(context, dto);
+        return { success: true, data };
     }
 
     // ==================== UPDATE SINGLE FEEDBACK ====================
@@ -781,10 +806,14 @@ export class SubmissionController {
     })
     @ApiOkResponse({
         description: 'Feedback updated successfully',
-        type: UpdateFeedbackResponseDto,
-        example: {
-            message: 'Feedback item updated successfully',
-            feedbackId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+        schema: {
+            example: {
+                success: true,
+                data: {
+                    message: 'Feedback item updated successfully',
+                    feedbackId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+                }
+            }
         }
     })
     @ApiNotFoundResponse({
@@ -815,7 +844,8 @@ export class SubmissionController {
         @UserId() userId: number,
         @Param('feedbackId') feedbackId: string,
         @Body() dto: FeedbackItemDto,
-    ): Promise<UpdateFeedbackResponseDto> {
-        return this.submissionService.updateSingleFeedback(userId, feedbackId, dto);
+    ) {
+        const data = await this.submissionService.updateSingleFeedback(userId, feedbackId, dto);
+        return { success: true, data };
     }
 }

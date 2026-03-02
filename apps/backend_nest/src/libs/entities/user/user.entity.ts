@@ -21,6 +21,7 @@ import { UserEmailOtp } from './user-email-otp.entity';
 import { UserAIKey } from '../ai/user-ai-key.entity';
 import { Notification } from './notification.entity';
 import { BaseEntity } from '../base.entity';
+import { SystemRole } from '../../enums/Role';
 
 @Entity({ name: 'users' })
 export class User extends BaseEntity {
@@ -63,6 +64,13 @@ export class User extends BaseEntity {
     default: UserStatus.INACTIVE,
   })
   status: UserStatus;
+
+  @Column({
+    type: 'enum',
+    enum: SystemRole,
+    default: SystemRole.User,
+  })
+  role: SystemRole;
 
   @OneToMany(() => UserAIKey, (key) => key.user)
   aiKeys?: UserAIKey[];

@@ -1,10 +1,11 @@
 import { Body, Controller, Get, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags, ApiBody } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags, ApiBody, ApiOkResponse } from '@nestjs/swagger';
 import { UserId } from '../../common/decorators/user.decorator';
 import { FileService } from './file.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import express from 'express';
 import { IsNotEmpty, IsString } from 'class-validator';
+
 export class NotifyUploadDto {
   @IsString()
   @IsNotEmpty()
@@ -14,6 +15,7 @@ export class NotifyUploadDto {
   @IsNotEmpty()
   filename: string;
 }
+
 @ApiTags('Files')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard)
@@ -35,19 +37,29 @@ export class FileController {
     enum: ['module', 'topic', 'assessment', 'class', 'submission'],
   })
   @ApiQuery({ name: 'resourceId', required: true, type: Number })
-  @ApiResponse({ status: 200, description: 'Presigned URL generated successfully' })
+  @ApiOkResponse({
+    schema: {
+      example: {
+        success: true,
+        data: {
+          presignedUrl: 'https://example.r2.com/presigned-url'
+        }
+      }
+    }
+  })
   async getPresignedUrl(
     @Query('filename') filename: string,
     @Query('contentType') contentType: string,
     @Query('resourceType') resourceType: 'module' | 'topic' | 'assessment' | 'class' | 'submission',
     @Query('resourceId') resourceId: number,
     @UserId() userId: number
-  ) {
+  ): Promise<{ success: true; data: any }> {
     if (!filename || !contentType || !resourceType || !resourceId) {
       throw new Error('Missing required query params');
     }
 
-    return this.fileService.generatePresignedUrl(userId, resourceType, resourceId, filename, contentType);
+    const data = await this.fileService.generatePresignedUrl(userId, resourceType, resourceId, filename, contentType);
+    return { success: true, data };
   }
 
   /**
@@ -57,41 +69,49 @@ export class FileController {
   @Post('notify-upload')
   @ApiOperation({ summary: 'Notify backend that file upload to R2 was successful' })
   @ApiBody({ type: NotifyUploadDto })
-  @ApiResponse({ status: 201, description: 'Resource saved successfully' })
+  @ApiOkResponse({
+    schema: {
+      example: {
+        success: true,
+        data: {
+          message: 'Resource saved successfully'
+        }
+      }
+    }
+  })
   async notifyUpload(
     @UserId() userId: number,
     @Body() body: NotifyUploadDto
-  ) {
+  ): Promise<{ success: true; data: any }> {
     const { key, filename } = body;
     if (!key || !filename) {
       throw new Error('Missing required body params');
     }
 
-    return this.fileService.notifyUploadSuccess(userId, key, filename);
+    const data = await this.fileService.notifyUploadSuccess(userId, key, filename);
+    return { success: true, data };
   }
 
   @Get('download/:resourceId')
   @UseGuards(JwtAuthGuard)
   async download(
     @Param('resourceId') resourceId: number,
-    @Res() res: express.Response, // Use Express Response type
+    @Res() res: express.Response,
     @UserId() userId: number,
   ) {
     const { stream, filename, contentType } = await this.fileService.getResourceStream(userId, resourceId);
     const encodedFileName = encodeURIComponent(filename);
-    const safeFileName = encodedFileName.replace(/%20/g, ' '); // optional: fix spaces
+    const safeFileName = encodedFileName.replace(/%20/g, ' ');
     res.setHeader(
       'Content-Disposition',
       `attachment; filename="${safeFileName}"; filename*=UTF-8''${encodedFileName}`
     );
     res.setHeader('Content-Type', contentType || 'application/octet-stream');
 
-    // Pipe the stream to response
     return new Promise<void>((resolve, reject) => {
       stream.pipe(res)
         .on('finish', resolve)
         .on('error', reject);
     });
   }
-
 }

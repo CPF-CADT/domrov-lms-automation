@@ -1,41 +1,32 @@
-import { SubmissionFileType } from '../enums/Assessment';
-
 // /api/evaluation/dto.ts
-export interface FileContentDto {
-  type: SubmissionFileType;
+
+export interface FileContentResponseDto {
+  filePath: string;
+  content: string;
+  contentType: string;
+  size: number;
+}
+
+export interface FolderItemDto {
   name: string;
+  type: 'file' | 'directory';
+  size?: number;
   path: string;
-  content: string[];
-}
-
-export interface ProcessSubmissionResponseDto {
-  success: boolean;
-  message: string;
-  file: FileContentDto;
-}
-
-export interface FolderNodeDto {
-  name: string;
-  type: 'file' | 'folder';
-  children?: FolderNodeDto[];
+  children?: FolderItemDto[];
 }
 
 export interface FolderStructureResponseDto {
-  success: boolean;
-  message: string;
-  folder: FolderNodeDto;
+  submissionId: number;
+  structure: FolderItemDto[];
 }
 
-export interface AddQueueDto {
-  submission_id: number;
+export interface AddToQueueDto {
+  submissionId: number;
+  evaluationType?: 'AI' | 'MANUAL';
 }
 
-export interface AddQueueResponseDto {
-  success: boolean;
-  message: string;
-}
-
-export interface AIEvaluationResponseDto {
+export interface AddToQueueResponseDto {
   message: string;
   evaluationId: number;
+  status: string;
 }
