@@ -210,7 +210,6 @@ export class SubmissionService {
             team,
             status: SubmissionStatus.PENDING,
             attemptNumber: 1,
-            submissionTime: null,
           });
         }
       } else {
@@ -224,7 +223,6 @@ export class SubmissionService {
             user: { id: userId },
             status: SubmissionStatus.PENDING,
             attemptNumber: 1,
-            submissionTime: null,
           });
         }
       }
@@ -269,13 +267,15 @@ export class SubmissionService {
         await this.subResourceRepo.save({ submission, resource });
       }
 
-      if (
-        this.evaluationRepo.findOne({
-          where: { submission: { id: submission.id } },
-        })
-      ) {
-        throw new BadRequestException('Cannot edit after evaluation');
-      }
+if (submission.id) {
+  const existingEvaluation = await this.evaluationRepo.findOne({
+    where: { submission: { id: submission.id } },
+  });
+  if (existingEvaluation) {
+    
+    throw new BadRequestException('Cannot edit after evaluation');
+  }
+}
 
       submission.status = SubmissionStatus.PENDING;
       await this.submissionRepo.save(submission);
@@ -288,6 +288,7 @@ export class SubmissionService {
       ) {
         throw err; // let test-expected errors bubble
       }
+      console.error('Unexpected error in saveDraftAssignment:', err);
       throw new BadRequestException('Failed to save draft assignment');
     }
   }

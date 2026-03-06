@@ -27,6 +27,7 @@ import { NotificationModule } from '../../services/notification.module';
         name: 'CODE_EVAL_GRPC',
         inject: [ConfigService],
         useFactory: (config: ConfigService) => ({
+          
           transport: Transport.GRPC,
           options: {
             url: `${config.get('CODE_EVAL_GRPC_CLIENT_HOST')}:${config.get('CODE_EVAL_GRPC_CLIENT_PORT')}`,

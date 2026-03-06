@@ -78,15 +78,32 @@ abstract class BaseSubmissionGuard implements CanActivate {
   protected extractSubmissionId(
     request: AuthenticatedRequest,
   ): number | undefined {
+    // Common parameter names to check
+    const paramNames = ['submission_id', 'submissionId', 'id'];
 
-    const val = request.params?.id;
+    for (const paramName of paramNames) {
+  // Check route params
+  let val: unknown = request.params?.[paramName];
 
-    if (!val) return undefined;
+  // Check query
+  if (!val) {
+    val = request.query?.[paramName];
+  }
 
+  // Check body
+  if (!val) {
+    val = request.body?.[paramName];
+  }
+
+  if (val !== undefined && val !== null) {
     const n = Number(val);
-    if (!Number.isNaN(n)) return n;
+    if (!Number.isNaN(n) && n > 0) {
+      return n;
+    }
+  }
+}
 
-    return undefined;
+return undefined;
   }
 
   protected abstract checkPermission(
