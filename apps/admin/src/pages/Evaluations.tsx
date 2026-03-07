@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Download } from 'lucide-react';
-import EvaluationTable from '../components/evaluations/EvaluationTable';
-import { BaseButton } from '../components/base';
+import AIUsageLogTable from '../components/evaluations/AIUsageLogTable';
+import AIUsageLogModal from '../components/evaluations/AIUsageLogModal';
 import { MainLayout, PageHeader } from '../components/layout';
-import { evaluationService, type Evaluation } from '../services';
+import { PaginationControls } from '../components/base';
+import { aiUsageLogService, type AIUsageLog } from '../services/aiEvaluationservice';
+import { useModal, usePaginationWithPrefetch } from '../hooks';
+import { AlertCircle } from 'lucide-react';
 
-// Custom debounce hook
+const PAGE_SIZE = 10;
+
 const useDebounce = <T,>(value: T, delay: number) => {
     const [debouncedValue, setDebouncedValue] = useState(value);
 
@@ -20,121 +23,240 @@ const useDebounce = <T,>(value: T, delay: number) => {
     return debouncedValue;
 };
 
-// Memoized EvaluationTable to prevent unnecessary re-renders
-const MemoizedEvaluationTable = React.memo(EvaluationTable);
+const MemoizedAIUsageLogTable = React.memo(AIUsageLogTable);
 
-const Evaluations = () => {
-    // Data state
-    const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
+interface AIUsageLogFiltersSectionProps {
+    search: string;
+    dateFrom: string;
+    dateTo: string;
+    sortBy: string;
+    onSearchChange: (value: string) => void;
+    onDateFromChange: (value: string) => void;
+    onDateToChange: (value: string) => void;
+    onSortByChange: (value: string) => void;
+}
 
-    // UI state (doesn't trigger table re-render)
-    const [error, setError] = useState<string | null>(null);
+const AIUsageLogFiltersSection = React.memo<AIUsageLogFiltersSectionProps>(({
+    search,
+    dateFrom,
+    dateTo,
+    sortBy,
+    onSearchChange,
+    onDateFromChange,
+    onDateToChange,
+    onSortByChange,
+}) => (
+    <div className="mb-3 flex-shrink-0 flex flex-col md:flex-row gap-3">
+        <input
+            type="text"
+            placeholder="Search user name, email, or log title..."
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="flex-1 px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+        />
+        <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => onDateFromChange(e.target.value)}
+            title="Date From"
+            className="px-3 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+        />
+        <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => onDateToChange(e.target.value)}
+            title="Date To"
+            className="px-3 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+        />
+        <select
+            value={sortBy}
+            onChange={(e) => onSortByChange(e.target.value)}
+            className="px-3 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+        >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="tokenCountDesc">Tokens (High to Low)</option>
+            <option value="tokenCountAsc">Tokens (Low to High)</option>
+        </select>
+    </div>
+));
+AIUsageLogFiltersSection.displayName = 'AIUsageLogFiltersSection';
 
-    // Filter state
+interface AIUsageLogPaginationSectionProps {
+    currentPage: number;
+    totalPages: number;
+    totalRecords: number;
+    isLoading: boolean;
+    onPrevPage: () => void;
+    onNextPage: () => void;
+    onGoToPage: (page: number) => void;
+}
+
+const AIUsageLogPaginationSection = React.memo<AIUsageLogPaginationSectionProps>(({
+    currentPage,
+    totalPages,
+    totalRecords,
+    isLoading,
+    onPrevPage,
+    onNextPage,
+    onGoToPage,
+}) => {
+    if (totalPages === 0) return null;
+
+    return (
+        <div className="flex-shrink-0">
+            <PaginationControls
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalRecords={totalRecords}
+                pageSize={PAGE_SIZE}
+                onPrevPage={onPrevPage}
+                onNextPage={onNextPage}
+                onGoToPage={onGoToPage}
+                isLoading={isLoading}
+            />
+        </div>
+    );
+});
+AIUsageLogPaginationSection.displayName = 'AIUsageLogPaginationSection';
+
+const AIUsageLogs = () => {
     const [currentSearch, setCurrentSearch] = useState<string>('');
-    const [currentStatus, setCurrentStatus] = useState<string>('');
+    const [dateFrom, setDateFrom] = useState<string>('');
+    const [dateTo, setDateTo] = useState<string>('');
+    const [sortBy, setSortBy] = useState<string>('newest');
+    const [selectedLog, setSelectedLog] = useState<AIUsageLog | null>(null);
 
-    // Debounced search (500ms delay)
     const debouncedSearch = useDebounce(currentSearch, 500);
+    const { isOpen: modalOpen, openModal, closeModal } = useModal();
 
+    const fetchLogsWithParams = useCallback(
+        async (page: number, limit: number) => {
+            const response = await aiUsageLogService.fetchLogs(
+                page,
+                limit,
+                debouncedSearch || undefined,
+                dateFrom || undefined,
+                dateTo || undefined,
+                sortBy as any
+            );
+
+            return {
+                data: response.data || [],
+                total: response.total || 0,
+            };
+        }, [debouncedSearch, dateFrom, dateTo, sortBy]
+    );
+
+    const {
+        currentData: logs,
+        isLoading,
+        error: paginationError,
+        totalRecords,
+        totalPages,
+        currentPage,
+        goToPage,
+        nextPage,
+        prevPage,
+        prefetchPage,
+    } = usePaginationWithPrefetch(
+        fetchLogsWithParams,
+        PAGE_SIZE, [debouncedSearch, dateFrom, dateTo, sortBy]
+    );
+
+    // Reset to page 1 whenever filters change
     useEffect(() => {
-        loadEvaluations();
-    }, []);
+        goToPage(1);
+    }, [debouncedSearch, dateFrom, dateTo, sortBy, goToPage]);
 
-    // Only reload when debounced search or status changes
+    // Prefetch next page for smooth UX
     useEffect(() => {
-        loadEvaluations();
-    }, [debouncedSearch, currentStatus]);
-
-    const loadEvaluations = useCallback(async () => {
-        try {
-            setIsLoading(true);
-            setError(null);
-            const data = await evaluationService.fetchEvaluations();
-            setEvaluations(data);
-        } catch (err) {
-            setError('Failed to load evaluations. Please try again.');
-            console.error('Load error:', err);
-        } finally {
-            setIsLoading(false);
+        if (currentPage < totalPages) {
+            prefetchPage(currentPage + 1);
         }
-    }, []);
+    }, [currentPage, totalPages, prefetchPage]);
 
-    const handleSearch = useCallback((value: string) => {
-        setCurrentSearch(value);
-    }, []);
+    const handleSearch = useCallback((value: string) => setCurrentSearch(value), []);
+    const handleDateFromFilter = useCallback((value: string) => setDateFrom(value), []);
+    const handleDateToFilter = useCallback((value: string) => setDateTo(value), []);
+    const handleSortByFilter = useCallback((value: string) => setSortBy(value), []);
 
-    const handleStatusFilter = useCallback((value: string) => {
-        setCurrentStatus(value);
-    }, []);
+    const handleGoToPage = useCallback((page: number) => {
+        const validPage = Math.max(1, Math.min(page, totalPages || 1));
+        goToPage(validPage);
+    }, [totalPages, goToPage]);
 
-    const handleExport = useCallback(() => {
-        const csv = [
-            ['Evaluation ID', 'User', 'Model', 'Input', 'Score', 'Status', 'Date'],
-            ...evaluations.map((e) => [e.id, e.user, e.model, e.input, e.score, e.status, e.date]),
-        ]
-            .map((row) => row.map((cell) => `"${cell}"`).join(','))
-            .join('\n');
+    const handleNextPage = useCallback(() => {
+        if (currentPage < totalPages) {
+            nextPage();
+        }
+    }, [currentPage, totalPages, nextPage]);
 
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `evaluations-${new Date().toISOString()}.csv`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-    }, [evaluations]);
+    const handlePrevPage = useCallback(() => {
+        if (currentPage > 1) {
+            prevPage();
+        }
+    }, [currentPage, prevPage]);
+
+    const handleViewLog = useCallback((log: AIUsageLog) => {
+        setSelectedLog(log);
+        openModal();
+    }, [openModal]);
 
     return (
         <MainLayout>
             <PageHeader
-                title="AI Evaluations"
-                description="Monitor and manage AI model evaluation results."
-                actions={
-                    <BaseButton
-                        variant="secondary"
-                        leftIcon={<Download className="w-4 h-4" />}
-                        onClick={handleExport}
-                    >
-                        Export CSV
-                    </BaseButton>
-                }
+                title="AI Usage Logs"
+                description="View and monitor AI usage and token consumption across the system."
             />
 
-            {error && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                    {error}
+            {paginationError && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex gap-3">
+                    <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                    <span>{paginationError}</span>
                 </div>
             )}
 
-            <div className="mb-6 flex flex-col md:flex-row gap-3">
-                <input
-                    type="text"
-                    placeholder="Search evaluation ID or user..."
-                    value={currentSearch || ''}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    className="flex-1 px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                />
-                <select
-                    value={currentStatus || ''}
-                    onChange={(e) => handleStatusFilter(e.target.value)}
-                    className="px-3 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                >
-                    <option value="">All Status</option>
-                    <option value="completed">Completed</option>
-                    <option value="pending">Pending</option>
-                    <option value="failed">Failed</option>
-                </select>
+            <AIUsageLogFiltersSection
+                search={currentSearch}
+                dateFrom={dateFrom}
+                dateTo={dateTo}
+                sortBy={sortBy}
+                onSearchChange={handleSearch}
+                onDateFromChange={handleDateFromFilter}
+                onDateToChange={handleDateToFilter}
+                onSortByChange={handleSortByFilter}
+            />
+
+            <div className="flex-1 flex flex-col min-h-0 mb-3">
+                <div className="overflow-y-auto">
+                    <MemoizedAIUsageLogTable
+                        logs={logs}
+                        isLoading={isLoading}
+                        onView={handleViewLog}
+                    />
+                </div>
             </div>
 
-            {/* Evaluations Table - Memoized to prevent unnecessary re-renders */}
-            <MemoizedEvaluationTable
-                evaluations={evaluations}
+            <AIUsageLogPaginationSection
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalRecords={totalRecords}
                 isLoading={isLoading}
+                onPrevPage={handlePrevPage}
+                onNextPage={handleNextPage}
+                onGoToPage={handleGoToPage}
             />
+
+            {modalOpen && selectedLog && (
+                <AIUsageLogModal
+                    isOpen={modalOpen}
+                    log={selectedLog}
+                    onClose={closeModal}
+                />
+            )}
         </MainLayout>
     );
 };
 
-export default Evaluations;
+export default AIUsageLogs;

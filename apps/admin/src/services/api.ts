@@ -124,16 +124,11 @@ const apiClient = {
   // Auth endpoints
   auth: {
     login: (credentials: { email: string; password: string }) =>
-      request<{ accessToken: string }>(
-        '/auth/login',
-        'POST',
-        credentials,
-        { headers: { 'Content-Type': 'application/json' } }
-      ),
-    logout: () =>
-      request<void>('/auth/logout', 'POST'),
-    getProfile: () =>
-      request<any>('/users/me', 'GET'),
+      request<{ accessToken: string }>("/auth/login", "POST", credentials, {
+        headers: { "Content-Type": "application/json" },
+      }),
+    logout: () => request<void>("/auth/logout", "POST"),
+    getProfile: () => request<any>("/users/me", "GET"),
   },
   // Dashboard endpoints
   dashboard: {
@@ -144,7 +139,7 @@ const apiClient = {
         totalTransactions: number;
         totalRevenue: number;
         monthlyGrowth: number;
-      }>('/admin/dashboard/stats'),
+      }>("/admin/dashboard/stats"),
 
     getRecentActivity: () =>
       request<{
@@ -156,9 +151,15 @@ const apiClient = {
           timestamp: string;
           amount: number | null;
         }>;
-      }>('/admin/dashboard/recent-activity'),
+      }>("/admin/dashboard/recent-activity"),
 
-    getUsers: (page?: number, limit?: number, search?: string, status?: string, role?: string) =>
+    getUsers: (
+      page?: number,
+      limit?: number,
+      search?: string,
+      status?: string,
+      role?: string,
+    ) =>
       request<{
         data: Array<{
           id: number;
@@ -175,7 +176,7 @@ const apiClient = {
         limit: number;
         totalPages: number;
         totalRecords: number;
-      }>('/admin/dashboard/users', 'GET', undefined, {
+      }>("/admin/dashboard/users", "GET", undefined, {
         params: { page, limit, search, status, role },
       }),
 
@@ -185,7 +186,7 @@ const apiClient = {
           date: string;
           value: number;
         }>;
-      }>('/admin/dashboard/income-daily'),
+      }>("/admin/dashboard/income-daily"),
   },
 
   // Transaction endpoints
@@ -196,30 +197,48 @@ const apiClient = {
         total: number;
         page: number;
         limit: number;
-      }>('/admin/wallet/transactions', 'GET', undefined, {
+      }>("/admin/wallet/transactions", "GET", undefined, {
         params: { page, limit, status, search },
       }),
 
     getById: (transactionId: number) =>
-      request<TransactionResponseDto>(`/admin/wallet/transactions/${transactionId}`),
+      request<TransactionResponseDto>(
+        `/admin/wallet/transactions/${transactionId}`,
+      ),
 
     verifyByHash: (transactionHash: string, amount: number, userId: number) =>
-      request<{ message: string }>('/admin/wallet/transactions/verify-by-hash', 'POST', {
-        transactionHash,
-        amount,
-        userId,
-      }),
+      request<{ message: string }>(
+        "/admin/wallet/transactions/verify-by-hash",
+        "POST",
+        {
+          transactionHash,
+          amount,
+          userId,
+        },
+      ),
 
     markAsPaid: (transactionId: number, verificationNote?: string) =>
-      request<{ message: string }>(`/admin/wallet/transactions/${transactionId}/verify`, 'POST', {
-        verificationNote,
-      }),
+      request<{ message: string }>(
+        `/admin/wallet/transactions/${transactionId}/verify`,
+        "POST",
+        {
+          verificationNote,
+        },
+      ),
 
-    reject: (transactionId: number, reason: string, verificationNote?: string) =>
-      request<{ message: string }>(`/admin/wallet/transactions/${transactionId}/reject`, 'POST', {
-        reason,
-        verificationNote,
-      }),
+    reject: (
+      transactionId: number,
+      reason: string,
+      verificationNote?: string,
+    ) =>
+      request<{ message: string }>(
+        `/admin/wallet/transactions/${transactionId}/reject`,
+        "POST",
+        {
+          reason,
+          verificationNote,
+        },
+      ),
   },
 
   // User endpoints - Admin Users Controller
@@ -233,7 +252,7 @@ const apiClient = {
       search?: string,
       joinDateFrom?: string,
       joinDateTo?: string,
-      sortBy?: string
+      sortBy?: string,
     ) =>
       request<{
         data: Array<{
@@ -246,8 +265,8 @@ const apiClient = {
           phoneNumber: string | null;
           profilePictureUrl: string | null;
           isVerified: boolean;
-          status: 'active' | 'inactive' | 'banned';
-          role: 'user' | 'admin' | 'superadmin';
+          status: "active" | "inactive" | "banned";
+          role: "user" | "admin" | "superadmin";
           credits: number;
           joinDate: string;
           lastActivity: string;
@@ -257,13 +276,13 @@ const apiClient = {
         page: number;
         limit: number;
         filtered: boolean;
-      }>('/admin/users', 'GET', undefined, {
+      }>("/admin/users", "GET", undefined, {
         params: {
           page,
           limit,
-          status: status || 'all',
-          role: role || 'all',
-          verified: verified || 'all',
+          status: status || "all",
+          role: role || "all",
+          verified: verified || "all",
           search,
           joinDateFrom,
           joinDateTo,
@@ -285,7 +304,7 @@ const apiClient = {
         newBalance: number;
         transactionId: string;
         timestamp: string;
-      }>(`/admin/users/${userId}/credits/add`, 'POST', data),
+      }>(`/admin/users/${userId}/credits/add`, "POST", data),
 
     deductCredits: (userId: number, data: DeductUserCreditsDto) =>
       request<{
@@ -294,21 +313,24 @@ const apiClient = {
         newBalance: number;
         transactionId: string;
         timestamp: string;
-      }>(`/admin/users/${userId}/credits/deduct`, 'POST', data),
+      }>(`/admin/users/${userId}/credits/deduct`, "POST", data),
 
-    toggleStatus: (userId: number, data: { status: 'active' | 'inactive' | 'banned'; reason?: string }) =>
+    toggleStatus: (
+      userId: number,
+      data: { status: "active" | "inactive" | "banned"; reason?: string },
+    ) =>
       request<{
         id: number;
         status: string;
         reason: string | null;
         updatedAt: string;
-      }>(`/admin/users/${userId}/status`, 'PATCH', data),
+      }>(`/admin/users/${userId}/status`, "PATCH", data),
 
     delete: (userId: number) =>
       request<{
         message: string;
         deletedUserId: number;
-      }>(`/admin/users/${userId}`, 'DELETE'),
+      }>(`/admin/users/${userId}`, "DELETE"),
   },
 
   // Evaluation endpoints
@@ -325,9 +347,39 @@ const apiClient = {
         total: number;
         page: number;
         limit: number;
-      }>('/admin/evaluations', 'GET', undefined, {
+      }>("/admin/evaluations", "GET", undefined, {
         params: { page, limit, status, search },
       }),
+    getAIUsageLogs: (params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      sortBy?: string;
+    }) =>
+      request<{
+        data: Array<{
+          id: number;
+          title: string;
+          inputTokenCount: number;
+          outputTokenCount: number;
+          totalTokenCount: number;
+          usingDate: string;
+          createdAt: string;
+          user: {
+            firstName: string;
+            lastName: string | null;
+            email: string;
+            profilePictureUrl: string | null;
+            status: string;
+          };
+        }>;
+        total: number;
+        page: number;
+        limit: number;
+        filtered: boolean;
+      }>("/admin/evaluations/ai-usage-logs", "GET", undefined, { params }),
   },
 
   // Wallet endpoints (Admin)
@@ -356,7 +408,7 @@ const apiClient = {
         sortOrder: number;
         created_at: string;
         updated_at: string;
-      }>('/admin/wallet/packages', 'POST', data),
+      }>("/admin/wallet/packages", "POST", data),
 
     getAllPackages: () =>
       request<
@@ -374,7 +426,7 @@ const apiClient = {
           created_at: string;
           updated_at: string;
         }>
-      >('/admin/wallet/packages', 'GET'),
+      >("/admin/wallet/packages", "GET"),
 
     togglePackage: (packageId: number) =>
       request<{
@@ -390,14 +442,14 @@ const apiClient = {
         sortOrder: number;
         created_at: string;
         updated_at: string;
-      }>(`/admin/wallet/packages/${packageId}/toggle`, 'PATCH'),
+      }>(`/admin/wallet/packages/${packageId}/toggle`, "PATCH"),
 
     // Manual wallet adjustment - Admin Wallet API
     adjustWallet: (data: {
       userId: number;
       amount: number;
-      type: 'CREDIT' | 'DEBIT';
-      reason: 'BONUS' | 'ADMIN_ADJUSTMENT' | 'REFUND';
+      type: "CREDIT" | "DEBIT";
+      reason: "BONUS" | "ADMIN_ADJUSTMENT" | "REFUND";
       description?: string;
     }) =>
       request<{
@@ -405,26 +457,33 @@ const apiClient = {
         creditBalance?: number;
         updated_at: string;
         success?: boolean;
-      }>('/admin/wallet/adjust', 'POST', data),
+      }>("/admin/wallet/adjust", "POST", data),
 
     // Transactions
     getTransactions: (
       page?: number,
       limit?: number,
       status?: string,
-      search?: string
+      search?: string,
     ) =>
-      request<TransactionListResponseDto>('/admin/wallet/transactions', 'GET', undefined, {
-        params: {
-          page,
-          limit,
-          status: status || 'all',
-          search,
+      request<TransactionListResponseDto>(
+        "/admin/wallet/transactions",
+        "GET",
+        undefined,
+        {
+          params: {
+            page,
+            limit,
+            status: status || "all",
+            search,
+          },
         },
-      }),
+      ),
 
     getTransactionDetails: (transactionId: string | number) =>
-      request<TransactionResponseDto>(`/admin/wallet/transactions/${transactionId}`),
+      request<TransactionResponseDto>(
+        `/admin/wallet/transactions/${transactionId}`,
+      ),
   },
 };
 
