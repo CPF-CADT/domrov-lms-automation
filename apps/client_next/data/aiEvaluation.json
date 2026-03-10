@@ -1,0 +1,23 @@
+[
+  {
+    "provider": "openai",
+    "model": "gpt-4",
+    "apiKey": "sk-1234567890abcdef",
+    "apiEndpoint": "https://api.openai.com/v1",
+    "label": "Production Grading Model"
+  },
+  {
+    "provider": "anthropic",
+    "model": "claude-3-opus",
+    "apiKey": "sk-ant-1234567890abcdef",
+    "apiEndpoint": "https://api.anthropic.com/v1",
+    "label": "Development Testing"
+  },
+  {
+    "provider": "google",
+    "model": "gemini-pro",
+    "apiKey": "AIzaSy1234567890abcdef",
+    "apiEndpoint": "https://generativelanguage.googleapis.com/v1",
+    "label": "Testing Environment"
+  }
+]

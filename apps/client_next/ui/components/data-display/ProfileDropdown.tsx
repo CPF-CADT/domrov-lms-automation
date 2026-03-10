@@ -107,7 +107,10 @@ export default function ProfileDropdown({
                 Status
               </button>
               <button
-                onClick={() => handleMenuItemClick(onTokenClick)}
+                onClick={() => {
+                  console.log("Token clicked, onTokenClick:", onTokenClick);
+                  handleMenuItemClick(onTokenClick);
+                }}
                 className="w-full px-4 py-2.5 text-left text-slate-700 hover:bg-slate-50 transition-colors text-sm"
               >
                 Token
