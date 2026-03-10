@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, MinLength, MaxLength, IsOptional } from 'class-validator';
+import { IsString, MinLength, MaxLength, IsOptional, IsUrl } from 'class-validator';
 
 export class CreateClassDto {
     @ApiProperty({
@@ -20,4 +20,12 @@ export class CreateClassDto {
     @IsString()
     @MaxLength(1000)
     description?: string;
+
+    @ApiProperty({
+        description: 'An optional cover image URL for the class',
+        example: 'https://res.cloudinary.com/example/image/upload/v123/cover.jpg',
+    })
+    @IsOptional()
+    @IsUrl()
+    coverImageUrl?: string;
 }

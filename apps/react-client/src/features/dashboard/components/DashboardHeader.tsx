@@ -1,12 +1,12 @@
 "use client";
 
+import { Link } from "react-router-dom";
 import { ProfileDropdown } from "@/components/data-display";
 import type { StatusFilter } from "@/types/classCard";
 
 interface DashboardHeaderProps {
   activeStatus: StatusFilter;
   onChangeStatus: (status: StatusFilter) => void;
-  onCreateClass?: () => void;
   onJoinClass?: () => void;
 }
 
@@ -22,12 +22,12 @@ export default function DashboardHeader({
       </div>
 
       <div className="flex items-center space-x-3">
-        <button
+        <Link
+          to="/class/create"
           className="px-4 py-2 bg-white text-primary font-semibold rounded-md shadow-sm hover:bg-blue-50"
-          onClick={onJoinClass}
         >
           + Create Class
-        </button>
+        </Link>
         <button
           className="px-4 py-2 bg-white text-primary font-semibold rounded-md shadow-sm hover:bg-blue-50"
           onClick={onJoinClass}

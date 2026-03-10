@@ -1,7 +1,7 @@
 "use client";
 
 import { useNavigate } from "react-router-dom";
-import { Home, BookOpen, BarChart3, Bell, Lock } from "lucide-react";
+import { Home, BookOpen, BarChart3, Bell, Lock, Sparkles } from "lucide-react";
 
 
 /**
@@ -12,6 +12,7 @@ import { Home, BookOpen, BarChart3, Bell, Lock } from "lucide-react";
 import { User } from "lucide-react";
 const navItems = [
   { id: "home", label: "Home", icon: Home, href: "/" },
+  { id: "ai-evaluation", label: "AI Evaluation", icon: Sparkles, href: "/ai-evaluation" },
   { id: "bookmark", label: "Bookmark", icon: BookOpen, href: "/bookmarks" },
   { id: "star", label: "Star", icon: BarChart3, href: "/starred" },
   { id: "bell", label: "Notifications", icon: Bell, href: "/notifications" },

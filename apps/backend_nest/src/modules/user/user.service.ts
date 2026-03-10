@@ -16,6 +16,11 @@ import { UserStatus } from '../../libs/enums/Status'
 import { OAuthProfile } from '../../libs/dtos/auth/oauth-profile.interface'
 import { OAuthAccount } from '../../libs/entities/user/oauth-account.entity'
 import { OAuthProvider } from '../../libs/entities/user/oauth-provider.entity'
+import { DetailedTransactionDto, PurchasedPackageDto, UserDetailDto } from '../../libs/dtos/admin/user-admin.dto'
+import { WalletService } from '../wallet/wallet.service'
+import { Payment } from '../../libs/entities/ai/payment.entity'
+import { UserCreditBalance } from '../../libs/entities/ai/user-credit-balance.entity'
+import { WalletTransaction } from '../../libs/entities/ai/wallet-transaction.entity'
 
 @Injectable()
 export class UserService {
@@ -28,6 +33,13 @@ export class UserService {
 
     @InjectRepository(OAuthProvider)
     private readonly oauthProviderRepository: Repository<OAuthProvider>,
+
+    @InjectRepository(UserCreditBalance)
+    private readonly walletRepo: Repository<UserCreditBalance>,
+    @InjectRepository(Payment)
+    private readonly paymentRepo: Repository<Payment>,
+    @InjectRepository(WalletTransaction)
+    private readonly transactionRepo: Repository<WalletTransaction>,   
   ) { }
 
   // --- PROFILE METHODS ---
@@ -206,6 +218,93 @@ export class UserService {
     await this.oauthAccountRepository.save(oauthAccount)
 
     return user
+  }
+
+  async getUserDetails(userId: number): Promise<UserDetailDto> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    const wallet = await this.walletRepo.findOne({
+      where: { user: { id: userId } },
+    });
+
+    // Get purchased packages with credit package details
+    const payments = await this.paymentRepo
+      .createQueryBuilder('payment')
+      .leftJoinAndSelect('payment.creditPackage', 'creditPackage')
+      .where('payment.userId = :userId', { userId })
+      .orderBy('payment.created_at', 'DESC')
+      .getMany();
+
+    const purchasedPackages: PurchasedPackageDto[] = payments.map((p) => ({
+      packageId: p.creditPackage?.id || null,
+      packageName: p.creditPackage?.name || 'Unknown Package',
+      credits: p.creditPackage?.credits || 0,
+      bonusCredits: p.creditPackage?.bonusCredits || 0,
+      price: p.amount,
+      currency: p.currency,
+      purchaseDate: p.created_at.toISOString(),
+      paymentStatus: p.status,
+    }));
+
+    // Get wallet transactions (both payments and admin adjustments)
+    const walletTransactions = await this.transactionRepo.find({
+      where: { walletId: wallet?.id },
+      order: { created_at: 'DESC' },
+      take: 10,
+    });
+
+    // Map transaction reasons to user-friendly labels
+    const mapTransactionReason = (reason: string | null | undefined): string => {
+      const reasonMap: Record<string, string> = {
+        'ai_usage': 'AI Usage',
+        'purchase': 'Payment',
+        'refund': 'Refund',
+        'bonus': 'Bonus',
+        'admin_adjustment': 'Adjustment',
+      };
+      return reasonMap[reason] || 'Transaction';
+    };
+
+    const recentTransactions: DetailedTransactionDto[] = walletTransactions.map((t) => ({
+      id: t.id,
+      amount: t.amount,
+      reason: mapTransactionReason(t.reason),
+      balanceBefore: t.balanceBefore || 0,
+      balanceAfter: t.balanceAfter,
+      description: t.description,
+      date: t.created_at.toISOString(),
+    }));
+
+    const totalSpent = payments
+      .filter((p) => p.status === 'COMPLETED')
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    const detailData: UserDetailDto = {
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName || null,
+      gender: user.gender || null,
+      dob: user.dob ? (user.dob instanceof Date ? user.dob.toISOString().split('T')[0] : String(user.dob).split('T')[0]) : null,
+      email: user.email,
+      phoneNumber: user.phoneNumber || null,
+      profilePictureUrl: user.profilePictureUrl || null,
+      isVerified: user.isVerified,
+      status: user.status,
+      role: user.role,
+      credits: wallet?.creditBalance || 0,
+      joinDate: user.created_at.toISOString(),
+      lastActivity: user.updated_at.toISOString(),
+      totalSpent,
+      purchasedPackages,
+      recentTransactions,
+    };
+    return detailData;
   }
 
   // --- HELPER ---

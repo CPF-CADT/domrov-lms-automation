@@ -1,3 +1,5 @@
+"use client";
+
 import MainNavigation from "@/ui/components/navigation/Navigation";
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
