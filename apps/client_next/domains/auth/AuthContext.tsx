@@ -7,6 +7,7 @@ import {
     createContext,
     useMemo,
     useRef,
+    useCallback,
     type ReactNode,
 } from 'react';
 
@@ -16,6 +17,12 @@ import {
 // ============================================================================
 import type { LoginUserDTO, LoginResponseDto, ApiResponse } from '@/app/api/auth/dto';
 import type { UserProfileResponseDto } from '@/app/api/users/dto';
+
+// ============================================================================
+// API Client Setup
+// Import setupAuthInterceptors to configure axios for token refresh handling
+// ============================================================================
+import { setupAuthInterceptors } from '@/lib/axiosInstance';
 
 // ============================================================================
 // Type Definitions
@@ -150,8 +157,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     /**
      * Handle logout - clears state and localStorage
      * Calls POST /api/auth?action=logout to invalidate server session
+     * Using useCallback to maintain stable reference for interceptor closure
      */
-    const handleLogout = () => {
+    const handleLogout = useCallback(() => {
         // Attempt to call logout API if we have a token
         if (tokenRef.current) {
             // Fire-and-forget: call logout API but don't block on it
@@ -167,7 +175,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Clear persisted auth data from localStorage
         localStorage.removeItem('adminToken');
         localStorage.removeItem('adminUser');
-    };
+    }, []);
+
+    /**
+     * Setup axios interceptors for automatic token refresh
+     * Configures request interceptor to add Bearer token
+     * Configures response interceptor to handle 401 and refresh token
+     */
+    useEffect(() => {
+        const cleanupInterceptors = setupAuthInterceptors(
+            setToken,
+            handleLogout,
+            tokenRef
+        );
+
+        return cleanupInterceptors;
+    }, [handleLogout]);
 
     /**
      * Refresh user profile from API
@@ -210,9 +233,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         (async () => {
             try {
+                console.info('[Auth] Initializing auth state...');
                 // Try to restore from localStorage
                 const storedToken = localStorage.getItem('adminToken');
                 const storedUser = localStorage.getItem('adminUser');
+
+                console.debug('[Auth] Stored token found:', !!storedToken);
 
                 if (storedToken && storedUser) {
                     // Restore token to state first (needed for API calls)
@@ -221,15 +247,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     tokenRef.current = storedToken;
                     setUser(JSON.parse(storedUser));
 
+                    console.info('[Auth] Restored session from storage. Validating with server...');
                     // Verify token is still valid by fetching fresh profile
                     // This calls GET /api/users?action=me
                     await refreshProfile();
+                    console.info('[Auth] Session validation successful');
+                } else {
+                    console.info('[Auth] No stored session found');
                 }
-            } catch {
+            } catch (error) {
+                console.error('[Auth] Auth initialization error:', error);
                 // If validation fails, clear auth state
                 handleLogout();
             } finally {
                 setIsLoading(false);
+                console.info('[Auth] Auth initialization complete');
             }
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps

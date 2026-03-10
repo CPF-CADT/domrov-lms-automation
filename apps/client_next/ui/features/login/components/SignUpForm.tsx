@@ -164,7 +164,7 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
               {/* Google Sign Up Button - moved above submit */}
               <div className="mt-6 flex flex-col items-center">
                 <span className="text-xs text-gray-400 mb-2">or sign up with</span>
-                <GoogleOAuthButton redirectUrl="https://api.domrov.app/auth/google/login/" />
+                <GoogleOAuthButton />
               </div>
 
               <div className="flex items-center justify-between mt-2">

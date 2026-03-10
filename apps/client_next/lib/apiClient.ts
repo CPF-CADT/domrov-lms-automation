@@ -5,7 +5,14 @@
  * This module provides typed API clients that communicate with internal
  * Next.js API routes. All external API calls should go through these
  * functions - do NOT call external APIs directly from components.
+ * 
+ * IMPORTANT: Uses axios instance with refresh token interceptors configured
+ * in axiosInstance.ts. Token refresh is handled automatically on 401 responses.
  */
+
+// ==================== AXIOS CLIENT IMPORT ====================
+// Import axios instance with refresh token interceptors already configured
+import { apiClient } from './axiosInstance';
 
 // ==================== DTO IMPORTS ====================
 // Import DTOs from API routes for proper typing
@@ -28,7 +35,7 @@ import type {
 
 import type { UserProfileResponseDto } from '@/app/api/users/dto';
 
-const API_BASE = '/api';
+// ==================== STORAGE & UTILITIES ====================
 
 // Storage keys - centralized for consistency
 const STORAGE_KEYS = {
@@ -38,50 +45,42 @@ const STORAGE_KEYS = {
 } as const;
 
 /**
- * Get the authentication token from localStorage
- * Checks multiple possible keys for backwards compatibility
- */
-function getAuthToken(): string | null {
-    if (typeof window === 'undefined') return null;
-
-    // Check primary auth token first, then fall back to admin token
-    return localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN)
-        || localStorage.getItem(STORAGE_KEYS.ADMIN_TOKEN);
-}
-
-/**
- * Generic fetch wrapper for internal API calls
- * Automatically attaches auth token and handles JSON parsing
+ * Generic axios wrapper for internal API calls
+ * Uses axios instance with refresh token interceptors already configured
  * 
- * @param url - API endpoint path (will be prefixed with /api)
- * @param options - Fetch options
- * @returns Parsed JSON response
+ * Benefits over fetch:
+ * - Automatic token refresh on 401 responses via interceptors
+ * - Automatic request queue while refreshing token
+ * - Proper error handling
+ * 
+ * @param url - API endpoint path (without /api prefix)
+ * @param options - Axios request config options
+ * @returns Parsed response data
  * @throws Error with message from API response
  */
 async function fetchAPI<T>(
     url: string,
-    options: RequestInit = {}
+    options: any = {}
 ): Promise<T> {
-    const token = getAuthToken();
+    try {
+        // Make request using axios instance with interceptors
+        // Interceptors handle Authorization header and token refresh
+        const response = await apiClient.request<T>({
+            url,
+            ...options,
+        });
 
-    const response = await fetch(`${API_BASE}${url}`, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...(token && { Authorization: `Bearer ${token}` }),
-            ...options.headers,
-        },
-    });
+        return response.data;
+    } catch (error: any) {
+        // Extract meaningful error message
+        const errorMessage =
+            error.response?.data?.error ||
+            error.response?.data?.message ||
+            error.message ||
+            'API call failed';
 
-    const data = await response.json();
-
-    if (!response.ok) {
-        // Extract error message from various response formats
-        const errorMessage = data.error || data.message || 'API call failed';
         throw new Error(errorMessage);
     }
-
-    return data;
 }
 
 // ==================== AUTH API ====================
@@ -99,7 +98,7 @@ export const authAPI = {
     signUp: (data: RegisterUserDTO) =>
         fetchAPI<AuthApiResponse<SignUpResponseDto>>('/auth?action=signup', {
             method: 'POST',
-            body: JSON.stringify(data)
+            data
         }),
 
     /**
@@ -110,34 +109,34 @@ export const authAPI = {
     login: (data: LoginUserDTO) =>
         fetchAPI<AuthApiResponse<LoginResponseDto>>('/auth?action=login', {
             method: 'POST',
-            body: JSON.stringify(data)
+            data
         }),
 
     /**
      * Logout current user session
      */
     logout: () =>
-        fetchAPI('/auth?action=logout', { method: 'POST', body: JSON.stringify({}) }),
+        fetchAPI('/auth?action=logout', { method: 'POST' }),
 
     /**
      * Refresh the access token
      */
     refreshToken: () =>
-        fetchAPI('/auth?action=refresh-token', { method: 'POST', body: JSON.stringify({}) }),
+        fetchAPI('/auth?action=refresh-token', { method: 'POST' }),
 
     /**
      * Verify email with OTP code
      * @param data - Email and OTP code
      */
     verifyOtp: (data: { email: string; otp: string }) =>
-        fetchAPI('/auth?action=verify-otp', { method: 'POST', body: JSON.stringify(data) }),
+        fetchAPI('/auth?action=verify-otp', { method: 'POST', data }),
 
     /**
      * Resend OTP verification code
      * @param data - Email to send OTP to
      */
     resendOtp: (data: { email: string }) =>
-        fetchAPI('/auth?action=resend-otp', { method: 'POST', body: JSON.stringify(data) }),
+        fetchAPI('/auth?action=resend-otp', { method: 'POST', data }),
 };
 
 // ==================== ASSESSMENTS API ====================
@@ -161,19 +160,19 @@ export const assessmentsAPI = {
     createDraft: (classId: number, session: number) =>
         fetchAPI('/assessments?action=create-draft', {
             method: 'POST',
-            body: JSON.stringify({ classId, session })
+            data: { classId, session }
         }),
 
     complete: (assessmentId: number) =>
         fetchAPI('/assessments?action=complete', {
             method: 'POST',
-            body: JSON.stringify({ assessmentId })
+            data: { assessmentId }
         }),
 
     update: (assessmentId: number, data: any) =>
         fetchAPI(`/assessments?action=update&assessmentId=${assessmentId}`, {
             method: 'PATCH',
-            body: JSON.stringify(data)
+            data
         }),
 
     publish: (assessmentId: number) =>
@@ -228,7 +227,7 @@ export const classAPI = {
     create: (data: CreateClassDto) =>
         fetchAPI<ClassApiResponse<ClassResponseDto>>('/class?action=create', {
             method: 'POST',
-            body: JSON.stringify(data)
+            data
         }),
 
     /**
@@ -239,7 +238,7 @@ export const classAPI = {
     joinByCode: (joinCode: string) =>
         fetchAPI<ClassApiResponse<JoinClassResponseDto>>('/class?action=join-by-code', {
             method: 'POST',
-            body: JSON.stringify({ joinCode })
+            data: { joinCode }
         }),
 
     /**
@@ -250,37 +249,37 @@ export const classAPI = {
     joinByToken: (token: string) =>
         fetchAPI<ClassApiResponse<JoinClassResponseDto>>('/class?action=join-by-token', {
             method: 'POST',
-            body: JSON.stringify({ token })
+            data: { token }
         }),
 
     inviteMembers: (classId: number, emails: string[]) =>
         fetchAPI('/class?action=invite-members', {
             method: 'POST',
-            body: JSON.stringify({ classId, emails })
+            data: { classId, emails }
         }),
 
     transferOwnership: (classId: number, newOwnerId: number) =>
         fetchAPI('/class?action=transfer-ownership', {
             method: 'POST',
-            body: JSON.stringify({ classId, newOwnerId })
+            data: { classId, newOwnerId }
         }),
 
     assignTA: (classId: number, userId: number) =>
         fetchAPI('/class?action=assign-ta', {
             method: 'POST',
-            body: JSON.stringify({ classId, userId })
+            data: { classId, userId }
         }),
 
     complete: (classId: number) =>
         fetchAPI('/class?action=complete', {
             method: 'POST',
-            body: JSON.stringify({ classId })
+            data: { classId }
         }),
 
     update: (classId: number, data: any) =>
         fetchAPI(`/class?classId=${classId}`, {
             method: 'PATCH',
-            body: JSON.stringify(data)
+            data
         }),
 
     delete: (classId: number) =>
@@ -323,14 +322,14 @@ export const usersAPI = {
      * @param data - Profile data to update
      */
     updateProfile: (data: any) =>
-        fetchAPI('/users', { method: 'PATCH', body: JSON.stringify(data) }),
+        fetchAPI('/users', { method: 'PATCH', data }),
 
     /**
      * Change user's password
      * @param data - Current and new password
      */
     changePassword: (data: { currentPassword: string; newPassword: string; confirmPassword: string }) =>
-        fetchAPI('/users?action=change-password', { method: 'POST', body: JSON.stringify(data) }),
+        fetchAPI('/users?action=change-password', { method: 'POST', data }),
 };
 
 // ==================== TEAM API ====================
@@ -343,27 +342,27 @@ export const teamAPI = {
         fetchAPI(`/team?action=details&teamId=${teamId}`),
 
     create: (data: { name: string; maxMember: number; classId: number }) =>
-        fetchAPI('/team?action=create', { method: 'POST', body: JSON.stringify(data) }),
+        fetchAPI('/team?action=create', { method: 'POST', data }),
 
     createMany: (data: any) =>
-        fetchAPI('/team?action=create-many', { method: 'POST', body: JSON.stringify(data) }),
+        fetchAPI('/team?action=create-many', { method: 'POST', data }),
 
     joinByCode: (joinCode: string) =>
         fetchAPI('/team?action=join-by-code', {
             method: 'POST',
-            body: JSON.stringify({ joinCode })
+            data: { joinCode }
         }),
 
     joinByToken: (token: string) =>
         fetchAPI('/team?action=join-by-token', {
             method: 'POST',
-            body: JSON.stringify({ token })
+            data: { token }
         }),
 
     invite: (teamId: number, email: string) =>
         fetchAPI('/team?action=invite', {
             method: 'POST',
-            body: JSON.stringify({ teamId, email })
+            data: { teamId, email }
         }),
 
     leave: (teamId: number) =>
@@ -391,19 +390,19 @@ export const submissionsAPI = {
     grade: (submissionId: number, data: { score: number; feedback?: string }) =>
         fetchAPI('/submissions?action=grade', {
             method: 'POST',
-            body: JSON.stringify({ submissionId, ...data })
+            data: { submissionId, ...data }
         }),
 
     addFeedback: (submissionId: number, feedback: any) =>
         fetchAPI('/submissions?action=add-feedback', {
             method: 'POST',
-            body: JSON.stringify({ submissionId, ...feedback })
+            data: { submissionId, ...feedback }
         }),
 
     updateFeedback: (feedbackId: string, data: any) =>
         fetchAPI(`/submissions?feedbackId=${feedbackId}`, {
             method: 'PATCH',
-            body: JSON.stringify(data)
+            data
         }),
 };
 
@@ -419,7 +418,7 @@ export const evaluationsAPI = {
     addToQueue: (submission_id: string) =>
         fetchAPI('/evaluations?action=add-to-queue', {
             method: 'POST',
-            body: JSON.stringify({ submission_id })
+            data: { submission_id }
         }),
 };
 
@@ -456,15 +455,13 @@ export const fileAPI = {
     notifyUpload: (data: { key: string; filename: string }) =>
         fetchAPI('/file?action=notify-upload', {
             method: 'POST',
-            body: JSON.stringify(data)
+            data
         }),
 
     download: (resourceId: number) =>
-        fetch(`${API_BASE}/file?action=download&resourceId=${resourceId}`, {
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem('token')}`,
-            },
-        }).then(res => res.blob()),
+        apiClient.get(`/file?action=download&resourceId=${resourceId}`, {
+            responseType: 'blob'
+        }).then(res => res.data),
 };
 
 // ==================== PAYMENT API ====================
@@ -473,13 +470,13 @@ export const paymentAPI = {
     startPayment: (packageId: number) =>
         fetchAPI('/payment?action=start-payment', {
             method: 'POST',
-            body: JSON.stringify({ packageId })
+            data: { packageId }
         }),
 
     checkTransaction: (data: { hash: string; amount: number; currency: string }) =>
         fetchAPI('/payment?action=check-transaction', {
             method: 'POST',
-            body: JSON.stringify(data)
+            data
         }),
 };
 
@@ -500,12 +497,12 @@ export const userAIAPI = {
     },
 
     create: (data: any) =>
-        fetchAPI('/user-ai', { method: 'POST', body: JSON.stringify(data) }),
+        fetchAPI('/user-ai', { method: 'POST', data }),
 
     update: (keyId: number, data: any) =>
         fetchAPI(`/user-ai?keyId=${keyId}`, {
             method: 'PATCH',
-            body: JSON.stringify(data)
+            data
         }),
 
     delete: (keyId: number) =>
