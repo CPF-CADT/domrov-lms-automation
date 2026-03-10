@@ -61,7 +61,7 @@ export default function PaymentComponent({
   const startPayment = async (): Promise<void> => {
     try {
       const res = await fetch(
-        `http://localhost:3000/payment/start-payment/${packageId}`,
+        `https://api.domrov.app/payment/start-payment/${packageId}`,
         {
           method: "POST",
           headers: {

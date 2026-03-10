@@ -1,7 +1,7 @@
 "use client";
 
 import { useNavigate } from "react-router-dom";
-import { Home, BookOpen, BarChart3, Bell, Lock } from "lucide-react";
+import { Home, BookOpen, BarChart3, Bell, Lock, CreditCard } from "lucide-react";
 
 
 /**
@@ -15,6 +15,7 @@ const navItems = [
   { id: "star", label: "Star", icon: BarChart3, href: "/starred" },
   { id: "bell", label: "Notifications", icon: Bell, href: "/notifications" },
   { id: "lock", label: "Lock", icon: Lock, href: "/pricing" },
+  { id: "credit", label: "Credit", icon: CreditCard, href: "/creditPurchase" },
 ];
 
 interface MainNavigationProps {
