@@ -49,6 +49,7 @@ export interface GetMyClassesResponseDto extends ClassResponseDto {
 export interface CreateClassDto {
   name: string;
   description?: string;
+  coverImageUrl?: string;
 }
 
 export interface UpdateClassDto {

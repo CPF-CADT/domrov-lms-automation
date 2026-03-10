@@ -38,6 +38,7 @@ export default function DashboardHeader({
         </button>
         <ProfileDropdown 
           buttonClassName="h-10 w-10 rounded-lg bg-primary-600 hover:bg-primary-700 flex items-center justify-center text-white font-bold transition-colors border-2 border-white"
+          onTokenClick={() => router.push("/ai-evaluation")}
         />
       </div>
     </header>

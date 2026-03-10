@@ -52,9 +52,7 @@ export class AdminUsersController {
     @InjectRepository(Payment)
     private readonly paymentRepo: Repository<Payment>,
     @InjectRepository(WalletTransaction)
-    private readonly transactionRepo: Repository<WalletTransaction>,
-    @InjectRepository(CreditPackage)
-    private readonly packageRepo: Repository<CreditPackage>,
+    private readonly transactionRepo: Repository<WalletTransaction>,    
     private readonly walletService: WalletService,
   ) { }
 

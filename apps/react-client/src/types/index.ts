@@ -148,4 +148,6 @@ export type {
     PresignedUrlResponseDto,
     NotifyUploadDto,
     NotifyUploadResponseDto,
+    CloudinaryPresignedParams,
+    CloudinaryUploadResponse,
 } from './file';

@@ -33,6 +33,7 @@ import {
   ChangePasswordResponseDto,
   UserListItemDto,
 } from '../../libs/dtos/user/user.dto';
+import { UserDetailDto } from '../../libs/dtos/admin/user-admin.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -80,6 +81,65 @@ export class UserController {
   async getMyProfile(@UserId() userId: number): Promise<{ success: true; data: UserProfileResponseDto }> {
     const data = await this.userService.getMyProfile(userId);
     return { success: true, data };
+  }
+
+  @Get('details')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Get User Details',
+    description: 'Retrieve detailed information about a specific user',
+  })
+  @ApiOkResponse({
+    schema: {
+      example: {
+        success: true,
+        data: {
+          id: 1,
+          firstName: 'John',
+          lastName: 'Doe',
+          gender: 'M',
+          email: 'john@example.com',
+          phoneNumber: '+1234567890',
+          profilePictureUrl: 'https://example.com/profile.jpg',
+          isVerified: true,
+          status: 'active',
+          role: 'user',
+          credits: 1000,
+          joinDate: '2026-03-01T09:00:00Z',
+          lastActivity: '2026-03-01T10:00:00Z',
+          totalSpent: 500,
+          purchasedPackages: [
+            {
+              packageId: 1,
+              packageName: 'Premium Pack',
+              credits: 500,
+              bonusCredits: 50,
+              price: 39.99,
+              currency: 'USD',
+              purchaseDate: '2026-03-01T09:00:00Z',
+              paymentStatus: 'COMPLETED',
+            },
+          ],
+          recentTransactions: [
+            {
+              id: 1,
+              amount: 100,
+              reason: 'Payment',
+              balanceBefore: 900,
+              balanceAfter: 1000,
+              description: 'Premium Pack purchase',
+              date: '2026-03-01T09:00:00Z',
+            },
+          ],
+        },
+      },
+    },
+  })
+  @ApiNotFoundResponse({ description: 'User not found' })
+  async getUserDetails(@UserId() userId: number): Promise<{ success: true; data: UserDetailDto; }> {
+    const user = await this.userService.getUserDetails(userId);
+    return { success: true, data: user };
   }
 
   // ==================== UPDATE MY PROFILE ====================

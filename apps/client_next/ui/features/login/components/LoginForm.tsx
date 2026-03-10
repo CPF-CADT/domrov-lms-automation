@@ -7,23 +7,24 @@ import PrimaryButton from "@/ui/design-system/primitives/PrimaryButton";
 import GoogleOAuthButton from "@/ui/features/login/components/GoogleOAuthButton";
 import GitHubOAuthButton from "@/ui/features/login/components/GitHubOAuthButton";
 
-// API client for internal Next.js API routes
-import { authAPI } from '@/lib/apiClient';
+// Auth context hook
+import { useAuth } from '@/domains/auth/AuthContext';
 // DTOs for proper typing
 import type { LoginUserDTO } from '@/app/api/auth/dto';
 
 /**
- * LoginForm - Login form component with API integration.
+ * LoginForm - Login form component with Auth Context integration.
  * 
- * Refactored to use internal Next.js API routes:
- * - POST /api/auth?action=login
- * - Uses LoginUserDTO from @/app/api/auth/dto.ts for type safety
- * - All API calls go through /lib/apiClient.ts
+ * Refactored to use Auth Context from AuthProvider:
+ * - Uses useAuth() hook to access login function
+ * - Delegates authentication to AuthContext (handles token storage, profile fetching)
+ * - All API calls are handled by the context
  * 
  * Authenticates user credentials and redirects to dashboard on success.
  */
 export default function LoginForm() {
   const router = useRouter();
+  const { login: contextLogin } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,7 +44,10 @@ export default function LoginForm() {
 
   /**
    * Handle form submission
-   * Calls POST /api/auth?action=login via authAPI
+   * Calls context's login function which handles:
+   * - POST /api/auth?action=login
+   * - Token storage in localStorage
+   * - Profile fetching via GET /api/users?action=me
    */
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -59,27 +63,14 @@ export default function LoginForm() {
         password,
       };
 
-      // Call internal Next.js API route via apiClient
-      // POST /api/auth?action=login
-      // Returns: ApiResponse<LoginResponseDto> with accessToken
-      const response = await authAPI.login(payload);
+      // Call context's login function
+      // Context handles: API call, token storage, profile fetching
+      await contextLogin(payload);
 
-      console.log('Login response:', response);
-
-      // Extract token from response
-      // API returns { success: boolean, data: { accessToken: string } }
-      const token = response.data?.accessToken;
-
-      if (!token) {
-        throw new Error("Invalid response from server. Missing authentication token.");
-      }
-
-      // Store token - using authToken key (consistent with apiClient)
-      localStorage.setItem("authToken", token);
-
+      // Redirect to dashboard on success
       router.push("/dashboard");
     } catch (err: unknown) {
-      // Extract error message from API response
+      // Extract error message from context's login error
       const errorMessage = err instanceof Error ? err.message : "An error occurred. Please try again.";
       setError(errorMessage);
     } finally {

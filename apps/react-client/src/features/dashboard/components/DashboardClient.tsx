@@ -57,7 +57,7 @@ export default function DashboardClient() {
   }>({ isOpen: false, classId: null, className: "" });
 
   const handleOpen = useCallback(
-    (id: string) => navigate(`/class/${id}`),
+    (id: string, role?: string) => navigate(`/class/${id}`, { state: { role } }),
     [],
   );
 
@@ -141,7 +141,10 @@ export default function DashboardClient() {
         )}
 
         <div className="grid gap-6 mt-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          <ClassGrid items={filteredClasses} onOpen={handleOpen} />
+          <ClassGrid items={filteredClasses} onOpen={(id) => {
+            const classItem = filteredClasses.find(c => c.id.toString() === id);
+            handleOpen(id, classItem?.role);
+          }} />
         </div>
 
         {!error && filteredClasses.length === 0 && (

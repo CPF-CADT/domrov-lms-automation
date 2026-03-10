@@ -5,6 +5,8 @@ import type {
     PresignedUrlResponseDto,
     NotifyUploadDto,
     NotifyUploadResponseDto,
+    CloudinaryPresignedParams,
+    CloudinaryUploadResponse,
 } from '@/types';
 
 /**
@@ -15,6 +17,57 @@ export async function getPresignedUrl(data: PresignedUrlRequestDto): Promise<Api
         params: data
     });
     return response.data;
+}
+
+/**
+ * Get Cloudinary presigned parameters for image upload
+ */
+export async function getCloudinaryPresignedUrl(): Promise<CloudinaryPresignedParams> {
+    const response = await axiosInstance.get<ApiResponse<CloudinaryPresignedParams>>('/file/cloudinary-presigned-url');
+    // Handle different response formats
+    const result = response.data;
+    if (result.success && result.data) {
+        return result.data;
+    }
+    // Direct response format
+    return result as unknown as CloudinaryPresignedParams;
+}
+
+/**
+ * Upload image to Cloudinary using presigned parameters
+ */
+export async function uploadToCloudinary(
+    file: File,
+    params: CloudinaryPresignedParams
+): Promise<CloudinaryUploadResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('signature', params.signature);
+    formData.append('timestamp', params.timestamp.toString());
+    formData.append('folder', params.folder);
+    formData.append('public_id', params.public_id);
+    formData.append('api_key', params.api_key);
+
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${params.cloud_name}/image/upload`;
+
+    const response = await fetch(uploadUrl, {
+        method: 'POST',
+        body: formData,
+    });
+
+    if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+    }
+
+    return response.json();
+}
+
+/**
+ * Complete image upload flow: get presigned params and upload to Cloudinary
+ */
+export async function uploadImage(file: File): Promise<CloudinaryUploadResponse> {
+    const params = await getCloudinaryPresignedUrl();
+    return uploadToCloudinary(file, params);
 }
 
 /**
@@ -50,6 +103,9 @@ export async function uploadToPresignedUrl(presignedUrl: string, file: File): Pr
 
 const fileService = {
     getPresignedUrl,
+    getCloudinaryPresignedUrl,
+    uploadToCloudinary,
+    uploadImage,
     notifyUpload,
     downloadFile,
     uploadToPresignedUrl,

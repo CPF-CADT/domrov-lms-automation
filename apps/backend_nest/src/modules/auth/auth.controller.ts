@@ -23,7 +23,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { ResendOtpDTO, VerifyOtpDTO } from '../../libs/dtos/user/email-verification.dto';
 import { SignUpResponseDto } from '../../libs/dtos/auth/sign-up-response.dto';
 import { MessageResponseDto } from '../../libs/dtos/common/message-response.dto';
-import { OAuthProfileDecorator} from '../../common/decorators/user.decorator';
+import { OAuthProfileDecorator } from '../../common/decorators/user.decorator';
 import { DynamicOAuthGuard, OAuthProvider } from '../../common/decorators/oauth.decorator';
 import type { OAuthProfile } from '../../libs/dtos/auth/oauth-profile.interface';
 import { RateLimiterGuard } from '../../common/security/guards/custom-throttler.guard';
@@ -405,7 +405,6 @@ export class AuthController {
         return { success: true, data };
     }
 
-    // ==================== GOOGLE AUTH ====================
     @Get(':provider/login')
     @ApiOperation({ summary: 'Initiate OAuth login', description: 'Redirects to provider OAuth consent screen.' })
     @ApiParam({ name: 'provider', description: 'OAuth provider (google, microsoft, etc.)', required: true })
@@ -416,30 +415,33 @@ export class AuthController {
     }
 
     @Get(':provider/callback')
-    @ApiOperation({ summary: 'OAuth callback', description: 'Handles OAuth provider callback and authenticates the user.' })
-    @ApiParam({ name: 'provider', description: 'OAuth provider (google, microsoft, etc.)', required: true })
-    @ApiOkResponse({ description: 'Login successful and sets accessToken cookie' })
     @ApiCookieAuth()
     @UseGuards(DynamicOAuthGuard)
+    @ApiOperation({
+        summary: 'OAuth callback',
+        description: 'Handles OAuth provider callback and authenticates the user.'
+    })
+    @ApiParam({
+        name: 'provider',
+        description: 'OAuth provider (google, microsoft, etc.)',
+        required: true
+    })
+    @ApiOkResponse({
+        description: 'Login successful and sets refresh_token cookie. Redirects to dashboard with accessToken in URL.'
+    })
     async oauthCallback(
         @OAuthProfileDecorator() profile: OAuthProfile,
         @Res() res: Response
     ) {
         const token = await this.authService.oauthLogin(profile);
 
-        res.cookie('accessToken', token.accessToken, {
+        res.cookie('refresh_token', token.refreshToken, {
             httpOnly: true,
             secure: true,
-            sameSite: 'lax',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000, 
         });
-
-        console.log(`Logged in via provider: ${profile.provider}, email: ${profile.email}`);
-        const safeEmail = JSON.stringify(profile.email);
-        return res.send(`
-            <script>
-                window.opener.postMessage({ type: 'OAUTH_SUCCESS', payload: { email: '${safeEmail}' } }, '${process.env.FRONTEND_URL || 'http://localhost:5173'}');
-                window.close();
-            </script>
-        `);
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        return res.redirect(`${frontendUrl}/auth/oauth-callback?accessToken=${token.accessToken}`);
     }
 }

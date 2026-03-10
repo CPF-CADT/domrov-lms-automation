@@ -1,11 +1,12 @@
 "use client";
 
-import { 
-  ChevronLeftIcon, 
-  MoreVerticalIcon, 
-  GraduationCapIcon, 
-  TvIcon 
+import {
+  ChevronLeftIcon,
+  MoreVerticalIcon,
+  GraduationCapIcon,
+  TvIcon
 } from "./icons";
+
 
 type TabId = "general" | "assignment" | "posts" | "students" | "files" | "grades";
 
@@ -13,19 +14,29 @@ interface ClassSidebarProps {
   classId: string;
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
+  allowedTabs?: TabId[];
+  role?: string;
 }
 
 /**
  * ClassSidebar - Left sidebar navigation for class dashboard.
  * Shows class info and navigation items.
  */
-export default function ClassSidebar({ classId: _classId, activeTab, onTabChange }: ClassSidebarProps) {
 
-  const navItems = [
+export default function ClassSidebar({ classId: _classId, activeTab, onTabChange, allowedTabs, role }: ClassSidebarProps) {
+  // All possible nav items
+  const allNavItems = [
     { id: "general" as TabId, icon: TvIcon, label: "General" },
     { id: "assignment" as TabId, icon: GraduationCapIcon, label: "Assignment" },
+    { id: "posts" as TabId, icon: TvIcon, label: "Posts" },
+    { id: "students" as TabId, icon: GraduationCapIcon, label: "Students" },
+    { id: "files" as TabId, icon: TvIcon, label: "Files" },
     { id: "grades" as TabId, icon: TvIcon, label: "Grades" },
   ];
+  // Only show allowed tabs
+  const navItems = allowedTabs
+    ? allNavItems.filter(item => allowedTabs.includes(item.id))
+    : allNavItems;
 
   // Mock data for other classes user has joined
   const userClasses = [
@@ -42,7 +53,7 @@ export default function ClassSidebar({ classId: _classId, activeTab, onTabChange
         {/* Navigator Button */}
         <div className="border-b border-white/5">
           <button
-            onClick={ () => {} }
+            onClick={() => { }}
             className="w-full p-6 hover:bg-white/3 transition-colors duration-150 group"
             title="Back to Dashboard"
           >
@@ -56,16 +67,14 @@ export default function ClassSidebar({ classId: _classId, activeTab, onTabChange
             <button
               key={classItem.id}
               onClick={() => { }}
-              className={`w-full p-4 transition-colors duration-150 relative ${
-                classItem.isActive ? "" : "hover:bg-white/3"
-              }`}
+              className={`w-full p-4 transition-colors duration-150 relative ${classItem.isActive ? "" : "hover:bg-white/3"
+                }`}
               title={classItem.name}
             >
-              <div className={`w-14 h-14 ${classItem.color} rounded-xl mx-auto shadow-sm grid place-items-center ${
-                classItem.isActive 
-                  ? "ring-2 ring-white/80 ring-offset-2 ring-offset-[#0c1929]" 
+              <div className={`w-14 h-14 ${classItem.color} rounded-xl mx-auto shadow-sm grid place-items-center ${classItem.isActive
+                  ? "ring-2 ring-white/80 ring-offset-2 ring-offset-[#0c1929]"
                   : "opacity-70 hover:opacity-100 transition-opacity duration-150"
-              }`}>
+                }`}>
                 <span className="text-white font-bold text-[1rem] leading-tight text-center w-full">{classItem.badge}</span>
               </div>
               {classItem.isActive && (
@@ -99,16 +108,15 @@ export default function ClassSidebar({ classId: _classId, activeTab, onTabChange
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
-            
+
             return (
               <button
                 key={item.id}
                 onClick={() => onTabChange(item.id)}
-                className={`w-full flex items-center gap-3 px-5 py-3 transition-colors duration-150 relative ${
-                  isActive
+                className={`w-full flex items-center gap-3 px-5 py-3 transition-colors duration-150 relative ${isActive
                     ? "bg-white/8 text-white"
                     : "text-white/50 hover:bg-white/3 hover:text-white/80"
-                }`}
+                  }`}
               >
                 {isActive && (
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r"></div>

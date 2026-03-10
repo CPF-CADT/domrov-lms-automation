@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { 
-  SearchIcon, 
-  FilterIcon, 
+import {
+  SearchIcon,
+  FilterIcon,
   ClipboardIcon,
   MessageIcon,
   UsersIcon,
@@ -15,13 +15,16 @@ type TabId = "general" | "assignment" | "posts" | "students" | "files" | "grades
 interface ClassTabsProps {
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
+  allowedTabs?: TabId[];
+  role?: string;
 }
 
 /**
  * ClassTabs - Top navigation bar with tab title, search, and actions.
  * Displays the current tab and provides quick actions.
  */
-export default function ClassTabs({ activeTab }: ClassTabsProps) {
+// Accept allowedTabs and role props
+export default function ClassTabs({ activeTab, onTabChange, allowedTabs, role }: ClassTabsProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -39,27 +42,27 @@ export default function ClassTabs({ activeTab }: ClassTabsProps) {
     }
   }, [isMenuOpen]);
 
+  // All possible tabs
+  const allTabs: { id: TabId; label: string; icon: any }[] = [
+    { id: "general", label: "General", icon: ClipboardIcon },
+    { id: "assignment", label: "Assignment", icon: ClipboardIcon },
+    { id: "posts", label: "Posts", icon: MessageIcon },
+    { id: "students", label: "Students", icon: UsersIcon },
+    { id: "files", label: "Files", icon: FolderIcon },
+    { id: "grades", label: "Grades", icon: ClipboardIcon },
+  ];
+  const tabs = allowedTabs
+    ? allTabs.filter(tab => allowedTabs.includes(tab.id))
+    : allTabs;
+
   const getTabIcon = () => {
-    switch (activeTab) {
-      case "general":
-        return ClipboardIcon;
-      case "assignment":
-        return ClipboardIcon;
-      case "posts":
-        return MessageIcon;
-      case "students":
-        return UsersIcon;
-      case "files":
-        return FolderIcon;
-      case "grades":
-        return ClipboardIcon;
-      default:
-        return ClipboardIcon;
-    }
+    const found = tabs.find(tab => tab.id === activeTab);
+    return found ? found.icon : ClipboardIcon;
   };
 
   const getTabTitle = () => {
-    return activeTab.charAt(0).toUpperCase() + activeTab.slice(1);
+    const found = tabs.find(tab => tab.id === activeTab);
+    return found ? found.label : activeTab.charAt(0).toUpperCase() + activeTab.slice(1);
   };
 
   const TabIconComponent = getTabIcon();
@@ -75,83 +78,18 @@ export default function ClassTabs({ activeTab }: ClassTabsProps) {
           <h1 className="text-xl font-semibold text-slate-900">{getTabTitle()}</h1>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2.5">
-          {/* Search */}
-          <div className="relative">
-            <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search assignments..."
-              className="pl-9 pr-4 py-2 w-64 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow duration-150"
-            />
-          </div>
-
-          {/* Action Icons */}
-          <button 
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors duration-150" 
-            title="Filter"
-          >
-            <FilterIcon className="w-5 h-5 text-slate-600" />
-          </button>
-
-          {/* User Profile */}
-          <div className="relative ml-2" ref={menuRef}>
-            {/* Profile Dropdown Menu */}
-            {isMenuOpen && (
-              <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
-                {/* User Info Header */}
-                <div className="p-4 bg-slate-50 border-b border-slate-100">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-11 h-11 rounded-lg overflow-hidden bg-linear-to-br from-blue-500 to-purple-600 shrink-0 flex items-center justify-center">
-                      <span className="text-white font-semibold text-base">CC</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-slate-900 truncate text-sm">Cheng ChanPanha</p>
-                      <p className="text-xs text-slate-500 truncate">student@example.com</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Menu Items */}
-                <div className="py-1">
-                  <button className="w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 transition-colors duration-150 text-sm">
-                    Profile
-                  </button>
-                  <button className="w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 transition-colors duration-150 text-sm">
-                    Settings
-                  </button>
-                  <button className="w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 transition-colors duration-150 text-sm">
-                    Themes
-                  </button>
-                  <button className="w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 transition-colors duration-150 text-sm">
-                    Status
-                  </button>
-                  <button className="w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 transition-colors duration-150 text-sm">
-                    Token
-                  </button>
-                </div>
-
-                {/* Log Out */}
-                <div className="border-t border-slate-100 py-1">
-                  <button className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 transition-colors duration-150 text-sm font-medium">
-                    Log out
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Profile Button */}
+        {/* Tab Navigation */}
+        <nav className="flex gap-2">
+          {tabs.map(tab => (
             <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="flex items-center gap-2 p-1 hover:bg-slate-100 rounded-lg transition-colors duration-150"
+              key={tab.id}
+              onClick={() => onTabChange && onTabChange(tab.id)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150 ${activeTab === tab.id ? "bg-blue-500 text-white" : "bg-slate-100 text-slate-700 hover:bg-blue-100"}`}
             >
-              <div className="w-8 h-8 rounded-lg bg-linear-to-br from-blue-500 to-purple-600 shrink-0 flex items-center justify-center">
-                <span className="text-white font-semibold text-xs">CC</span>
-              </div>
+              {tab.label}
             </button>
-          </div>
-        </div>
+          ))}
+        </nav>
       </div>
     </header>
   );

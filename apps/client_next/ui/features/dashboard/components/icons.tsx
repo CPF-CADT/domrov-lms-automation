@@ -100,3 +100,47 @@ export function UserIcon({ className = "h-6 w-6", ...props }: IconProps) {
     </svg>
   );
 }
+
+export function AIIcon({ className = "h-5 w-5", ...props }: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      {...props}
+    >
+      <path d="M12 2a1 1 0 0 1 .9.56l1.38 2.76 3.05.44a1 1 0 0 1 .55 1.7l-2.2 2.15.52 3.03a1 1 0 0 1-1.45 1.05L12 12.97 9.25 14.7a1 1 0 0 1-1.45-1.05l.52-3.03-2.2-2.15a1 1 0 0 1 .55-1.7l3.05-.44L11.1 2.56A1 1 0 0 1 12 2Z" />
+    </svg>
+  );
+}
+
+export function TokenIcon({ className = "h-5 w-5", ...props }: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      {...props}
+    >
+      <circle cx="12" cy="12" r="9" fill="currentColor" />
+      <path d="M12 9v6M9 12h6" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function ShopIcon({ className = "h-5 w-5", ...props }: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      {...props}
+    >
+      <path d="M7 4a1 1 0 0 0-1 1v2H4a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-2V5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v2H8V5a1 1 0 0 0-1-1H7Zm2 2v2h6V6H9Z" />
+    </svg>
+  );
+}
+

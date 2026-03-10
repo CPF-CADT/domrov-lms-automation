@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { HomeIcon, BookIcon, ReportIcon, BellIcon, LockIcon } from "@/ui/features/dashboard/components/icons";
+import { HomeIcon, BookIcon, ReportIcon, BellIcon, ShopIcon, TokenIcon } from "@/ui/features/dashboard/components/icons";
 
 
 /**
@@ -10,11 +10,12 @@ import { HomeIcon, BookIcon, ReportIcon, BellIcon, LockIcon } from "@/ui/feature
  */
 // Navigation items are now defined here to avoid passing icon functions from server to client
 const navItems = [
-  { id: "home", label: "Home", icon: HomeIcon, href: "/" },
+  { id: "home", label: "HomeScreen", icon: HomeIcon, href: "/" },
+  { id: "ai", label: "AI Evaluation", icon: TokenIcon, href: "/ai-evaluation" },
   { id: "bookmark", label: "Bookmark", icon: BookIcon, href: "/bookmarks" },
   { id: "star", label: "Star", icon: ReportIcon, href: "/starred" },
   { id: "bell", label: "Notifications", icon: BellIcon, href: "/notifications" },
-  { id: "lock", label: "Lock", icon: LockIcon, href: "/pricing" },
+  { id: "shop", label: "Shop", icon: ShopIcon, href: "/shop" },
 ];
 
 interface MainNavigationProps {
