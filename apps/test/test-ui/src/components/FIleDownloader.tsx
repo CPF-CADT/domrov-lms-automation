@@ -62,7 +62,7 @@ export const FileDownloader: React.FC<FileDownloaderProps> = ({
       <button onClick={handleDownload} disabled={downloading}>
         {downloading ? `Downloading... ${progress}%` : "Download File"}
       </button>
-      {error && <p style={{ color: "red" }}>Error: {error}</p>}
+      {error && <p style={{ color: "red" }}>Error: {error} </p>}
     </div>
   );
 };
