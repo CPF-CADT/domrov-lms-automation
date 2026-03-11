@@ -31,11 +31,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/class/create" element={<ProtectedRoute><CreateClass /></ProtectedRoute>} />
       <Route path="/class/:id" element={<ProtectedRoute><ClassDashboard /></ProtectedRoute>} />
       <Route path="/assignment/:id" element={<ProtectedRoute><AssignmentDetail /></ProtectedRoute>} />
-<<<<<<< HEAD
       <Route path="/profile" element={<ProtectedRoute><UserProfilePage /></ProtectedRoute>} />
-=======
-      <Route path="/ai-evaluation" element={<ProtectedRoute><AIEvaluationPage /></ProtectedRoute>} />
->>>>>>> 24352c7d9021e44ec3e1ada29b10b8785a4cd219
     </Routes>
   );
 };
