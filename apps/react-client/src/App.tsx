@@ -12,6 +12,7 @@ import Docs from '@/pages/Docs';
 import About from '@/pages/About';
 import Pricing from '@/pages/Pricing';
 import AssignmentDetail from '@/pages/AssignmentDetail';
+import CreditPurchasePage from './pages/CreditPurchase';
 import AIEvaluationPage from '@/pages/AIEvaluationPage';
 
 const AppRoutes: React.FC = () => {
@@ -32,6 +33,8 @@ const AppRoutes: React.FC = () => {
       <Route path="/class/:id" element={<ProtectedRoute><ClassDashboard /></ProtectedRoute>} />
       <Route path="/assignment/:id" element={<ProtectedRoute><AssignmentDetail /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><UserProfilePage /></ProtectedRoute>} />
+      <Route path="/creditPurchase" element={<ProtectedRoute><CreditPurchasePage /></ProtectedRoute>} />
+      <Route path="/ai-evaluation" element={<ProtectedRoute><AIEvaluationPage /></ProtectedRoute>} />
     </Routes>
   );
 };

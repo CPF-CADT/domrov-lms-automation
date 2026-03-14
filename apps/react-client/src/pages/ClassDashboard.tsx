@@ -28,7 +28,7 @@ export default function ClassDashboardClient() {
   const [activeTab, setActiveTab] = useState<TabId>("general");
   // Get role from location.state (passed from ClassCard)
   const role = (location.state && location.state.role) || null;
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
 
   const renderTabContent = () => {
     if (role === UserRole.Teacher) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useNavigate } from "react-router-dom";
-import { Home, BookOpen, BarChart3, Bell, Lock, Sparkles } from "lucide-react";
+import { Home, BookOpen, BarChart3, Bell, Lock, Sparkles, CreditCard } from "lucide-react";
 
 
 /**
@@ -9,7 +9,6 @@ import { Home, BookOpen, BarChart3, Bell, Lock, Sparkles } from "lucide-react";
  * Reusable across layouts. Accepts items and activeId props.
  */
 // Navigation items are now defined here to avoid passing icon functions from server to client
-import { User } from "lucide-react";
 const navItems = [
   { id: "home", label: "Home", icon: Home, href: "/" },
   { id: "ai-evaluation", label: "AI Evaluation", icon: Sparkles, href: "/ai-evaluation" },
@@ -17,7 +16,7 @@ const navItems = [
   { id: "star", label: "Star", icon: BarChart3, href: "/starred" },
   { id: "bell", label: "Notifications", icon: Bell, href: "/notifications" },
   { id: "lock", label: "Lock", icon: Lock, href: "/pricing" },
-  { id: "profile", label: "Profile", icon: User, href: "/profile" },
+  { id: "credit", label: "Credit", icon: CreditCard, href: "/creditPurchase" },
 ];
 
 interface MainNavigationProps {

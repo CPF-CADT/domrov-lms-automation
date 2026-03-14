@@ -12,7 +12,7 @@ interface GeneralTabProps {
 const GeneralTab = ({ classId }: GeneralTabProps) => {
   const classIdNum = Number(classId);
 
-  const [assignments, setAssignments] = useState<AssessmentListItemDto[]>([]);
+  const [, setAssignments] = useState<AssessmentListItemDto[]>([]);
   const [groupedAssignments, setGroupedAssignments] = useState<Record<number, AssessmentListItemDto[]>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

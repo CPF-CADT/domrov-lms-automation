@@ -23,7 +23,7 @@ interface ClassSidebarProps {
  * Shows class info and navigation items.
  */
 
-export default function ClassSidebar({ classId: _classId, activeTab, onTabChange, allowedTabs, role }: ClassSidebarProps) {
+export default function ClassSidebar({ classId: _classId, activeTab, onTabChange, allowedTabs}: ClassSidebarProps) {
   // All possible nav items
   const allNavItems = [
     { id: "general" as TabId, icon: TvIcon, label: "General" },

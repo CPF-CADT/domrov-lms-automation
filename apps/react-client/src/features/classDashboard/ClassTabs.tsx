@@ -2,8 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import {
-  SearchIcon,
-  FilterIcon,
   ClipboardIcon,
   MessageIcon,
   UsersIcon,
@@ -24,7 +22,7 @@ interface ClassTabsProps {
  * Displays the current tab and provides quick actions.
  */
 // Accept allowedTabs and role props
-export default function ClassTabs({ activeTab, onTabChange, allowedTabs, role }: ClassTabsProps) {
+export default function ClassTabs({ activeTab, onTabChange, allowedTabs }: ClassTabsProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
