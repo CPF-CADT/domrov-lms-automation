@@ -179,11 +179,11 @@ jobs:
           node-version: 20
 
       - name: Install Dependencies
-        working-directory: ./apps/admin
+        working-directory: ./apps/react-client
         run: npm ci
 
       - name: Build React Frontend
-        working-directory: ./apps/admin
+        working-directory: ./apps/react-client
         run: npm run build
         env:
           VITE_API_URL: https://domrov.app
