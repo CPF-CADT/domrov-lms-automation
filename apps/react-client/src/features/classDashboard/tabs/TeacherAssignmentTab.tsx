@@ -54,8 +54,7 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
     setError(null);
     try {
       const response = await assessmentService.getAssessmentsByClass(Number(classId));
-      const raw = (response as any).data ?? [];
-      setAssignments(Array.isArray(raw) ? raw : []);
+      setAssignments(Array.isArray(response) ? response : []);
     } catch (err: any) {
       console.error("Failed to load assignments:", err);
       setError("Could not load assignments. Please try again.");
