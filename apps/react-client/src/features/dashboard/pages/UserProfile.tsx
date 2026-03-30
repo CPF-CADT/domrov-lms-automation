@@ -245,8 +245,7 @@ export default function UserProfile() {
           </div>
 
           <div style={{ display: "flex", gap: "6px", flexShrink: 0, flexWrap: "wrap" }}>
-            <button className="btn btn-green"><Icons.Plus/> Add Credits</button>
-            <button className="btn btn-red"><Icons.Minus/> Deduct Credits</button>
+            
             <button className="btn btn-blue" onClick={openEdit}><Icons.Edit/> Edit Profile</button>
           </div>
         </div>
