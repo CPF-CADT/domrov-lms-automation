@@ -704,25 +704,24 @@ export class SubmissionService {
 
     if (submissions.length == 0) return [];
 
-    return assessments.map((assessment) => {
-      if (!assessment.isPublic)
-        throw new BadRequestException('Assessment not found');
+    return assessments
+      .filter((assessment) => assessment.isPublic) // skip non-public
+      .map((assessment) => {
+        const submission = submissions.find(
+          (s) =>
+            s.assessment.id === assessment.id &&
+            (s?.evaluation?.isApproved ?? false),
+        );
 
-      const submission = submissions.find(
-        (s) =>
-          s.assessment.id === assessment.id &&
-          (s?.evaluation?.isApproved ?? false),
-      );
-
-      return {
-        assessmentId: assessment.id,
-        title: assessment.title,
-        dueDate: assessment.dueDate,
-        status: submission ? submission.status : 'PENDING',
-        submissionId: submission?.id || null,
-        grade: submission?.evaluation?.score || null,
-      };
-    });
+        return {
+          assessmentId: assessment.id,
+          title: assessment.title,
+          dueDate: assessment.dueDate,
+          status: submission ? submission.status : 'PENDING',
+          submissionId: submission?.id || null,
+          grade: submission?.evaluation?.score || null,
+        };
+      });
   }
 
   async getAssignmentRoster(
