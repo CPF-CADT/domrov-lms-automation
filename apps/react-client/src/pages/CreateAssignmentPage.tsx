@@ -89,7 +89,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
     );
 
     console.log("✅ Step 1 - Draft created:", draftRes);
-    const draftId = draftRes.data.assessmentId;
+    const draftId = draftRes.assessmentId;
     console.log("✅ Draft ID:", draftId);
 
     if (!draftId) throw new Error("No assessmentId returned from createAssessmentDraft");

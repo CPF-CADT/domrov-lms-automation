@@ -62,7 +62,9 @@ export default function DashboardClient() {
   const handleOpen = useCallback(
     (id: string, role?: string) => {
       setActiveClassId(id);
-      navigate(`/class/${id}`, { state: { role } });
+      // Route students to /student-class/:id, teachers to /class/:id
+      const route = role === "Student" ? `/student-class/${id}` : `/class/${id}`;
+      navigate(route, { state: { role } });
     },
     [navigate],
   );
@@ -153,8 +155,8 @@ export default function DashboardClient() {
         )}
 
         <div className="grid gap-6 mt-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          <ClassGrid 
-            items={filteredClasses} 
+          <ClassGrid
+            items={filteredClasses}
             onOpen={(id) => {
               const classItem = filteredClasses.find(c => c.id.toString() === id);
               handleOpen(id, classItem?.role);

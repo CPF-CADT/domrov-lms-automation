@@ -12,24 +12,24 @@ import type {
 /**
  * Get current user's profile
  */
-export async function getMyProfile(): Promise<ApiResponse<UserProfileResponseDto>> {
-    const response = await axiosInstance.get<ApiResponse<UserProfileResponseDto>>('/users/me');
+export async function getMyProfile(): Promise<UserProfileResponseDto> {
+    const response = (await axiosInstance.get('/users/me')).data;
     return response.data;
 }
 
 /**
  * Update current user's profile
  */
-export async function updateMyProfile(data: UpdateProfileDto): Promise<ApiResponse<UpdateProfileResponseDto>> {
-    const response = await axiosInstance.patch<ApiResponse<UpdateProfileResponseDto>>('/users/me', data);
+export async function updateMyProfile(data: UpdateProfileDto): Promise<UpdateProfileResponseDto> {
+    const response = (await axiosInstance.patch('/users/me', data)).data;
     return response.data;
 }
 
 /**
  * Change user's password
  */
-export async function changePassword(data: ChangePasswordDto): Promise<ApiResponse<ChangePasswordResponseDto>> {
-    const response = await axiosInstance.post<ApiResponse<ChangePasswordResponseDto>>('/users/change-password', data);
+export async function changePassword(data: ChangePasswordDto): Promise<ChangePasswordResponseDto> {
+    const response = (await axiosInstance.post('/users/change-password', data)).data;
     return response.data;
 }
 
@@ -42,10 +42,10 @@ export async function searchUsers(query?: {
     firstName?: string;
     lastName?: string;
     phoneNumber?: string;
-}): Promise<ApiResponse<UserListItemDto[]>> {
-    const response = await axiosInstance.get<ApiResponse<UserListItemDto[]>>('/users/search', {
+}): Promise<UserListItemDto[]> {
+    const response = (await axiosInstance.get('/users/search', {
         params: query
-    });
+    })).data;
     return response.data;
 }
 

@@ -118,7 +118,7 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
       Number(classId),
       Number(formData.session)
     );
-    const draftId = draftRes.data.assessmentId;
+    const draftId = draftRes?.assessmentId;
     console.log("✅ Step 1 - Draft created, ID:", draftId);
     if (!draftId) throw new Error("No assessmentId returned from createAssessmentDraft");
 

@@ -12,8 +12,7 @@ import type {
  * Get user's current wallet balance
  */
 export async function getWalletBalance(): Promise<WalletBalanceResponseDto> {
-  const response =
-    await axiosInstance.get<WalletBalanceResponseDto>("/wallet/balance");
+  const response = (await axiosInstance.get("/wallet/balance")).data;
   return response.data;
 }
 
@@ -24,12 +23,12 @@ export async function getTransactionHistory(
   page: number = 1,
   limit: number = 10,
 ): Promise<TransactionHistoryResponseDto> {
-  const response = await axiosInstance.get<TransactionHistoryResponseDto>(
+  const response = (await axiosInstance.get(
     "/wallet/transactions",
     {
       params: { page, limit },
     },
-  );
+  )).data;
   return response.data;
 }
 
@@ -37,8 +36,9 @@ export async function getTransactionHistory(
  * Get available credit packages for purchase
  */
 export async function getCreditPackages(): Promise<CreditPackageResponseDto[]> {
-  const response =
-    await axiosInstance.get<CreditPackageResponseDto[]>("/wallet/packages");
+  const response = (await axiosInstance.get(
+    "/wallet/packages"
+  )).data;
   return response.data;
 }
 

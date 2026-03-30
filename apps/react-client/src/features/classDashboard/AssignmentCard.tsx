@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import StatusBadge from "@/components/primitives/StatusBadge";
 import { ClipboardIcon } from "./icons";
 
@@ -15,13 +15,23 @@ interface Assignment {
 
 interface AssignmentCardProps {
   assignment: Assignment;
+  classId?: string;
 }
 
 /**
  * AssignmentCard - Individual assignment card display.
  * Redesigned to match the reference design with better visual hierarchy.
  */
-export default function AssignmentCard({ assignment }: AssignmentCardProps) {
+export default function AssignmentCard({ assignment, classId }: AssignmentCardProps) {
+  const location = useLocation();
+
+  // Determine if we're in a student context by checking the URL
+  const isStudentContext = location.pathname.includes('/student-class/');
+
+  // Build the appropriate link based on context
+  const assignmentLink = isStudentContext && classId
+    ? `/student-class/${classId}/assignment/${assignment.id}`
+    : `/assignment/${assignment.id}`;
   const getStatusBadges = () => {
     if (!assignment.status) return null;
 
@@ -37,7 +47,7 @@ export default function AssignmentCard({ assignment }: AssignmentCardProps) {
 
   return (
     <Link
-      to={`/assignment/${assignment.id}`}
+      to={assignmentLink}
       className="block bg-white border border-slate-300 rounded-xl p-5 hover:shadow-lg hover:border-slate-400 transition-all"
     >
       <div className="flex items-start justify-between gap-4">

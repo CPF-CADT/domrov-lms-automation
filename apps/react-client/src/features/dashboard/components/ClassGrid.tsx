@@ -4,7 +4,7 @@ import type { ClassCard as ClassCardType } from "@/types/classCard";
 
 interface ClassGridProps {
   items: ClassCardType[];
-  onOpen?: (id: string) => void;
+  onOpen?: (id: string, role?: string) => void;
   activeClassId?: string | number | null;
   onEdit?: (id: string) => void;
   onViewMembers?: (id: string) => void;
@@ -17,9 +17,9 @@ interface ClassGridProps {
  * ClassGrid - Displays a grid of class cards or empty state.
  * Handles the case when no classes are available for the selected term.
  */
-export default function ClassGrid({ 
-  items, 
-  onOpen, 
+export default function ClassGrid({
+  items,
+  onOpen,
   activeClassId,
   onEdit,
   onViewMembers,

@@ -50,7 +50,7 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
       const raw = (response as any).data ?? [];
       setAssignments(Array.isArray(raw) ? raw : []);
     } catch (err: any) {
-      console.error("❌ Failed to load assignments:", err);
+      console.error("Failed to load assignments:", err);
       setError("Could not load assignments. Please try again.");
     } finally {
       setLoading(false);
@@ -66,7 +66,7 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
       await assessmentService.deleteAssessment(assignmentId);
       setAssignments((prev) => prev.filter((a) => a.id !== assignmentId));
     } catch (err) {
-      console.error("❌ Delete failed:", err);
+      console.error("Delete failed:", err);
       alert("Failed to delete. Please try again.");
     } finally {
       setDeletingId(null);
@@ -79,10 +79,10 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
     setPublishError(null);
     try {
       // Step 1 — fetch full details to check what's missing
-      console.log(`🔍 Fetching details for #${assignmentId}...`);
+      console.log(`Fetching details for #${assignmentId}...`);
       const details = await assessmentService.getAssessmentDetails(assignmentId);
       const maxScore = details.maxScore ?? 100;
-      console.log("📋 Current details:", {
+      console.log("Current details:", {
         instruction: details.instruction,
         dueDate: details.dueDate,
         maxScore,
@@ -100,18 +100,18 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
           : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
         rubrics: [{ definition: "Overall Score", totalScore: maxScore }],
       });
-      console.log("✅ Required fields patched");
+      console.log("Required fields patched");
 
       // Step 3 — publish
-      console.log(`📤 Publishing #${assignmentId}...`);
+      console.log(`Publishing #${assignmentId}...`);
       await assessmentService.publishAssessment(assignmentId);
-      console.log("✅ Published");
+      console.log("Published");
 
       setAssignments((prev) =>
         prev.map((a) => a.id === assignmentId ? { ...a, isPublic: true } : a)
       );
     } catch (err: any) {
-      console.error("❌ Full error:", JSON.stringify(err?.response?.data, null, 2));
+      console.error("Full error:", JSON.stringify(err?.response?.data, null, 2));
       const msg = err?.response?.data?.message ?? err?.message ?? "Failed to publish.";
       setPublishError(`Assignment #${assignmentId}: ${msg}`);
     } finally {
@@ -121,7 +121,7 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
 
   const filteredAssignments = assignments.filter((a) => {
     if (activeFilter === "published") return a.isPublic === true;
-    if (activeFilter === "drafts")    return a.isPublic === false;
+    if (activeFilter === "drafts") return a.isPublic === false;
     return true;
   });
 
@@ -191,16 +191,15 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
       {/* Filter Tabs */}
       <div className="flex gap-8 mb-6 border-b border-slate-200">
         {[
-          { id: "all",       label: "All Assignments" },
+          { id: "all", label: "All Assignments" },
           { id: "published", label: "Published" },
-          { id: "drafts",    label: "Drafts" },
+          { id: "drafts", label: "Drafts" },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => { setActiveFilter(tab.id as typeof activeFilter); setCurrentPage(1); }}
-            className={`pb-3 px-1 text-sm font-medium transition-colors relative ${
-              activeFilter === tab.id ? "text-blue-600" : "text-slate-600 hover:text-slate-900"
-            }`}
+            className={`pb-3 px-1 text-sm font-medium transition-colors relative ${activeFilter === tab.id ? "text-blue-600" : "text-slate-600 hover:text-slate-900"
+              }`}
           >
             {tab.label}
             {activeFilter === tab.id && (

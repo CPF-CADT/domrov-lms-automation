@@ -2,6 +2,8 @@
 
 import { Link, useLocation } from "react-router-dom";
 import { CTA_LINK, NAV_LINKS, type NavLinkItem } from "@/config/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { ProfileDropdown } from "@/components/data-display";
 
 // --- Helpers ---
 const isActivePath = (pathname: string, path: string) => pathname === path;
@@ -12,6 +14,7 @@ const isActivePath = (pathname: string, path: string) => pathname === path;
  */
 export default function Header() {
   const location = useLocation();
+  const { isAuthenticated, user } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-blue-100 shadow-sm">
@@ -52,12 +55,26 @@ export default function Header() {
               </Link>
             ))}
           </nav>
-          <Link
-            to={CTA_LINK.href}
-            className="bg-primary hover:bg-primary-dark text-white text-sm font-bold px-6 py-2.5 rounded-lg shadow-primary transition-all transform hover:scale-105"
-          >
-            {CTA_LINK.label}
-          </Link>
+          {isAuthenticated ? (
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <p className="text-sm font-semibold text-slate-900">
+                  {user?.firstName} {user?.lastName}
+                </p>
+                <p className="text-xs text-slate-500">{user?.email}</p>
+              </div>
+              <ProfileDropdown
+                buttonClassName="h-10 w-10 rounded-lg bg-primary-600 hover:bg-primary-700 flex items-center justify-center text-white font-bold transition-colors border-2 border-white"
+              />
+            </div>
+          ) : (
+            <Link
+              to={CTA_LINK.href}
+              className="bg-primary hover:bg-primary-dark text-white text-sm font-bold px-6 py-2.5 rounded-lg shadow-primary transition-all transform hover:scale-105"
+            >
+              {CTA_LINK.label}
+            </Link>
+          )}
         </div>
       </div>
     </header>

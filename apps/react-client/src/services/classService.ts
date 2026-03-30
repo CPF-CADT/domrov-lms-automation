@@ -17,8 +17,8 @@ import type {
 /**
  * Create a new class
  */
-export async function createClass(data: CreateClassDto): Promise<ApiResponse<ClassResponseDto>> {
-    const response = await axiosInstance.post<ApiResponse<ClassResponseDto>>('/class', data);
+export async function createClass(data: CreateClassDto): Promise<ClassResponseDto> {
+    const response = (await axiosInstance.post('/class', data)).data;
     return response.data;
 }
 
@@ -26,88 +26,88 @@ export async function createClass(data: CreateClassDto): Promise<ApiResponse<Cla
  * Get all classes for current user
  */
 export async function getMyClasses(): Promise<GetMyClassesResponseDto[]> {
-    const response = await axiosInstance.get<ApiResponse<GetMyClassesResponseDto[]>>('/class/my-classes');
-    return response.data.data;
+    const response = (await axiosInstance.get('/class/my-classes')).data;
+    return response.data;
 }
 
 /**
  * Get a specific class by ID
  */
 export async function getClass(classId: number): Promise<ClassResponseDto> {
-    const response = await axiosInstance.get<ApiResponse<ClassResponseDto>>(`/class/${classId}`);
-    return response.data.data;
+    const response = (await axiosInstance.get(`/class/${classId}`)).data;
+    return response.data;
 }
 
 /**
  * Update class information
  */
 export async function updateClass(classId: number, data: UpdateClassDto): Promise<ClassResponseDto> {
-    const response = await axiosInstance.patch<ApiResponse<ClassResponseDto>>(`/class/${classId}`, data);
-    return response.data.data;
+    const response = (await axiosInstance.patch(`/class/${classId}`, data)).data;
+    return response.data;
 }
 
 /**
  * Delete a class
  */
 export async function deleteClass(classId: number): Promise<MessageResponse> {
-    const response = await axiosInstance.delete<MessageResponse>(`/class/${classId}`);
-    return response.data;
+    const response = (await axiosInstance.delete(`/class/${classId}`)).data;
+    return response;
 }
 
 /**
  * Join a class using join code
  */
 export async function joinClassByCode(data: JoinClassByCodeDto): Promise<JoinClassResponseDto> {
-    const response = await axiosInstance.post<ApiResponse<JoinClassResponseDto>>('/class/join/code', data);
-    return response.data.data;
+    const response = (await axiosInstance.post('/class/join/code', data)).data;
+    return response.data;
 }
 
 /**
  * Join a class using join token
  */
 export async function joinClassByToken(data: JoinClassByTokenDto): Promise<JoinClassResponseDto> {
-    const response = await axiosInstance.post<ApiResponse<JoinClassResponseDto>>('/class/join/token', data);
-    return response.data.data;
+    const response = (await axiosInstance.post('/class/join/token', data)).data;
+    return response.data;
 }
 
 /**
  * Get class members
  */
 export async function getClassMembers(classId: number): Promise<ClassMembersDto[]> {
-    const response = await axiosInstance.get<ApiResponse<ClassMembersDto[]>>(`/class/${classId}/members`);
-    return response.data.data;
+    const response = (await axiosInstance.get(`/class/${classId}/members`)).data;
+    return response.data;
 }
 
 /**
  * Invite members to class
  */
 export async function inviteMembers(classId: number, data: InviteMembersDto): Promise<MessageResponse> {
-    const response = await axiosInstance.post<MessageResponse>(`/class/${classId}/members`, data);
-    return response.data;
+    const response = (await axiosInstance.post(`/class/${classId}/members`, data)).data;
+    return response;
 }
 
 /**
  * Remove member from class
  */
 export async function removeMember(classId: number, userId: number): Promise<MessageResponse> {
-    const response = await axiosInstance.delete<MessageResponse>(`/class/${classId}/members/${userId}`);
-    return response.data;
+    const response = (await axiosInstance.delete(`/class/${classId}/members/${userId}`)).data;
+    return response;
 }
 
 /**
  * Transfer class ownership
  */
 export async function transferOwnership(classId: number, data: TransferOwnershipDto): Promise<MessageResponse> {
-    const response = await axiosInstance.post<MessageResponse>(`/class/${classId}/transfer-ownership`, data);
-    return response.data;
+    const response = (await axiosInstance.post(`/class/${classId}/transfer-ownership`, data)).data;
+    return response;
 }
 
 /**
  * Get class leaderboard
  */
 export async function getLeaderboard(classId: number): Promise<LeaderboardItemDto[]> {
-    const response = await axiosInstance.get<ApiResponse<LeaderboardItemDto[]>>(`/class/${classId}/leaderboard`);
-    return response.data.data;
+    const response = (await axiosInstance.get(`/class/${classId}/leaderboard`)).data;
+    return response.data;
 }
 
 const classService = {

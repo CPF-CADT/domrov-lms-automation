@@ -32,7 +32,7 @@ function formatDueDate(raw: string): string {
   const day = d.getDate();
   const suffix =
     ["th", "st", "nd", "rd"][
-      day % 10 <= 3 && ![11, 12, 13].includes(day % 100) ? day % 10 : 0
+    day % 10 <= 3 && ![11, 12, 13].includes(day % 100) ? day % 10 : 0
     ];
   const year = d.getFullYear();
   const thisYear = new Date().getFullYear();
@@ -61,16 +61,15 @@ function getRelativeDate(raw: string): string {
     const abs = Math.abs(diffDays);
     if (abs < 30) return `Due ${abs} day${abs === 1 ? "" : "s"} ago`;
     if (abs < 365)
-      return `Due ${Math.round(abs / 30)} month${
-        Math.round(abs / 30) === 1 ? "" : "s"
-      } ago`;
+      return `Due ${Math.round(abs / 30)} month${Math.round(abs / 30) === 1 ? "" : "s"
+        } ago`;
     return "Due a year ago";
   }
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Tomorrow";
   if (diffDays <= 6)
     return [
-      "Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday",
+      "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
     ][d.getDay()];
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
@@ -92,7 +91,7 @@ export default function AssignmentList({ classId, filter }: AssignmentListProps)
     try {
       const response = await getAssessmentsByClass(Number(classId));
       const raw = (response as any).data ?? [];
-      console.log("🔍 Raw API assignments:", raw);
+      console.log("Raw API assignments:", raw);
 
       const normalized: NormalizedAssignment[] = raw.map((item: any) => {
         const dateStr = String(item.dueDate ?? "");
@@ -135,21 +134,21 @@ export default function AssignmentList({ classId, filter }: AssignmentListProps)
       await assessmentService.updateAssessment(Number(assignment.id), {
         rubrics: [{ definition: "Overall Score", totalScore: assignment.maxScore }],
       });
-      console.log("✅ Rubric patched for", assignment.id);
+      console.log("Rubric patched for", assignment.id);
 
       // Step 2 — publish
       await assessmentService.publishAssessment(Number(assignment.id));
-      console.log("✅ Published:", assignment.id);
+      console.log("Published:", assignment.id);
 
-      showToast("✅ Assignment published!", "success", 3000);
+      showToast("Assignment published successfully!", "success", 3000);
 
       // Refresh list — published assignment moves from draft → upcoming
       await load();
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ?? err?.message ?? "Failed to publish.";
-      console.error("❌ Publish error:", msg, err?.response?.data);
-      showToast(`❌ ${msg}`, "error", 4000);
+      console.error("Publish error:", msg, err?.response?.data);
+      showToast(`${msg}`, "error", 4000);
     }
     setPublishingId(null);
   };
@@ -159,8 +158,8 @@ export default function AssignmentList({ classId, filter }: AssignmentListProps)
   // The assignment then appears in "upcoming" if dueDate is in the future
 
   const assignments = allAssignments.filter((a) => {
-    if (filter === "draft")                              return a.isDraft;
-    if (filter === "upcoming")                           return !a.isDraft && !a.isPastDue;
+    if (filter === "draft") return a.isDraft;
+    if (filter === "upcoming") return !a.isDraft && !a.isPastDue;
     if (filter === "past-due" || filter === "completed") return !a.isDraft && a.isPastDue;
     return false;
   });
@@ -252,7 +251,7 @@ export default function AssignmentList({ classId, filter }: AssignmentListProps)
           </div>
 
           {/* Card */}
-          <AssignmentCard assignment={assignment} />
+          <AssignmentCard assignment={assignment} classId={classId} />
 
           {/* Publish button — only in draft tab, patches rubric then publishes */}
           {filter === "draft" && (

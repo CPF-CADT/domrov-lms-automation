@@ -99,7 +99,7 @@ export default function ViewAssignmentPage() {
 
         {/* Student Submissions Table */}
         <div className="p-6 bg-white border rounded-lg shadow-sm border-slate-200">
-          <StudentSubmissionsTable students={data.students} />
+          <StudentSubmissionsTable students={data.students} assignmentId={0} />
         </div>
       </div>
     </div>

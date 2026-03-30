@@ -1,13 +1,17 @@
 
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
 import { AuthProvider } from '@/context/AuthContext';
 import { AssignmentProvider } from '@/context/AssignmentContext';
+import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import PublicRoute from '@/components/PublicRoute';
 import Landing from '@/pages/Landing';
 import Dashboard from '@/pages/Dashboard';
 import Login from '@/pages/Login';
 import ClassDashboard from '@/pages/ClassDashboard';
+import StudentDashboard from '@/pages/StudentDashboard';
+import StudentAssignmentDetail from '@/pages/StudentAssignmentDetail';
 import CreateClass from '@/pages/CreateClass';
 import CreateAssignmentPage from '@/pages/CreateAssignmentPage';
 import EditAssignmentPage from '@/pages/EditAssignmentPage';
@@ -23,7 +27,7 @@ import { useParams } from 'react-router-dom';
 
 const CreateAssignmentPageWrapper: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  if (!id) return null; 
+  if (!id) return null;
   return <CreateAssignmentPage classId={id} />;
 };
 
@@ -41,6 +45,8 @@ const AppRoutes: React.FC = () => {
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/class/create" element={<ProtectedRoute><CreateClass /></ProtectedRoute>} />
       <Route path="/class/:id" element={<ProtectedRoute><ClassDashboard /></ProtectedRoute>} />
+      <Route path="/student-class/:id" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
+      <Route path="/student-class/:classId/assignment/:assignmentId" element={<ProtectedRoute><StudentAssignmentDetail /></ProtectedRoute>} />
       <Route
         path="/class/:id/assignment/create"
         element={
@@ -54,17 +60,41 @@ const AppRoutes: React.FC = () => {
       <Route path="/profile" element={<ProtectedRoute><UserProfilePage /></ProtectedRoute>} />
       <Route path="/creditPurchase" element={<ProtectedRoute><CreditPurchasePage /></ProtectedRoute>} />
       <Route path="/ai-evaluation" element={<ProtectedRoute><AIEvaluationPage /></ProtectedRoute>} />
-      
+
     </Routes>
   );
 };
 
+// Wrapper component to handle initial redirect for authenticated users
+// Uses in-memory (RAM) tracking that resets on page refresh
+const InitialAuthRedirect: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const initialCheckDoneRef = useRef(false);
+
+  useEffect(() => {
+    // Only check once when auth loading completes
+    if (!isLoading && !initialCheckDoneRef.current) {
+      initialCheckDoneRef.current = true;
+
+      // If authenticated and on landing page, navigate to dashboard
+      if (isAuthenticated && location.pathname === '/') {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [isLoading, isAuthenticated, location.pathname, navigate]);
+
+  return <>{children}</>;
+};
 
 const App: React.FC = () => {
   return (
     <AuthProvider>
       <AssignmentProvider>
-        <AppRoutes />
+        <InitialAuthRedirect>
+          <AppRoutes />
+        </InitialAuthRedirect>
       </AssignmentProvider>
     </AuthProvider>
   );

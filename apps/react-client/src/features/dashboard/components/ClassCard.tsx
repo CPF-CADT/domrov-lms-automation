@@ -7,7 +7,7 @@ import { MoreVertical, Edit2, Users, LogOut, Trash2, Share2 } from "lucide-react
 
 interface ClassCardProps {
   classItem: ClassCardType;
-  onOpen?: (id: string) => void;
+  onOpen?: (id: string, role?: string) => void;
   isActive?: boolean;
   onEdit?: (id: string) => void;
   onViewMembers?: (id: string) => void;
@@ -19,9 +19,9 @@ interface ClassCardProps {
 /**
  * ClassCard - Displays a class with clean, simple design showing all backend data.
  */
-export default function ClassCard({ 
-  classItem, 
-  onOpen, 
+export default function ClassCard({
+  classItem,
+  onOpen,
   isActive = false,
   onEdit,
   onViewMembers,
@@ -68,11 +68,10 @@ export default function ClassCard({
   };
 
   return (
-    <article className={`relative bg-white rounded-xl border shadow-sm transition-all duration-200 overflow-visible flex flex-col h-[340px] cursor-pointer ${
-      isActive
+    <article className={`relative bg-white rounded-xl border shadow-sm transition-all duration-200 overflow-visible flex flex-col h-[340px] cursor-pointer ${isActive
         ? "border-blue-500 shadow-lg ring-2 ring-blue-200 scale-[1.02]"
         : "border-slate-200 hover:shadow-lg hover:border-slate-300 hover:scale-[1.02]"
-    }`}>
+      }`}>
       {/* Cover Image or Placeholder */}
       {classItem.coverImageUrl ? (
         <img
@@ -102,7 +101,7 @@ export default function ClassCard({
               {classItem.name}
             </h3>
           </div>
-          
+
           {/* Status Badge */}
           <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${statusColor}`}>
             {classItem.status}
@@ -110,49 +109,49 @@ export default function ClassCard({
 
           {/* Menu Button */}
           <DropdownMenu
-              trigger={<MoreVertical className="w-4 h-4 text-slate-600" />}
-              items={[
-                {
-                  label: "Edit Class",
-                  icon: <Edit2 className="w-4 h-4" />,
-                  onClick: () => onEdit?.(classItem.id?.toString?.() ?? ""),
+            trigger={<MoreVertical className="w-4 h-4 text-slate-600" />}
+            items={[
+              {
+                label: "Edit Class",
+                icon: <Edit2 className="w-4 h-4" />,
+                onClick: () => onEdit?.(classItem.id?.toString?.() ?? ""),
+              },
+              {
+                label: "View Members",
+                icon: <Users className="w-4 h-4" />,
+                onClick: () => onViewMembers?.(classItem.id?.toString?.() ?? ""),
+              },
+              {
+                label: "Share Class",
+                icon: <Share2 className="w-4 h-4" />,
+                onClick: () => onShareClass?.(classItem.id?.toString?.() ?? ""),
+                divider: true,
+              },
+              {
+                label: "Leave Class",
+                icon: <LogOut className="w-4 h-4" />,
+                onClick: () => {
+                  if (confirm("Are you sure you want to leave this class?")) {
+                    onLeaveClass?.(classItem.id?.toString?.() ?? "");
+                  }
                 },
-                {
-                  label: "View Members",
-                  icon: <Users className="w-4 h-4" />,
-                  onClick: () => onViewMembers?.(classItem.id?.toString?.() ?? ""),
+                className: "text-orange-600 hover:bg-orange-50",
+                divider: true,
+              },
+              {
+                label: "Delete Class",
+                icon: <Trash2 className="w-4 h-4" />,
+                onClick: () => {
+                  if (confirm("Are you sure you want to delete this class? This cannot be undone.")) {
+                    onDeleteClass?.(classItem.id?.toString?.() ?? "");
+                  }
                 },
-                {
-                  label: "Share Class",
-                  icon: <Share2 className="w-4 h-4" />,
-                  onClick: () => onShareClass?.(classItem.id?.toString?.() ?? ""),
-                  divider: true,
-                },
-                {
-                  label: "Leave Class",
-                  icon: <LogOut className="w-4 h-4" />,
-                  onClick: () => {
-                    if (confirm("Are you sure you want to leave this class?")) {
-                      onLeaveClass?.(classItem.id?.toString?.() ?? "");
-                    }
-                  },
-                  className: "text-orange-600 hover:bg-orange-50",
-                  divider: true,
-                },
-                {
-                  label: "Delete Class",
-                  icon: <Trash2 className="w-4 h-4" />,
-                  onClick: () => {
-                    if (confirm("Are you sure you want to delete this class? This cannot be undone.")) {
-                      onDeleteClass?.(classItem.id?.toString?.() ?? "");
-                    }
-                  },
-                  className: "text-red-600 hover:bg-red-50",
-                  condition: classItem.role === "Teacher",
-                },
-              ]}
-              triggerClassName="p-1 transition-colors rounded-lg hover:bg-slate-100 active:bg-slate-200"
-            />
+                className: "text-red-600 hover:bg-red-50",
+                condition: classItem.role === "Teacher",
+              },
+            ]}
+            triggerClassName="p-1 transition-colors rounded-lg hover:bg-slate-100 active:bg-slate-200"
+          />
         </div>
 
         {/* Description */}
@@ -208,7 +207,7 @@ export default function ClassCard({
         <div className="pt-2 mt-auto border-t border-slate-100">
           <button
             className="w-full px-4 py-2 text-sm font-medium text-white transition-colors rounded-lg bg-slate-900 hover:bg-slate-800"
-            onClick={onOpen ? () => onOpen(classItem.id?.toString?.() ?? "") : undefined}
+            onClick={onOpen ? () => onOpen(classItem.id?.toString?.() ?? "", classItem.role) : undefined}
             aria-label="View class details"
           >
             View Class

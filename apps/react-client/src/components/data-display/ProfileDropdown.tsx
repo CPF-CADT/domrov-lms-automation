@@ -43,6 +43,11 @@ export default function ProfileDropdown({
     navigate("/profile");
   };
 
+  const handleDashboardClick = () => {
+    navigate("/profile");
+  };
+
+
   const defaultButtonClass =
     "h-10 w-10 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center text-white font-bold transition-colors border-2 border-white/30";
 
@@ -53,7 +58,15 @@ export default function ProfileDropdown({
         className={buttonClassName || defaultButtonClass}
         aria-label="User profile"
       >
-        {userInitials}
+        {user?.profilePictureUrl ? (
+          <img
+            src={user.profilePictureUrl}
+            alt={userName}
+            className="h-full w-full rounded-lg object-cover"
+          />
+        ) : (
+          userInitials
+        )}
       </button>
 
       {showMenu && (
@@ -69,9 +82,17 @@ export default function ProfileDropdown({
             {/* User Info Section */}
             <div className="p-4 border-b border-slate-200">
               <div className="flex items-center space-x-3">
-                <div className="h-12 w-12 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-lg">
-                  {userInitials}
-                </div>
+                {user?.profilePictureUrl ? (
+                  <img
+                    src={user.profilePictureUrl}
+                    alt={userName}
+                    className="h-12 w-12 rounded-lg object-cover flex-shrink-0"
+                  />
+                ) : (
+                  <div className="h-12 w-12 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                    {userInitials}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-slate-900 truncate">
                     {userName}
@@ -86,17 +107,18 @@ export default function ProfileDropdown({
             {/* Menu Items */}
             <div className="py-2">
               <button
+                onClick={() => handleMenuItemClick(handleDashboardClick)}
+                className="w-full px-4 py-2.5 text-left text-slate-700 hover:bg-slate-50 transition-colors text-sm"
+              >
+                Dashboard
+              </button>
+              <button
                 onClick={() => handleMenuItemClick(handleProfileClick)}
                 className="w-full px-4 py-2.5 text-left text-slate-700 hover:bg-slate-50 transition-colors text-sm"
               >
                 Profile
               </button>
-              <button
-                onClick={() => handleMenuItemClick()}
-                className="w-full px-4 py-2.5 text-left text-slate-700 hover:bg-slate-50 transition-colors text-sm"
-              >
-                Settings
-              </button>
+
             </div>
 
             {/* Logout Section */}

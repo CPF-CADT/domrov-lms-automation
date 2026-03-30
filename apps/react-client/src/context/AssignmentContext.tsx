@@ -62,9 +62,9 @@ export function AssignmentProvider({ children }: { children: React.ReactNode }) 
       try {
         await assignmentRepository.initialize();
         setAssignments(assignmentRepository.getAssignments());
-        console.log("✅ AssignmentContext initialized with assignments from repository");
+        console.log("AssignmentContext initialized with assignments from repository");
       } catch (error) {
-        console.error("❌ Failed to initialize AssignmentContext:", error);
+        console.error("Failed to initialize AssignmentContext:", error);
       }
     };
 
@@ -75,7 +75,7 @@ export function AssignmentProvider({ children }: { children: React.ReactNode }) 
   const createAssignment = useCallback((data: AssignmentData): string => {
     const created = assignmentRepository.createAssignment(data);
     setAssignments(assignmentRepository.getAssignments());
-    console.log("✅ Assignment created:", created.id);
+    console.log("Assignment created:", created.id);
     return created.id || "";
   }, []);
 
@@ -84,7 +84,7 @@ export function AssignmentProvider({ children }: { children: React.ReactNode }) 
     (classId: string, data: AssignmentData): void => {
       const draftKey = `draft_assignment_${classId}`;
       localStorage.setItem(draftKey, JSON.stringify(data));
-      console.log("💾 Draft saved for class:", classId);
+      console.log("Draft saved for class:", classId);
     },
     []
   );
@@ -130,9 +130,9 @@ export function AssignmentProvider({ children }: { children: React.ReactNode }) 
       const success = assignmentRepository.updateAssignment(id, data);
       if (success) {
         setAssignments(assignmentRepository.getAssignments());
-        console.log("✏️ Assignment updated:", id);
+        console.log("Assignment updated:", id);
       } else {
-        console.warn("❌ Assignment not found:", id);
+        console.warn("Assignment not found:", id);
       }
       return success;
     },
@@ -146,7 +146,7 @@ export function AssignmentProvider({ children }: { children: React.ReactNode }) 
       const existing = getDraftByClass(classId);
       const updated = { ...existing, ...data };
       localStorage.setItem(draftKey, JSON.stringify(updated));
-      console.log("💾 Draft updated for class:", classId);
+      console.log("Draft updated for class:", classId);
     },
     [getDraftByClass]
   );
@@ -156,9 +156,9 @@ export function AssignmentProvider({ children }: { children: React.ReactNode }) 
     const success = assignmentRepository.deleteAssignment(id);
     if (success) {
       setAssignments(assignmentRepository.getAssignments());
-      console.log("🗑️ Assignment deleted:", id);
+      console.log("Assignment deleted:", id);
     } else {
-      console.warn("❌ Assignment not found:", id);
+      console.warn("Assignment not found:", id);
     }
     return success;
   }, []);
@@ -167,7 +167,7 @@ export function AssignmentProvider({ children }: { children: React.ReactNode }) 
   const deleteDraft = useCallback((classId: string): void => {
     const draftKey = `draft_assignment_${classId}`;
     localStorage.removeItem(draftKey);
-    console.log("🗑️ Draft deleted for class:", classId);
+    console.log("Draft deleted for class:", classId);
   }, []);
 
   // Get draft data (alternative method)

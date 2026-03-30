@@ -6,7 +6,7 @@ import assessmentService from "@/services/assessmentService";
 import type { AssessmentDetailDto } from "@/types/assessment";
 
 interface ViewAssignmentDetailProps {
-  assignmentId: number | string; // ✅ accepts both number and string
+  assignmentId: number | string; // accepts both number and string
   onBack: () => void;
 }
 
@@ -82,9 +82,9 @@ export default function ViewAssignmentDetail({ assignmentId, onBack }: ViewAssig
             <p className="text-sm font-semibold text-slate-900">
               {assignment.dueDate
                 ? new Date(assignment.dueDate).toLocaleString("en-US", {
-                    month: "short", day: "numeric", year: "numeric",
-                    hour: "numeric", minute: "2-digit", hour12: true,
-                  })
+                  month: "short", day: "numeric", year: "numeric",
+                  hour: "numeric", minute: "2-digit", hour12: true,
+                })
                 : "—"}
             </p>
           </div>
@@ -98,11 +98,10 @@ export default function ViewAssignmentDetail({ assignmentId, onBack }: ViewAssig
           </div>
           <div>
             <p className="text-xs font-medium text-slate-500 uppercase mb-1">Status</p>
-            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
-              assignment.isPublic
+            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${assignment.isPublic
                 ? "bg-green-100 text-green-700"
                 : "bg-gray-100 text-gray-700"
-            }`}>
+              }`}>
               {assignment.isPublic ? "Published" : "Draft"}
             </span>
           </div>

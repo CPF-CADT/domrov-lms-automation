@@ -13,11 +13,11 @@ import type {
  */
 export async function startPayment(
   packageId: number,
-): Promise<ApiResponse<StartPaymentResponseDto>> {
+): Promise<StartPaymentResponseDto> {
   try {
-    const response = await axiosInstance.post<
-      ApiResponse<StartPaymentResponseDto>
-    >(`/payment/start-payment/${packageId}`);
+    const response = (await axiosInstance.post(
+      `/payment/start-payment/${packageId}`
+    )).data;
     return response.data;
   } catch (error: any) {
     throw new Error(
@@ -31,11 +31,11 @@ export async function startPayment(
  */
 export async function checkTransactionByHash(
   data: CheckTransactionByHashDto,
-): Promise<ApiResponse<CheckTransactionResponseDto>> {
+): Promise<CheckTransactionResponseDto> {
   try {
-    const response = await axiosInstance.post<
-      ApiResponse<CheckTransactionResponseDto>
-    >(`/payment/check_transaction_by_short_hash`, data);
+    const response = (await axiosInstance.post(
+      `/payment/check_transaction_by_short_hash`, data
+    )).data;
     return response.data;
   } catch (error: any) {
     throw new Error(

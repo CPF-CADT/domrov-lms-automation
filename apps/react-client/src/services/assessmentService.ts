@@ -1,6 +1,5 @@
 
 import axiosInstance from '@/lib/axiosInstance';
-import type { ApiResponse } from '@/types/api';
 import type {
   AssessmentListItemDto,
   AssessmentDetailDto,
@@ -18,8 +17,8 @@ import type {
 /**
  * Get assessments for a specific class
  */
-export async function getAssessmentsByClass(classId: number): Promise<ApiResponse<AssessmentListItemDto[]>> {
-  const response = await axiosInstance.get<ApiResponse<AssessmentListItemDto[]>>(`/assessments/class/${classId}`);
+export async function getAssessmentsByClass(classId: number): Promise<AssessmentListItemDto[]> {
+  const response = (await axiosInstance.get(`/assessments/class/${classId}`)).data;
   return response.data;
 }
 
@@ -35,39 +34,39 @@ export async function getAssessmentsByClassSession(classId: number, sessionId: n
  * Get detailed information about a specific assessment
  */
 export async function getAssessmentDetails(assessmentId: number): Promise<AssessmentDetailDto> {
-  const response = await axiosInstance.get<AssessmentDetailDto>(`/assessments/${assessmentId}`);
+  const response = (await axiosInstance.get(`/assessments/${assessmentId}`)).data;
   return response.data;
 }
 
 /**
  * Create a new assessment draft
  */
-export async function createAssessmentDraft(classId: number, session: number): Promise<ApiResponse<CreateDraftResponseDto>> {
-  const response = await axiosInstance.post<ApiResponse<CreateDraftResponseDto>>(`/assessments/class/${classId}/draft`, { session });
+export async function createAssessmentDraft(classId: number, session: number): Promise<CreateDraftResponseDto> {
+  const response = (await axiosInstance.post(`/assessments/class/${classId}/draft`, { session })).data;
   return response.data;
 }
 
 /**
  * Update an assessment draft
  */
-export async function updateAssessment(assessmentId: number, data: UpdateAssessmentDto): Promise<ApiResponse<UpdateAssessmentResponseDto>> {
-  const response = await axiosInstance.patch<ApiResponse<UpdateAssessmentResponseDto>>(`/assessments/${assessmentId}`, data);
+export async function updateAssessment(assessmentId: number, data: UpdateAssessmentDto): Promise<UpdateAssessmentResponseDto> {
+  const response = (await axiosInstance.patch(`/assessments/${assessmentId}`, data)).data;
   return response.data;
 }
 
 /**
  * Publish an assessment
  */
-export async function publishAssessment(assessmentId: number): Promise<ApiResponse<PublishAssessmentResponseDto>> {
-  const response = await axiosInstance.patch<ApiResponse<PublishAssessmentResponseDto>>(`/assessments/${assessmentId}/publish`);
+export async function publishAssessment(assessmentId: number): Promise<PublishAssessmentResponseDto> {
+  const response = (await axiosInstance.patch(`/assessments/${assessmentId}/publish`)).data;
   return response.data;
 }
 
 /**
  * Delete an assessment
  */
-export async function deleteAssessment(assessmentId: number): Promise<ApiResponse<DeleteAssessmentResponseDto>> {
-  const response = await axiosInstance.delete<ApiResponse<DeleteAssessmentResponseDto>>(`/assessments/${assessmentId}`);
+export async function deleteAssessment(assessmentId: number): Promise<DeleteAssessmentResponseDto> {
+  const response = (await axiosInstance.delete(`/assessments/${assessmentId}`)).data;
   return response.data;
 }
 
@@ -75,15 +74,15 @@ export async function deleteAssessment(assessmentId: number): Promise<ApiRespons
  * Complete an assessment
  */
 export async function completeAssessment(assessmentId: number): Promise<CompleteAssessmentResponseDto> {
-  const response = await axiosInstance.post<CompleteAssessmentResponseDto>(`/assessments/${assessmentId}/complete`);
+  const response = await axiosInstance.post(`/assessments/${assessmentId}/complete`);
   return response.data;
 }
 
 /**
  * Get assessment tracking information (team or individual)
  */
-export async function getAssessmentTracking(assessmentId: number): Promise<ApiResponse<TeamTrackingItemDto[] | IndividualTrackingItemDto[]>> {
-  const response = await axiosInstance.get<ApiResponse<TeamTrackingItemDto[] | IndividualTrackingItemDto[]>>(`/assessments/${assessmentId}/tracking`);
+export async function getAssessmentTracking(assessmentId: number): Promise<TeamTrackingItemDto[] | IndividualTrackingItemDto[]> {
+  const response = (await axiosInstance.get(`/assessments/${assessmentId}/tracking`)).data;
   return response.data;
 }
 
@@ -91,7 +90,7 @@ export async function getAssessmentTracking(assessmentId: number): Promise<ApiRe
  * Get assessment statistics
  */
 export async function getAssessmentStats(classId: number, assessmentId: number): Promise<AssessmentStatsResponseDto> {
-  const response = await axiosInstance.get<AssessmentStatsResponseDto>(`/assessments/${classId}/stats/${assessmentId}`);
+  const response = (await axiosInstance.get(`/assessments/${classId}/stats/${assessmentId}`)).data;
   return response.data;
 }
 // Fetch assignments for a class from backend API

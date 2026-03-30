@@ -104,8 +104,8 @@ export default function AIEvaluationSettings({
           evaluationService.fetchAIProviders(),
           evaluationService.fetchAIKeys(),
         ]);
-        setProviders(provRes.data ?? []);
-        setSavedKeys(keysRes.data ?? []);
+        setProviders(provRes ?? []);
+        setSavedKeys(keysRes ?? []);
       } catch (err) {
         console.error("Failed to load AI data:", err);
       } finally {
@@ -181,7 +181,7 @@ export default function AIEvaluationSettings({
         if (form.apiKey.trim())      patch.apiKey      = form.apiKey;
         if (form.apiEndpoint.trim()) patch.apiEndpoint = form.apiEndpoint.trim();
         const res = await evaluationService.updateAIKey(editingKey.id, patch);
-        result = res.data;
+        result = res ?? [];
         setSavedKeys((prev) => prev.map((k) => (k.id === result.id ? result : k)));
         setSuccess("Configuration updated successfully.");
       } else {
@@ -202,7 +202,7 @@ export default function AIEvaluationSettings({
         }
         console.log("📤 POST /user-ai payload:", JSON.stringify(payload, null, 2));
         const res = await evaluationService.createAIKey(payload);
-        result = res.data;
+        result = res ?? [];
         setSavedKeys((prev) => [result, ...prev]);
         setSuccess("Configuration saved successfully.");
         setForm(DEFAULT_FORM);

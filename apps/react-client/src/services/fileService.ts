@@ -12,10 +12,10 @@ import type {
 /**
  * Get presigned URL for file upload
  */
-export async function getPresignedUrl(data: PresignedUrlRequestDto): Promise<ApiResponse<PresignedUrlResponseDto>> {
-    const response = await axiosInstance.get<ApiResponse<PresignedUrlResponseDto>>('/file/presigned-url', {
+export async function getPresignedUrl(data: PresignedUrlRequestDto): Promise<PresignedUrlResponseDto> {
+    const response = (await axiosInstance.get('/file/presigned-url', {
         params: data
-    });
+    })).data;
     return response.data;
 }
 
@@ -73,8 +73,8 @@ export async function uploadImage(file: File): Promise<CloudinaryUploadResponse>
 /**
  * Notify backend that file has been uploaded
  */
-export async function notifyUpload(data: NotifyUploadDto): Promise<ApiResponse<NotifyUploadResponseDto>> {
-    const response = await axiosInstance.post<ApiResponse<NotifyUploadResponseDto>>('/file/notify-upload', data);
+export async function notifyUpload(data: NotifyUploadDto): Promise<NotifyUploadResponseDto> {
+    const response = (await axiosInstance.post('/file/notify-upload', data)).data;
     return response.data;
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { ClipboardIcon } from "../icons";
 import AssignmentDetailView from "./AssignmentDetailView";
 import assessmentService from "@/services/assessmentService";
@@ -12,12 +13,17 @@ interface GeneralTabProps {
 
 const GeneralTab = ({ classId }: GeneralTabProps) => {
   const classIdNum = Number(classId);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const [, setAssignments] = useState<AssessmentListItemDto[]>([]);
   const [groupedAssignments, setGroupedAssignments] = useState<Record<number, AssessmentListItemDto[]>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedAssignment, setSelectedAssignment] = useState<AssessmentListItemDto | null>(null);
+
+  // Detect if we're in a student context
+  const isStudentContext = location.pathname.includes('/student-class/');
 
   // Fetch all assignments
   useEffect(() => {
@@ -27,7 +33,7 @@ const GeneralTab = ({ classId }: GeneralTabProps) => {
 
       try {
         // fetch ALL assignments in class
-        const data: AssessmentListItemDto[]  = (await assessmentService.getAssessmentsByClass(classIdNum)).data;
+        const data: AssessmentListItemDto[] = (await assessmentService.getAssessmentsByClass(classIdNum));
         setAssignments(data);
 
         // group by session
@@ -57,7 +63,7 @@ const GeneralTab = ({ classId }: GeneralTabProps) => {
 
   return (
     <>
-      {selectedAssignment ? (
+      {selectedAssignment && !isStudentContext ? (
         <AssignmentDetailView
           assessmentId={selectedAssignment.id}
           onBack={() => setSelectedAssignment(null)}
@@ -89,7 +95,15 @@ const GeneralTab = ({ classId }: GeneralTabProps) => {
                       {sessionAssignments.map((assignment) => (
                         <button
                           key={assignment.id || assignment.id}
-                          onClick={() => setSelectedAssignment(assignment)}
+                          onClick={() => {
+                            if (isStudentContext) {
+                              // Route students to the dedicated assignment page
+                              navigate(`/student-class/${classId}/assignment/${assignment.id}`);
+                            } else {
+                              // Show modal for teachers
+                              setSelectedAssignment(assignment);
+                            }
+                          }}
                           className="w-full text-left border border-slate-200 rounded-xl p-4 hover:shadow-md hover:border-slate-300 transition-all"
                         >
                           <h3 className="font-semibold text-slate-900 mb-2">
