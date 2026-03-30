@@ -99,6 +99,20 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
     }));
   };
 
+  const handleToggleLateSubmissions = () => {
+    setFormData((prev) => ({
+      ...prev,
+      allowLateSubmissions: !prev.allowLateSubmissions,
+    }));
+  };
+
+  const handleToggleAIEvaluation = () => {
+    setFormData((prev) => ({
+      ...prev,
+      aiEvaluationEnabled: !prev.aiEvaluationEnabled,
+    }));
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     setUploadedFiles((prev) => [
@@ -199,9 +213,9 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
 
       {/* API Error */}
       {error && (
-        <div className="mb-6 px-4 py-3 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
+        <div className="flex items-center justify-between px-4 py-3 mb-6 border border-red-200 rounded-lg bg-red-50">
           <p className="text-sm text-red-600">{error}</p>
-          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 ml-4 text-lg leading-none">×</button>
+          <button onClick={() => setError(null)} className="ml-4 text-lg leading-none text-red-400 hover:text-red-600">×</button>
         </div>
       )}
 
@@ -210,10 +224,10 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
         <div className="grid grid-cols-3 gap-6">
 
           {/* General Information */}
-          <div className="bg-white border border-slate-200 rounded-lg p-6">
+          <div className="p-6 bg-white border rounded-lg border-slate-200">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-sm font-bold tracking-wider uppercase text-slate-900">General Information</h2>
-              <span className="px-3 py-1 text-xs font-semibold text-blue-600 bg-blue-50 rounded-full">REQUIRED</span>
+              <span className="px-3 py-1 text-xs font-semibold text-blue-600 rounded-full bg-blue-50">REQUIRED</span>
             </div>
             <div className="space-y-5">
               <div>
@@ -263,7 +277,7 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
           </div>
 
           {/* Scheduling */}
-          <div className="bg-white border border-slate-200 rounded-lg p-6">
+          <div className="p-6 bg-white border rounded-lg border-slate-200">
             <h2 className="mb-6 text-sm font-bold tracking-wider uppercase text-slate-900">Scheduling</h2>
             <div className="space-y-5">
               <div>
@@ -290,14 +304,14 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
           </div>
 
           {/* Grading & Rules */}
-          <div className="bg-white border border-slate-200 rounded-lg p-6">
+          <div className="p-6 bg-white border rounded-lg border-slate-200">
             <h2 className="mb-6 text-sm font-bold tracking-wider uppercase text-slate-900">Grading & Rules</h2>
             <div className="space-y-5">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
                     Max Score
-                    <span className="ml-1 text-slate-400 font-normal normal-case">(max 100)</span>
+                    <span className="ml-1 font-normal normal-case text-slate-400">(max 100)</span>
                   </label>
                   <input
                     type="number"
@@ -329,17 +343,35 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
               </div>
               <div className="flex items-center justify-between pt-2">
                 <p className="text-sm font-medium text-slate-900">Late Submissions</p>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" name="allowLateSubmissions" checked={formData.allowLateSubmissions} onChange={handleInputChange} className="sr-only peer" />
-                  <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600" />
-                </label>
+                <button
+                  type="button"
+                  onClick={handleToggleLateSubmissions}
+                  className={`relative inline-flex items-center h-6 w-11 rounded-full transition-colors ${
+                    formData.allowLateSubmissions ? 'bg-blue-600' : 'bg-slate-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                      formData.allowLateSubmissions ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
               </div>
               <div className="flex items-center justify-between pt-2">
                 <p className="text-sm font-medium text-slate-900">AI Evaluation</p>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" name="aiEvaluationEnabled" checked={formData.aiEvaluationEnabled} onChange={handleInputChange} className="sr-only peer" />
-                  <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600" />
-                </label>
+                <button
+                  type="button"
+                  onClick={handleToggleAIEvaluation}
+                  className={`relative inline-flex items-center h-6 w-11 rounded-full transition-colors ${
+                    formData.aiEvaluationEnabled ? 'bg-blue-600' : 'bg-slate-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                      formData.aiEvaluationEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
               </div>
             </div>
           </div>
@@ -349,50 +381,50 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
         <div className="grid grid-cols-2 gap-6">
 
           {/* Instructions */}
-          <div className="bg-white border border-slate-200 rounded-lg p-6">
+          <div className="p-6 bg-white border rounded-lg border-slate-200">
             <h2 className="mb-4 text-sm font-bold tracking-wider uppercase text-slate-900">
               Instructions <span className="text-red-500">*</span>
             </h2>
-            <div className="overflow-hidden border border-slate-200 rounded-lg">
+            <div className="overflow-hidden border rounded-lg border-slate-200">
               <div className="flex items-center gap-2 p-3 border-b border-slate-200 bg-slate-50">
-                <button type="button" className="p-1 text-sm font-bold text-slate-700 rounded hover:bg-slate-200 transition-colors">B</button>
-                <button type="button" className="p-1 text-sm italic text-slate-700 rounded hover:bg-slate-200 transition-colors">I</button>
-                <button type="button" className="p-1 text-slate-700 rounded hover:bg-slate-200 transition-colors">≡</button>
-                <button type="button" className="p-1 text-slate-700 rounded hover:bg-slate-200 transition-colors"><Link2 className="w-4 h-4" /></button>
+                <button type="button" className="p-1 text-sm font-bold transition-colors rounded text-slate-700 hover:bg-slate-200">B</button>
+                <button type="button" className="p-1 text-sm italic transition-colors rounded text-slate-700 hover:bg-slate-200">I</button>
+                <button type="button" className="p-1 transition-colors rounded text-slate-700 hover:bg-slate-200">≡</button>
+                <button type="button" className="p-1 transition-colors rounded text-slate-700 hover:bg-slate-200"><Link2 className="w-4 h-4" /></button>
               </div>
               <textarea
                 name="instructions"
                 value={formData.instructions}
                 onChange={handleInputChange}
                 placeholder="Outline expectations and deliverables..."
-                className="w-full h-40 px-4 py-3 text-sm bg-white text-slate-900 resize-none placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full h-40 px-4 py-3 text-sm bg-white resize-none text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               />
             </div>
           </div>
 
           {/* Resources */}
-          <div className="bg-white border border-slate-200 rounded-lg p-6">
+          <div className="p-6 bg-white border rounded-lg border-slate-200">
             <h2 className="mb-4 text-sm font-bold tracking-wider uppercase text-slate-900">Resources</h2>
             <label
               htmlFor="file-upload"
-              className="flex flex-col items-center justify-center p-8 mb-4 text-center border-2 border-dashed border-slate-300 rounded-lg cursor-pointer transition-all hover:border-blue-400 hover:bg-blue-50 group"
+              className="flex flex-col items-center justify-center p-8 mb-4 text-center transition-all border-2 border-dashed rounded-lg cursor-pointer border-slate-300 hover:border-blue-400 hover:bg-blue-50 group"
             >
-              <Upload className="w-10 h-10 mx-auto mb-3 text-slate-400 transition-colors group-hover:text-blue-500" />
-              <p className="text-sm font-medium text-slate-700 transition-colors group-hover:text-blue-700">Drop files to upload</p>
+              <Upload className="w-10 h-10 mx-auto mb-3 transition-colors text-slate-400 group-hover:text-blue-500" />
+              <p className="text-sm font-medium transition-colors text-slate-700 group-hover:text-blue-700">Drop files to upload</p>
               <input type="file" multiple onChange={handleFileUpload} className="hidden" id="file-upload" accept=".pdf,.docx,.zip,.mp4" />
             </label>
             {uploadedFiles.length > 0 && (
               <div className="space-y-2">
                 {uploadedFiles.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
+                  <div key={index} className="flex items-center justify-between p-3 transition-colors border rounded-lg border-slate-200 bg-slate-50 hover:bg-slate-100">
                     <div className="flex items-center flex-1 min-w-0 gap-3">
                       {file.type.includes("pdf") ? <FileText className="w-5 h-5 text-red-500 shrink-0" />
                         : file.type.includes("video") ? <Video className="w-5 h-5 text-blue-500 shrink-0" />
                         : <Package className="w-5 h-5 text-slate-500 shrink-0" />}
                       <span className="text-sm font-medium truncate text-slate-900">{file.name}</span>
                     </div>
-                    <button type="button" onClick={() => handleRemoveFile(index)} className="flex-shrink-0 p-1 ml-2 text-slate-400 hover:text-red-600 transition-colors">
+                    <button type="button" onClick={() => handleRemoveFile(index)} className="flex-shrink-0 p-1 ml-2 transition-colors text-slate-400 hover:text-red-600">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
@@ -404,29 +436,29 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between pt-6 border-t border-slate-200">
-          <button type="button" onClick={handlePreview} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900">
+          <button type="button" onClick={handlePreview} className="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors text-slate-600 hover:text-slate-900">
             <Eye className="w-4 h-4" />
             Preview
           </button>
           <div className="flex gap-3">
-            <button type="button" onClick={handleReset} disabled={isSaving} className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg transition-colors hover:bg-slate-50 disabled:opacity-50">
+            <button type="button" onClick={handleReset} disabled={isSaving} className="px-4 py-2 text-sm font-medium transition-colors border rounded-lg text-slate-700 border-slate-300 hover:bg-slate-50 disabled:opacity-50">
               Reset
             </button>
-            <button type="button" onClick={handleCancel} disabled={isSaving} className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg transition-colors hover:bg-slate-50 disabled:opacity-50">
+            <button type="button" onClick={handleCancel} disabled={isSaving} className="px-4 py-2 text-sm font-medium transition-colors border rounded-lg text-slate-700 border-slate-300 hover:bg-slate-50 disabled:opacity-50">
               Cancel
             </button>
             <button
               type="button"
               onClick={handleSaveDraft}
               disabled={isSaving || !formData.title}
-              className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg transition-colors hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-sm font-medium transition-colors border rounded-lg text-slate-700 border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSaving ? "Saving..." : "Save as Draft"}
             </button>
             <button
               type="submit"
               disabled={isSaving || !formData.title || formData.maxScore > 100}
-              className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg transition-colors hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
+              className="px-6 py-2 text-sm font-medium text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
             >
               {isSaving ? "Publishing..." : "Publish & Notify"}
             </button>
