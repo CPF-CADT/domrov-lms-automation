@@ -4,7 +4,6 @@ import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardHeader from "@/features/dashboard/components/DashboardHeader";
 import ClassGrid from "@/features/dashboard/components/ClassGrid";
-import ClassesDetail from "@/features/dashboard/components/ClassesDetail";
 import StatusFilters from "@/features/dashboard/components/TermFilters";
 import JoinClassModal from "@/features/dashboard/components/JoinClassModal";
 import DeleteConfirmModal from "@/features/dashboard/components/DeleteConfirmModal";
@@ -14,7 +13,6 @@ import type { ClassCard } from "@/types/classCard";
 
 export default function DashboardClient() {
   const navigate = useNavigate();
-  const [isViewingClasses, setIsViewingClasses] = useState(false);
   const [classList, setClassList] = useState<ClassCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -123,18 +121,13 @@ export default function DashboardClient() {
     );
   }
 
-  // Show Classes detail view if viewing classes
-  if (isViewingClasses) {
-    return <ClassesDetail onBack={() => setIsViewingClasses(false)} />;
-  }
-
   return (
     <>
       <DashboardHeader
         activeStatus={activeStatus}
         onChangeStatus={setActiveStatus}
         onJoinClass={() => setIsJoinModalOpen(true)}
-        onViewAllClasses={() => setIsViewingClasses(true)}
+        // Removed onViewAllClasses prop and button
       />
 
       <main className="px-6 py-6">
