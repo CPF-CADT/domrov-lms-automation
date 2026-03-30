@@ -1,5 +1,5 @@
 import axiosInstance from '@/lib/axiosInstance';
-import type { ApiResponse, MessageResponse } from '@/types/api';
+import type { MessageResponse } from '@/types/api';
 import type {
     TeamResponseDto,
     CreateTeamDto,

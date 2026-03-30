@@ -99,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             const loginRes = await authService.login(credentials);
             // Extract accessToken from response.data or root
-            const accessToken = loginRes.data?.accessToken || (loginRes as any).accessToken;
+            const accessToken = loginRes.accessToken;
             if (!accessToken) {
                 throw new Error('Login failed.');
             }

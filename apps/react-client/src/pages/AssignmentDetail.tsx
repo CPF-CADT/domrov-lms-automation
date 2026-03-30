@@ -29,10 +29,6 @@ export default function AssignmentDetail() {
     navigate(`/class/${classId}`);
   };
 
-  const handleEditAssignment = () => {
-    navigate(`/class/${classId}/assignment/${assignmentId}/edit`);
-  };
-
   const handleUploadComplete = useCallback((data: unknown) => {
     console.log("Upload complete:", data);
   }, []);
@@ -85,9 +81,6 @@ export default function AssignmentDetail() {
                     <AssignmentInstructions
                       dueDate={assignment.dueDate}
                       objective={assignment.objective}
-                      requirements={assignment.requirements}
-                      gradingRubric={assignment.gradingRubric}
-                      onEdit={handleEditAssignment}
                     />
                     <ReferenceMaterials materials={assignment.referenceMaterials} />
                   </div>

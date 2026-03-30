@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import AnimatedPage from "@/components/AnimatedPage";
 import type { AssessmentDetailDto } from "@/types/assessment";
@@ -24,7 +24,7 @@ export default function AssignmentDetailView({ assessmentId, onBack }: Assignmen
         setAssignment(data);
         setLoading(false);
       })
-      .catch(err => {
+      .catch(_err => {
         setError("Failed to load assignment details.");
         setLoading(false);
       });

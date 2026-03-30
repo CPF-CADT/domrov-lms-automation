@@ -1,7 +1,16 @@
-import { saveAs } from "file-saver";
 import { useEffect, useState } from "react";
 import { FolderIcon, FileIcon } from "lucide-react";
 import fileService from "@/services/fileService";
+
+// Fallback saveAs implementation for file-saver compatibility
+const saveAs = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+};
 
 interface Folder {
   id: string;
@@ -31,11 +40,11 @@ export default function FilesTab({ classId: _classId }: FilesTabProps) {
   useEffect(() => {
     async function fetchData() {
       try {
-        
+
         await fileService.getPresignedUrl({
-          filename: "example.txt", 
-          contentType: "application/pdf", 
-          resourceType: "class", 
+          filename: "example.txt",
+          contentType: "application/pdf",
+          resourceType: "class",
           resourceId: parseInt(_classId),
         });
 
@@ -55,7 +64,7 @@ export default function FilesTab({ classId: _classId }: FilesTabProps) {
   const handleDownload = async (resourceId: number) => {
     try {
       const blob = await fileService.downloadFile(resourceId);
-      saveAs(blob, "downloaded-file.pdf"); 
+      saveAs(blob, "downloaded-file.pdf");
     } catch (error) {
       console.error("Error downloading file:", error);
     }

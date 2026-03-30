@@ -7,17 +7,17 @@ import type { AIProviderDto, UserAIKeyResponseDto } from "@/types/ai";
 // ─── Static model presets ─────────────────────────────────────────────────────
 const PRESET_MODELS: Record<string, { value: string; label: string }[]> = {
   openai: [
-    { value: "gpt-4o",        label: "GPT-4o (Recommended)" },
-    { value: "gpt-4-turbo",   label: "GPT-4 Turbo" },
-    { value: "gpt-4",         label: "GPT-4" },
+    { value: "gpt-4o", label: "GPT-4o (Recommended)" },
+    { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
+    { value: "gpt-4", label: "GPT-4" },
     { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
   ],
   gemini: [
     { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (Recommended)" },
     { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
-    { value: "gemini-1.5-pro",   label: "Gemini 1.5 Pro" },
+    { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
     { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
-    { value: "gemini-pro",       label: "Gemini Pro" },
+    { value: "gemini-pro", label: "Gemini Pro" },
   ],
 };
 
@@ -29,26 +29,26 @@ const FREE_TEXT_MODEL_PROVIDERS = ["ollama", "openrouter", "grok", "custom"];
 
 // Placeholder text for model input on free-text providers
 const MODEL_PLACEHOLDERS: Record<string, string> = {
-  ollama:     "e.g. llama3, mistral, codellama",
+  ollama: "e.g. llama3, mistral, codellama",
   openrouter: "e.g. openai/gpt-4o, anthropic/claude-3",
-  grok:       "e.g. grok-beta",
-  custom:     "e.g. gpt-3.5-turbo, llama3, mistral",
+  grok: "e.g. grok-beta",
+  custom: "e.g. gpt-3.5-turbo, llama3, mistral",
 };
 
 const MODEL_HELP: Record<string, string> = {
-  ollama:     "Model name from your Ollama installation. Run 'ollama list' to see available models.",
+  ollama: "Model name from your Ollama installation. Run 'ollama list' to see available models.",
   openrouter: "Format: provider/model — e.g. openai/gpt-4o or anthropic/claude-3-sonnet",
-  grok:       "Grok model name — e.g. grok-beta or grok-vision-beta",
-  custom:     "The model name your API endpoint supports. Check your provider's documentation.",
+  grok: "Grok model name — e.g. grok-beta or grok-vision-beta",
+  custom: "The model name your API endpoint supports. Check your provider's documentation.",
 };
 
 // Default endpoints — auto-filled when provider is selected
 const DEFAULT_ENDPOINTS: Record<string, string> = {
-  gemini:     "https://generativelanguage.googleapis.com",
-  ollama:     "http://localhost:11434",
+  gemini: "https://generativelanguage.googleapis.com",
+  ollama: "http://localhost:11434",
   openrouter: "https://openrouter.ai/api/v1",
-  grok:       "https://api.x.ai/v1",
-  custom:     "",
+  grok: "https://api.x.ai/v1",
+  custom: "",
 };
 
 // Helper hint text shown below the endpoint input
@@ -57,24 +57,24 @@ const DEFAULT_ENDPOINTS: Record<string, string> = {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface AIEvaluationSettingsProps {
-  onSave?:     (key: UserAIKeyResponseDto) => void;
-  onCancel?:   () => void;
+  onSave?: (key: UserAIKeyResponseDto) => void;
+  onCancel?: () => void;
   editingKey?: UserAIKeyResponseDto | null;
 }
 
 interface FormState {
-  provider:    string;
-  model:       string;
-  apiKey:      string;
-  label:       string;
+  provider: string;
+  model: string;
+  apiKey: string;
+  label: string;
   apiEndpoint: string;
 }
 
 const DEFAULT_FORM: FormState = {
-  provider:    "openai",
-  model:       "gpt-4o",
-  apiKey:      "",
-  label:       "",
+  provider: "openai",
+  model: "gpt-4o",
+  apiKey: "",
+  label: "",
   apiEndpoint: "",
 };
 
@@ -85,14 +85,14 @@ export default function AIEvaluationSettings({
   onCancel,
   editingKey = null,
 }: AIEvaluationSettingsProps) {
-  const [providers,        setProviders]        = useState<AIProviderDto[]>([]);
-  const [savedKeys,        setSavedKeys]        = useState<UserAIKeyResponseDto[]>([]);
-  const [form,             setForm]             = useState<FormState>(DEFAULT_FORM);
-  const [showApiKey,       setShowApiKey]       = useState(false);
+  const [providers, setProviders] = useState<AIProviderDto[]>([]);
+  const [savedKeys, setSavedKeys] = useState<UserAIKeyResponseDto[]>([]);
+  const [form, setForm] = useState<FormState>(DEFAULT_FORM);
+  const [showApiKey, setShowApiKey] = useState(false);
   const [loadingProviders, setLoadingProviders] = useState(true);
-  const [saving,           setSaving]           = useState(false);
-  const [error,            setError]            = useState<string | null>(null);
-  const [success,          setSuccess]          = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   // ── Fetch providers + saved keys on mount ────────────────────────────────
 
@@ -121,10 +121,10 @@ export default function AIEvaluationSettings({
     if (editingKey) {
       const prov = editingKey.provider.toLowerCase();
       setForm({
-        provider:    prov,
-        model:       editingKey.model,
-        apiKey:      "",  // never pre-fill for security
-        label:       editingKey.label ?? "",
+        provider: prov,
+        model: editingKey.model,
+        apiKey: "",  // never pre-fill for security
+        label: editingKey.label ?? "",
         // Use saved endpoint from response, fall back to known default
         apiEndpoint: editingKey.apiEndpoint ?? DEFAULT_ENDPOINTS[prov] ?? "",
       });
@@ -135,20 +135,20 @@ export default function AIEvaluationSettings({
 
   // ── Derived ──────────────────────────────────────────────────────────────
 
-  const isFreeTextModel  = FREE_TEXT_MODEL_PROVIDERS.includes(form.provider);
-  const isManaged        = MANAGED_PROVIDERS.includes(form.provider);  // only openai
+  const isFreeTextModel = FREE_TEXT_MODEL_PROVIDERS.includes(form.provider);
+
   const showEndpointField = !MANAGED_PROVIDERS.includes(form.provider); // show for all except openai
-  const presetModels     = PRESET_MODELS[form.provider] ?? [];
+  const presetModels = PRESET_MODELS[form.provider] ?? [];
 
   // ── Provider change — auto-fill endpoint and reset model ────────────────
 
   const handleProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const p = e.target.value;
     setForm({
-      provider:    p,
-      model:       PRESET_MODELS[p]?.[0]?.value ?? "",
-      apiKey:      "",
-      label:       "",
+      provider: p,
+      model: PRESET_MODELS[p]?.[0]?.value ?? "",
+      apiKey: "",
+      label: "",
       apiEndpoint: DEFAULT_ENDPOINTS[p] ?? "",  // ✅ auto-fill endpoint
     });
     setError(null);
@@ -159,7 +159,7 @@ export default function AIEvaluationSettings({
 
   const handleSave = async () => {
     if (!form.apiKey.trim() && !editingKey) { setError("API key is required."); return; }
-    if (!form.model.trim())                 { setError("Model is required.");    return; }
+    if (!form.model.trim()) { setError("Model is required."); return; }
     if (form.provider === "custom" && !form.apiEndpoint.trim()) {
       setError("API endpoint URL is required for custom provider.");
       return;
@@ -175,10 +175,10 @@ export default function AIEvaluationSettings({
         // PATCH /user-ai/:id
         const patch: Record<string, string | boolean> = {
           provider: form.provider,
-          model:    form.model,
-          label:    form.label,
+          model: form.model,
+          label: form.label,
         };
-        if (form.apiKey.trim())      patch.apiKey      = form.apiKey;
+        if (form.apiKey.trim()) patch.apiKey = form.apiKey;
         if (form.apiEndpoint.trim()) patch.apiEndpoint = form.apiEndpoint.trim();
         const res = await evaluationService.updateAIKey(editingKey.id, patch);
         result = res ?? [];
@@ -191,10 +191,10 @@ export default function AIEvaluationSettings({
           form.apiEndpoint.trim() || DEFAULT_ENDPOINTS[form.provider] || "";
 
         const payload: any = {
-          provider:    form.provider.toLowerCase(),
-          model:       form.model,
-          apiKey:      form.apiKey,
-          label:       form.label.trim() || `${form.provider} / ${form.model}`,
+          provider: form.provider.toLowerCase(),
+          model: form.model,
+          apiKey: form.apiKey,
+          label: form.label.trim() || `${form.provider} / ${form.model}`,
         };
         // Send apiEndpoint for all non-managed providers
         if (!MANAGED_PROVIDERS.includes(form.provider) && resolvedEndpoint) {
@@ -210,7 +210,7 @@ export default function AIEvaluationSettings({
 
       if (onSave) onSave(result);
     } catch (err: any) {
-      const data   = err?.response?.data;
+      const data = err?.response?.data;
       const status = err?.response?.status;
       let msg = "Failed to save. Please try again.";
       if (data?.message) {
@@ -232,9 +232,9 @@ export default function AIEvaluationSettings({
           }
         }
       } else if (status === 400) msg = "Invalid request. Please check all fields and try again.";
-      else if  (status === 401) msg = "Session expired. Please log in again.";
-      else if  (status === 429) msg = "API quota exceeded. Please check your billing details.";
-      else if  (err?.message)   msg = err.message;
+      else if (status === 401) msg = "Session expired. Please log in again.";
+      else if (status === 429) msg = "API quota exceeded. Please check your billing details.";
+      else if (err?.message) msg = err.message;
       console.error("Save AI config error:", data);
       setError(msg);
     } finally {
@@ -429,7 +429,7 @@ export default function AIEvaluationSettings({
                 className={inputCls}
               />
               <p className="text-xs text-slate-400 mt-2">
-                
+
               </p>
             </div>
           )}
@@ -473,7 +473,7 @@ export default function AIEvaluationSettings({
                 <div className="flex items-center gap-3 min-w-0">
                   {key.isValid
                     ? <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
-                    : <XCircle      className="w-5 h-5 text-red-400   shrink-0" />
+                    : <XCircle className="w-5 h-5 text-red-400   shrink-0" />
                   }
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-slate-900 truncate">
@@ -483,14 +483,12 @@ export default function AIEvaluationSettings({
                       <span className="capitalize">{key.provider}</span> · {key.model}
                     </p>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${
-                        key.isActive ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"
-                      }`}>
+                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${key.isActive ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"
+                        }`}>
                         {key.isActive ? "Active" : "Inactive"}
                       </span>
-                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${
-                        key.isValid ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"
-                      }`}>
+                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${key.isValid ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"
+                        }`}>
                         {key.isValid ? "Valid" : "Invalid key"}
                       </span>
                     </div>

@@ -1,7 +1,7 @@
 
 
 import axiosInstance from "@/lib/axiosInstance";
-import type { ApiResponse } from "@/types";
+
 import type {
   StartPaymentResponseDto,
   CheckTransactionByHashDto,

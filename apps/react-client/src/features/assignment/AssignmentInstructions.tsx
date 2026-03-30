@@ -5,9 +5,6 @@ import { AlertCircle } from "lucide-react";
 interface AssignmentInstructionsProps {
   dueDate: string;
   objective: string;
-  requirements?: string[];
-  gradingRubric?: string;
-  onEdit?: () => void;
 }
 
 /**
@@ -17,9 +14,6 @@ interface AssignmentInstructionsProps {
 export default function AssignmentInstructions({
   dueDate,
   objective,
-  requirements,
-  gradingRubric,
-  onEdit
 }: AssignmentInstructionsProps) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">

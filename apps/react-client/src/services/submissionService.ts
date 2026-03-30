@@ -1,5 +1,5 @@
 import axiosInstance from '@/lib/axiosInstance';
-import type { ApiResponse } from '@/types/api';
+
 import type {
     SubmissionStatusItemDto,
     MySubmissionResponseDto,

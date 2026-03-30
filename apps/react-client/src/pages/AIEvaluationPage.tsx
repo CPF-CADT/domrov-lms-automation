@@ -2,7 +2,6 @@ import { useNavigate } from "react-router-dom";
 import MainNavigation from "@/components/navigation/Navigation";
 import AIEvaluationSettings from "@/features/aiEvaluation/components/AIEvaluationSettings";
 import ProfileDropdown from "@/components/data-display/ProfileDropdown";
-import { useState } from "react";
 
 /**
  * AIEvaluationPage - Configure AI evaluation settings for the system.
@@ -10,7 +9,6 @@ import { useState } from "react";
  */
 export default function AIEvaluationPage() {
   const navigate = useNavigate();
-  const [availableTokens] = useState(8000);
 
   const handleSave = (config: any) => {
     console.log("AI Config saved:", config);
@@ -48,8 +46,8 @@ export default function AIEvaluationPage() {
                 Configure the AI models and API settings used for automated grading and feedback.
               </p>
             </div>
-            
-            <AIEvaluationSettings onSave={handleSave} onCancel={handleCancel} availableTokens={availableTokens} />
+
+            <AIEvaluationSettings onSave={handleSave} onCancel={handleCancel} />
           </div>
         </div>
       </div>

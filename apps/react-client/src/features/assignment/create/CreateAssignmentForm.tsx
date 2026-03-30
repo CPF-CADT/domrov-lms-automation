@@ -142,7 +142,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
       Number(classId),
       Number(formData.session)
     );
-    const draftId = draftRes.data.assessmentId;
+    const draftId = draftRes.assessmentId;
     const form = mapToFormData(formData);
     await axiosInstance.patch(`/assessments/${draftId}`, form, {
       headers: { "Content-Type": "multipart/form-data" },
@@ -202,7 +202,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
       const response = await assessmentService.createAssessmentDraft(Number(classId), Number(formData.session));
 
       // Use the correct property for assignment ID
-      const assignmentId = response.data.assessmentId; // Updated to use `id`
+      const assignmentId = response.assessmentId;
       navigate(`/class/${classId}/assignment/${assignmentId}`);
 
       showToast("Assignment created successfully.", "success");

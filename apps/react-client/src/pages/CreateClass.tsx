@@ -45,7 +45,7 @@ export default function CreateClass() {
                 description: formData.description.trim() || undefined,
                 coverImageUrl: formData.coverImageUrl,
             });
-            navigate(`/class/${result.data.id}`);
+            navigate(`/class/${result.id}`);
         } catch (err) {
             setSubmitError(err instanceof Error ? err.message : "Failed to create class");
         } finally {

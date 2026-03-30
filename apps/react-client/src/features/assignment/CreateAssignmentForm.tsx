@@ -136,7 +136,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
         Number(classId),
         Number(formData.session)
       );
-      const draftId = draftRes.data.assessmentId;
+      const draftId = draftRes.assessmentId;
       console.log("[Draft] Draft created, id:", draftId);
 
       // 2. Update with form data (stays as draft — no publish call)
@@ -175,7 +175,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
         Number(classId),
         Number(formData.session)
       );
-      const draftId = draftRes.data.assessmentId;
+      const draftId = draftRes.assessmentId;
       console.log("[Publish] Draft created, id:", draftId);
 
       // 2. Update with form data
@@ -203,7 +203,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
     setLoading(null);
   };
 
- 
+
 
   return (
     <div className="p-4 bg-slate-50 min-h-screen">
