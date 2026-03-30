@@ -19,7 +19,8 @@ import { UserRole } from "@/types/enums";
 import assessmentService from "@/services/assessmentService";
 import submissionService from "@/services/submissionService";
 import type { AssessmentDetailDto } from "@/types/assessment";
-import type { MySubmissionResponseDto } from "@/types/submission";
+import type { SubmissionViewerResponseDto } from "@/types/submission";
+import StudentEvaluationFeedback from "@/features/assignment/StudentEvaluationFeedback";
 
 type StudentTabId = "general" | "assignment" | "grades";
 
@@ -32,7 +33,7 @@ export default function StudentAssignmentDetail() {
 
   const [activeTab] = useState<StudentTabId>("assignment");
   const [assignment, setAssignment] = useState<AssessmentDetailDto | null>(null);
-  const [submission, setSubmission] = useState<MySubmissionResponseDto | null>(null);
+  const [submission, setSubmission] = useState<SubmissionViewerResponseDto | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +59,7 @@ export default function StudentAssignmentDetail() {
 
       // Fetch detailed submission to get actual saved resources
       const detailedSubmission = await submissionService.getSubmissionDetails(submission.id);
-      setSubmission(detailedSubmission as any);
+      setSubmission(detailedSubmission);
 
       // Map updated resources to UploadedFile format
       if (detailedSubmission.resources && Array.isArray(detailedSubmission.resources)) {
@@ -100,14 +101,12 @@ export default function StudentAssignmentDetail() {
         // Fetch submission status
         const submissionData = await submissionService.getMySubmissionStatus(Number(id));
         if (submissionData) {
-          setSubmission(submissionData);
-
           // Fetch detailed submission data if we have a submission ID
           if (submissionData.id) {
             try {
               const detailedSubmission = await submissionService.getSubmissionDetails(submissionData.id);
               // Merge detailed data with existing submission for full context
-              setSubmission(detailedSubmission as any);
+              setSubmission(detailedSubmission);
 
               // Map resources from detailed submission (has the actual structure)
               if (detailedSubmission.resources && Array.isArray(detailedSubmission.resources)) {
@@ -465,6 +464,15 @@ export default function StudentAssignmentDetail() {
                       </div>
                     )}
 
+                    {/* Student Evaluation Feedback - Shows after teacher approval */}
+                    {submission && submission.evaluation?.isApproved && (
+                      <StudentEvaluationFeedback
+                        submission={submission}
+                        maxScore={assignment.maxScore || 0}
+                        assignmentTitle={assignment.title || "Assignment"}
+                      />
+                    )}
+
                     <StudentPortal
                       status={submission?.status || "PENDING"}
                       progress={{ current: Math.floor(Math.random() * 100), total: 100 }}
@@ -496,7 +504,7 @@ export default function StudentAssignmentDetail() {
                             try {
                               // Fetch detailed submission to get actual resources
                               const detailedSubmission = await submissionService.getSubmissionDetails(submissionData.id);
-                              setSubmission(detailedSubmission as any);
+                              setSubmission(detailedSubmission);
 
                               // Map resources from detailed submission
                               if (detailedSubmission.resources && Array.isArray(detailedSubmission.resources)) {
@@ -514,7 +522,7 @@ export default function StudentAssignmentDetail() {
                             } catch (err: any) {
                               console.warn("Could not fetch detailed submission:", err);
                               // Fallback to basic submission data
-                              setSubmission(submissionData);
+                              setSubmission(submissionData as unknown as SubmissionViewerResponseDto);
                               if (submissionData.resources && Array.isArray(submissionData.resources)) {
                                 const files: UploadedFile[] = submissionData.resources.map((resource) => ({
                                   resourceId: resource.id,

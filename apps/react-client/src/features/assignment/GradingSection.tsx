@@ -8,9 +8,9 @@ interface Evaluation {
     isApproved: boolean;
     evaluationType?: string;
     aiOutput?: string | null;
-    confidencePoint?: number | null;
-    created_at?: string;
-    updated_at?: string;
+    confidencePoint?: number | string | null;
+    created_at?: Date | string;
+    updated_at?: Date | string;
 }
 
 interface GradingSectionProps {

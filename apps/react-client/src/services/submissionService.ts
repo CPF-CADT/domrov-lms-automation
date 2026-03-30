@@ -123,6 +123,15 @@ export async function saveDraftAssignment(
     return response.data;
 }
 
+/**
+ * Approve a submission evaluation and post grades to student (Teacher)
+ * Makes the evaluation visible to the student
+ */
+export async function approveSubmission(submissionId: number): Promise<any> {
+    const response = await axiosInstance.patch(`/submissions/approve/${submissionId}`);
+    return response.data?.data || response.data;
+}
+
 const submissionService = {
     getMySubmissionStatusInClass,
     getMySubmissionStatus,
@@ -136,6 +145,7 @@ const submissionService = {
     unsubmitSubmission,
     deleteSubmissionResource,
     saveDraftAssignment,
+    approveSubmission,
 };
 
 export default submissionService;

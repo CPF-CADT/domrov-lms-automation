@@ -3,7 +3,6 @@ import axiosInstance from '@/lib/axiosInstance';
 import type {
   ProcessSubmissionResponseDto,
   FolderStructureResponseDto,
-  AddToQueueDto,
   AddToQueueResponseDto,
 } from '@/types/evaluation';
 import type {
@@ -40,11 +39,12 @@ export async function getSubmissionFolderStructure(
 }
 
 /**
- * Add submission to evaluation queue
+ * Trigger AI evaluation for a submission (Teacher)
+ * Queues the submission for asynchronous AI evaluation
  */
-export async function addToEvaluationQueue(data: AddToQueueDto): Promise<AddToQueueResponseDto> {
-  const response = (await axiosInstance.post('/evaluations/queue', data)).data;
-  return response.data;
+export async function triggerAIEvaluation(submissionId: number): Promise<AddToQueueResponseDto> {
+  const response = await axiosInstance.post('/evaluations/queue', { submission_id: submissionId });
+  return response.data?.data || response.data;
 }
 
 /**
@@ -121,7 +121,7 @@ export async function deleteAIKey(id: number): Promise<{ message: string }> {
 const evaluationService = {
   getSubmissionFileContent,
   getSubmissionFolderStructure,
-  addToEvaluationQueue,
+  triggerAIEvaluation,
   saveAIConfig,
   fetchAIProviders,
   createAIKey,
