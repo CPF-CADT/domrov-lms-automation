@@ -7,7 +7,7 @@ import { useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Toast } from "@/components/Toast";
 
-type TabId = "general" | "assignment" | "posts" | "students" | "files" | "grades";
+type TabId = "general" | "assignment" | "students"| "grades";
 
 export default function EditAssignmentPage() {
   const params = useParams();
@@ -32,7 +32,7 @@ export default function EditAssignmentPage() {
         classId={classId} 
         activeTab={activeTab} 
         onTabChange={setActiveTab}
-        allowedTabs={["general", "assignment", "posts", "students", "files", "grades"]}
+        allowedTabs={["general", "assignment", "students", "grades"]}
       />
       <div className="flex flex-col flex-1">
         <div className="flex items-center gap-4 px-6 py-4 bg-white border-b border-slate-200">
