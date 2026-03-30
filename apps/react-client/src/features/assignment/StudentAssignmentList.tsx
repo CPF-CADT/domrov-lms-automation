@@ -273,7 +273,7 @@ export default function StudentAssignmentList({
                                         key={assignment.id}
                                         onClick={() =>
                                             navigate(
-                                                `/assignment/${assignment.id}`
+                                                `class/${classId}/assignment/${assignment.id}`
                                             )
                                         }
                                         className="group cursor-pointer bg-white border border-slate-200 rounded-lg p-4 hover:border-slate-300 hover:shadow-md transition-all duration-200"

@@ -113,7 +113,7 @@ export default function ClassSidebar({ classId, activeTab, onTabChange, allowedT
 
   const handleSwitchClass = (newClassId: string | number) => {
     onTabChange("general");
-    navigate(`./../${newClassId}`);
+    navigate(`/class/${newClassId}`, { state: { role: currentClass?.role } });
   };
 
   // All possible nav items
