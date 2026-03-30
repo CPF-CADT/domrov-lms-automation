@@ -15,7 +15,7 @@ import TeacherGeneralTab from "@/features/classDashboard/tabs/TeacherGeneralTab"
 import TeacherAssignmentTab from "@/features/classDashboard/tabs/TeacherAssignmentTab";
 import TeacherGradesTab from "@/features/classDashboard/tabs/TeacherGradesTab";
 
-type TeacherTabId = "general" | "assignment" | "posts" | "students" | "files" | "grades";
+type TeacherTabId = "general" | "assignment" | "students" | "grades";
 
 /**
  * TeacherDashboard - Teacher-specific class management interface
@@ -32,7 +32,7 @@ export default function TeacherDashboard() {
     const [activeTab, setActiveTab] = useState<TeacherTabId>(initialTab);
 
     // Teacher-specific tabs include "students" for class roster management
-    const allowedTabs: TeacherTabId[] = ["general", "assignment", "posts", "students", "files", "grades"];
+    const allowedTabs: TeacherTabId[] = ["general", "assignment", "students", "grades"];
 
     /**
      * Render tab content - TEACHER-SPECIFIC

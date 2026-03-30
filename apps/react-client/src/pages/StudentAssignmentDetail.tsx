@@ -18,7 +18,7 @@ import submissionService from "@/services/submissionService";
 import type { AssessmentDetailDto } from "@/types/assessment";
 import type { MySubmissionResponseDto } from "@/types/submission";
 
-type StudentTabId = "general" | "assignment" | "posts" | "files" | "grades";
+type StudentTabId = "general" | "assignment" | "grades";
 
 export default function StudentAssignmentDetail() {
   const { classId, assignmentId } = useParams<{ classId: string; assignmentId: string }>();
@@ -234,7 +234,7 @@ export default function StudentAssignmentDetail() {
     );
   }
 
-  const allowedTabs: StudentTabId[] = ["general", "assignment", "posts", "files", "grades"];
+  const allowedTabs: StudentTabId[] = ["general", "assignment", "grades"];
 
   return (
     <div className="flex min-h-screen bg-slate-50">

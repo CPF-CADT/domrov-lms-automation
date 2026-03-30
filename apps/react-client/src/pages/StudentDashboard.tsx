@@ -14,7 +14,7 @@ import StudentGeneralTab from "@/features/classDashboard/tabs/StudentGeneralTab"
 import StudentAssignmentTab from "@/features/classDashboard/tabs/StudentAssignmentTab";
 import StudentGradesTab from "@/features/classDashboard/tabs/StudentGradesTab";
 
-type StudentTabId = "general" | "assignment" | "posts" | "files" | "grades";
+type StudentTabId = "general" | "assignment" | "grades";
 
 /**
  * StudentDashboard - Student-specific class view with tabs for assignments, grades, posts, and files
@@ -31,7 +31,7 @@ export default function StudentDashboard() {
     const [activeTab, setActiveTab] = useState<StudentTabId>(initialTab);
 
     // Student-only allowed tabs (no teacher-specific tabs like "students")
-    const allowedTabs: StudentTabId[] = ["general", "assignment", "posts", "files", "grades"];
+    const allowedTabs: StudentTabId[] = ["general", "assignment", "grades"];
 
     /**
      * Render tab content - STUDENT-SPECIFIC
