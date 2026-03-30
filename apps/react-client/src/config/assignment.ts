@@ -18,4 +18,5 @@ export const MOCK_ASSIGNMENT = {
     progress: { current: 3, total: 5 },
     progressPercent: 100,
     submittedAt: "Oct 24, 2023 2:45 PM",
+    submissionId: 3,
 };

@@ -35,15 +35,17 @@ export class FileService {
       const key = `${userId}/${parentType}/${parentId}/${safeName}`;
       const { uploadUrl } = await this.r2Service.getUploadUrl(key, contentType);
       return { presignedUrl: uploadUrl, key };
-    } catch (err) {
-      throw new NotFoundException('Failed to generate presigned URL');
+    } catch (err: any) {
+      console.error('Error generating presigned URL:', err);
+      if (err instanceof NotFoundException) throw err;
+      throw new NotFoundException(`Failed to generate presigned URL: ${err.message}`);
     }
   }
 
   async getPresignedUrlForCloudinary() {
     try {
       return await this.cloudinaryService.getPresignedUrl();
-    } catch (err) {
+    } catch (err: any) {
       throw new NotFoundException('Failed to generate Cloudinary presigned URL');
     }
   }
@@ -68,9 +70,11 @@ export class FileService {
         owner: `${userId}`,
       });
       await this.resourceRepo.save(resource);
-      return { message: 'Resource saved successfully' };
-    } catch (err) {
-      throw new NotFoundException('Failed to notify upload success');
+      return { message: 'Resource saved successfully', resourceId: resource.id };
+    } catch (err: any) {
+      console.error('Error notifying upload success:', err);
+      if (err instanceof NotFoundException) throw err;
+      throw new NotFoundException(`Failed to notify upload success: ${err.message}`);
     }
   }
 
@@ -93,9 +97,10 @@ export class FileService {
         filename: resource.title.trim(),
         contentType,
       };
-    } catch (err) {
+    } catch (err: any) {
+      console.error('Error getting resource stream:', err);
       if (err instanceof ForbiddenException || err instanceof NotFoundException) throw err;
-      throw new NotFoundException('Failed to get resource stream');
+      throw new NotFoundException(`Failed to get resource stream: ${err.message}`);
     }
   }
 

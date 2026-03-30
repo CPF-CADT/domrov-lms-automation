@@ -55,6 +55,7 @@ import { TeamAssessment } from '../../libs/entities/classroom/team-assessment.en
 import { NotificationService } from '../../services/notification.service';
 import { NotificationType } from '../../libs/entities/user/notification.entity';
 import { ConfigService } from '@nestjs/config';
+import { json } from 'stream/consumers';
 // import { Notification } from '../../libs/entities/user/notification.entity';
 
 @Injectable()
@@ -87,7 +88,7 @@ export class SubmissionService {
     private walletService: WalletService,
     private readonly aiEvaluationService: EvaluationService,
     private readonly config: ConfigService
-  ) {}
+  ) { }
 
   async createSubmissionsForAssessment(assessment: Assessment) {
     try {
@@ -180,6 +181,7 @@ export class SubmissionService {
     dto: SubmitAssignmentDto,
   ): Promise<SubmitAssignmentResponseDto> {
     try {
+      // 1️⃣ Load assessment with all necessary relations
       const assessmentMeta = await this.assessmentRepo.findOne({
         where: { id: assessmentId },
         relations: [
@@ -192,17 +194,16 @@ export class SubmissionService {
           'teamAssessments.team.members.user',
         ],
       });
-
       if (!assessmentMeta) throw new NotFoundException('Assessment not found');
 
+      // 2️⃣ Check enrollment
       const isEnrolled = assessmentMeta.class.enrollments.some(
         (e) => e.user.id === userId,
       );
-
       if (!isEnrolled) throw new ForbiddenException('Not enrolled in class');
 
+      // 3️⃣ Determine submission (team or individual)
       let submission: Submission;
-
       let team: Team | undefined;
 
       if (assessmentMeta.submissionType === SubmissionType.TEAM) {
@@ -216,93 +217,104 @@ export class SubmissionService {
         team = teamAssessment.team;
         if (team.members.length > team.maxMember)
           throw new BadRequestException('Team exceeds maximum members');
+
         submission = await this.submissionRepo.findOne({
           where: { assessment: { id: assessmentId }, team: { id: team.id } },
           relations: ['resources', 'resources.resource'],
         });
-        if (!submission) {
-          submission = this.submissionRepo.create({
-            assessment: assessmentMeta,
-            team,
-            status: SubmissionStatus.PENDING,
-            attemptNumber: 1,
-          });
-        }
       } else {
         submission = await this.submissionRepo.findOne({
           where: { assessment: { id: assessmentId }, user: { id: userId } },
           relations: ['resources', 'resources.resource'],
         });
-        if (!submission) {
-          submission = this.submissionRepo.create({
-            assessment: assessmentMeta,
-            user: { id: userId },
-            status: SubmissionStatus.PENDING,
-            attemptNumber: 1,
-          });
-        }
       }
+
       if (!submission) throw new NotFoundException('Submission not found');
       if (submission.status === SubmissionStatus.GRADED)
         throw new BadRequestException('Cannot edit after grading');
       if (dto.comments) submission.comments = dto.comments;
-      if (submission.id) {
+
+      // 4️⃣ Save submission first to ensure submission.id exists
+      submission.status = SubmissionStatus.PENDING;
+      await this.submissionRepo.save(submission);
+
+      // 5️⃣ Handle resources from DTO
+      if (dto.resources?.length) {
+        // Delete old submission-resource links
         await this.subResourceRepo.delete({
           submission: { id: submission.id },
         });
-      }
-      if (dto.resources?.length) {
-        for (const resDto of dto.resources) {
+
+        // Remove duplicates
+        const uniqueResourceIds = [...new Set(dto.resources.map(r => r.resourceId))];
+
+        for (const resourceId of uniqueResourceIds) {
           const resource = await this.resourceRepo.findOne({
-            where: { id: resDto.resourceId },
+            where: { id: resourceId },
           });
-          if (!resource)
-            throw new BadRequestException(
-              `Resource ${resDto.resourceId} not found`,
-            );
+          if (!resource) {
+            throw new BadRequestException(`Resource ${resourceId} not found`);
+          }
+
+          // Optional GitHub URL enforcement
           if (
-            assessmentMeta.allowedSubmissionMethod ===
-              SubmissionMethod.GITHUB &&
+            assessmentMeta.allowedSubmissionMethod === SubmissionMethod.GITHUB &&
             resource.type !== ResourceType.URL
           ) {
-            throw new BadRequestException(
-              `Resource ${resDto.resourceId} must be a GitHub URL`,
-            );
+            throw new BadRequestException(`Resource ${resourceId} must be a GitHub URL`);
           }
-          const subRes = this.subResourceRepo.create({ submission, resource });
+
+          // Use submission.id to avoid null foreign key
+          const subRes = this.subResourceRepo.create({
+            submission: { id: submission.id },
+            resource: resource,
+          });
           await this.subResourceRepo.save(subRes);
         }
       }
+
+      // 6️⃣ Handle GitHub URL as new resource
       if (dto.githubUrl) {
-        const resource = await this.resourceRepo.save({
+        const resource = this.resourceRepo.create({
           title: `GitHub: ${assessmentMeta.title}`,
           type: ResourceType.URL,
           url: dto.githubUrl,
           owner: `${userId}`,
         });
-        await this.subResourceRepo.save({ submission, resource });
+        await this.resourceRepo.save(resource);
+
+        const subRes = this.subResourceRepo.create({
+          submission: { id: submission.id },
+          resource: resource,
+        });
+        await this.subResourceRepo.save(subRes);
       }
 
-if (submission.id) {
-  const existingEvaluation = await this.evaluationRepo.findOne({
-    where: { submission: { id: submission.id } },
-  });
-  if (existingEvaluation) {
-    
-    throw new BadRequestException('Cannot edit after evaluation');
-  }
-}
+      // 7️⃣ Prevent editing after evaluation
+      const existingEvaluation = await this.evaluationRepo.findOne({
+        where: { submission: { id: submission.id } },
+      });
+      if (existingEvaluation) {
+        throw new BadRequestException('Cannot edit after evaluation');
+      }
 
-      submission.status = SubmissionStatus.PENDING;
-      await this.submissionRepo.save(submission);
-      return { message: 'Draft saved', submissionId: submission.id };
+      // 8️⃣ Reload submission with resources
+      const updatedSubmission = await this.submissionRepo.findOne({
+        where: { id: submission.id },
+        relations: ['resources', 'resources.resource'],
+      });
+
+      return {
+        message: 'Draft saved ' + JSON.stringify(updatedSubmission),
+        submissionId: submission.id,
+      };
     } catch (err) {
       if (
         err instanceof NotFoundException ||
         err instanceof BadRequestException ||
         err instanceof ForbiddenException
       ) {
-        throw err; // let test-expected errors bubble
+        throw err;
       }
       console.error('Unexpected error in saveDraftAssignment:', err);
       throw new BadRequestException('Failed to save draft assignment');
@@ -397,7 +409,7 @@ if (submission.id) {
 
       return { message: 'Submitted successfully', submissionId: submission.id };
     } catch (err) {
-      throw new BadRequestException('Failed to submit assignment');
+      throw new BadRequestException('Failed to submit assignment' + (err instanceof Error ? err.message : String(err)));
     }
   }
 
@@ -536,51 +548,51 @@ if (submission.id) {
       attemptNumber: submission.attemptNumber,
       user: submission.user
         ? {
-            id: submission.user.id,
-            firstName: submission.user.firstName,
-            lastName: submission.user.lastName,
-          }
+          id: submission.user.id,
+          firstName: submission.user.firstName,
+          lastName: submission.user.lastName,
+        }
         : null,
       team: submission.team
         ? {
-            id: submission.team.id,
-            name: submission.team.name,
-            maxMember: submission.team.maxMember,
-            members: submission.team.members.map((m) => ({
-              id: m.id,
-              user: m.user
-                ? {
-                    id: m.user.id,
-                    firstName: m.user.firstName,
-                    lastName: m.user.lastName,
-                  }
-                : null,
-            })),
-          }
+          id: submission.team.id,
+          name: submission.team.name,
+          maxMember: submission.team.maxMember,
+          members: submission.team.members.map((m) => ({
+            id: m.id,
+            user: m.user
+              ? {
+                id: m.user.id,
+                firstName: m.user.firstName,
+                lastName: m.user.lastName,
+              }
+              : null,
+          })),
+        }
         : null,
       assessment: submission.assessment
         ? {
-            id: submission.assessment.id,
-            title: submission.assessment.title,
-            maxScore: submission.assessment.maxScore,
-            class: submission.assessment.class
-              ? {
-                  id: submission.assessment.class.id,
-                  name: submission.assessment.class.name,
-                }
-              : null,
-          }
+          id: submission.assessment.id,
+          title: submission.assessment.title,
+          maxScore: submission.assessment.maxScore,
+          class: submission.assessment.class
+            ? {
+              id: submission.assessment.class.id,
+              name: submission.assessment.class.name,
+            }
+            : null,
+        }
         : null,
       evaluation: submission.evaluation ?? null,
       resources: submission.resources.map((r) => ({
         id: r.id,
         resource: r.resource
           ? {
-              id: r.resource.id,
-              title: r.resource.title,
-              type: r.resource.type,
-              url: r.resource.url,
-            }
+            id: r.resource.id,
+            title: r.resource.title,
+            type: r.resource.type,
+            url: r.resource.url,
+          }
           : null,
       })),
     };
@@ -653,12 +665,12 @@ if (submission.id) {
     const evaluationData =
       submission.evaluation && (submission?.evaluation?.isApproved ?? false)
         ? {
-            id: submission.evaluation.id,
-            score: submission.evaluation.score,
-            feedback: submission.evaluation.feedback || null,
-            aiFeedback: submission.evaluation.aiOutput,
-            isApproved: true,
-          }
+          id: submission.evaluation.id,
+          score: submission.evaluation.score,
+          feedback: submission.evaluation.feedback || null,
+          aiFeedback: submission.evaluation.aiOutput,
+          isApproved: true,
+        }
         : null;
 
     return {
@@ -1011,7 +1023,7 @@ if (submission.id) {
     if (!submission) throw new NotFoundException('Submission not found');
 
     const assessment = submission.assessment;
-    const R2_KEY = `${submission.userId}/submission/${submission.id}`;
+    const R2_KEY = `${submission.userId??`Team${submission.teamId}`}/submission/${submission.id}`;
     let resourceUrl: string | null = null;
 
     if (
@@ -1049,42 +1061,42 @@ if (submission.id) {
 
       user: submission.user
         ? {
-            id: submission.user.id,
-            firstName: submission.user.firstName,
-            lastName: submission.user.lastName,
-          }
+          id: submission.user.id,
+          firstName: submission.user.firstName,
+          lastName: submission.user.lastName,
+        }
         : null,
 
       team: submission.team
         ? {
-            id: submission.team.id,
-            name: submission.team.name,
-            maxMember: submission.team.maxMember,
-            members: submission.team.members.map((m) => ({
-              id: m.id,
-              user: m.user
-                ? {
-                    id: m.user.id,
-                    firstName: m.user.firstName,
-                    lastName: m.user.lastName,
-                  }
-                : null,
-            })),
-          }
+          id: submission.team.id,
+          name: submission.team.name,
+          maxMember: submission.team.maxMember,
+          members: submission.team.members.map((m) => ({
+            id: m.id,
+            user: m.user
+              ? {
+                id: m.user.id,
+                firstName: m.user.firstName,
+                lastName: m.user.lastName,
+              }
+              : null,
+          })),
+        }
         : null,
 
       assessment: submission.assessment
         ? {
-            id: submission.assessment.id,
-            title: submission.assessment.title,
-            maxScore: submission.assessment.maxScore,
-            class: submission.assessment.class
-              ? {
-                  id: submission.assessment.class.id,
-                  name: submission.assessment.class.name,
-                }
-              : null,
-          }
+          id: submission.assessment.id,
+          title: submission.assessment.title,
+          maxScore: submission.assessment.maxScore,
+          class: submission.assessment.class
+            ? {
+              id: submission.assessment.class.id,
+              name: submission.assessment.class.name,
+            }
+            : null,
+        }
         : null,
 
       // 🔓 Teacher sees evaluation always
@@ -1094,11 +1106,11 @@ if (submission.id) {
         id: r.id,
         resource: r.resource
           ? {
-              id: r.resource.id,
-              title: r.resource.title,
-              type: r.resource.type,
-              url: r.resource.url,
-            }
+            id: r.resource.id,
+            title: r.resource.title,
+            type: r.resource.type,
+            url: r.resource.url,
+          }
           : null,
       })),
     };
@@ -1125,42 +1137,42 @@ if (submission.id) {
 
       user: submission.user
         ? {
-            id: submission.user.id,
-            firstName: submission.user.firstName,
-            lastName: submission.user.lastName,
-          }
+          id: submission.user.id,
+          firstName: submission.user.firstName,
+          lastName: submission.user.lastName,
+        }
         : null,
 
       team: submission.team
         ? {
-            id: submission.team.id,
-            name: submission.team.name,
-            maxMember: submission.team.maxMember,
-            members: submission.team.members.map((m) => ({
-              id: m.id,
-              user: m.user
-                ? {
-                    id: m.user.id,
-                    firstName: m.user.firstName,
-                    lastName: m.user.lastName,
-                  }
-                : null,
-            })),
-          }
+          id: submission.team.id,
+          name: submission.team.name,
+          maxMember: submission.team.maxMember,
+          members: submission.team.members.map((m) => ({
+            id: m.id,
+            user: m.user
+              ? {
+                id: m.user.id,
+                firstName: m.user.firstName,
+                lastName: m.user.lastName,
+              }
+              : null,
+          })),
+        }
         : null,
 
       assessment: submission.assessment
         ? {
-            id: submission.assessment.id,
-            title: submission.assessment.title,
-            maxScore: submission.assessment.maxScore,
-            class: submission.assessment.class
-              ? {
-                  id: submission.assessment.class.id,
-                  name: submission.assessment.class.name,
-                }
-              : null,
-          }
+          id: submission.assessment.id,
+          title: submission.assessment.title,
+          maxScore: submission.assessment.maxScore,
+          class: submission.assessment.class
+            ? {
+              id: submission.assessment.class.id,
+              name: submission.assessment.class.name,
+            }
+            : null,
+        }
         : null,
 
       // 🔐 Student sees evaluation ONLY if approved
@@ -1170,11 +1182,11 @@ if (submission.id) {
         id: r.id,
         resource: r.resource
           ? {
-              id: r.resource.id,
-              title: r.resource.title,
-              type: r.resource.type,
-              url: r.resource.url,
-            }
+            id: r.resource.id,
+            title: r.resource.title,
+            type: r.resource.type,
+            url: r.resource.url,
+          }
           : null,
       })),
     };

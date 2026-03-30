@@ -1,133 +1,76 @@
 "use client";
 
-
-import { useState } from "react";
+import { useEffect } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { UserRole } from "@/types/enums";
 import MainNavigation from "@/components/navigation/Navigation";
-import {
-  ClassSidebar,
-  ClassTabs,
-  GeneralTab,
-  AssignmentTab,
-  PostsTab,
-  StudentsTab,
-  FilesTab,
-  GradesTab,
-} from "@/features/classDashboard";
-import TeacherAssignmentTab from "@/features/classDashboard/tabs/TeacherAssignmentTab";
-import { useParams, useLocation } from "react-router-dom";
+import StudentDashboard from "./StudentDashboard";
+import TeacherDashboard from "./TeacherDashboard";
 
-type TabId = "general" | "assignment" | "posts" | "students" | "files" | "grades";
-
-
-export default function ClassDashboardClient() {
+/**
+ * ClassDashboard - Router component that delegates to StudentDashboard or TeacherDashboard
+ * Role is determined exclusively by class context (location.state.role)
+ * A user can have different roles in different classes
+ */
+export default function ClassDashboard() {
   const params = useParams();
   const classId = params.id as string;
-  const { isLoading: authLoading } = useAuth();
   const location = useLocation();
-  const initialTab = (location.state?.activeTab as TabId) || "general";
-  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
-  // Get role from location.state (passed from ClassCard) or default to Teacher
-  const role = (location.state && location.state.role) || UserRole.Teacher;
-  const [error] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const { isLoading: authLoading } = useAuth();
 
-  const renderTabContent = () => {
-    if (role === UserRole.Teacher) {
-      switch (activeTab) {
-        case "general":
-          return <GeneralTab classId={classId} />;
-        case "assignment":
-          return <TeacherAssignmentTab classId={classId} />;
-        case "posts":
-          return <PostsTab classId={classId} />;
-        case "students":
-          return <StudentsTab classId={classId} />;
-        case "files":
-          return <FilesTab classId={classId} />;
-        case "grades":
-          return <GradesTab classId={classId} />;
-        default:
-          return <GeneralTab classId={classId} />;
-      }
-    } else if (role === UserRole.Student) {
-      switch (activeTab) {
-        case "general":
-          return <GeneralTab classId={classId} />;
-        case "assignment":
-          return <AssignmentTab classId={classId} />;
-        case "posts":
-          return <PostsTab classId={classId} />;
-        case "files":
-          return <FilesTab classId={classId} />;
-        case "grades":
-          return <GradesTab classId={classId} />;
-        // Students tab is not available for students
-        default:
-          return <GeneralTab classId={classId} />;
-      }
+  // Role MUST come from class context only (passed from ClassCard)
+  // A user can be a teacher in one class and a student in another
+  const role = location.state?.role;
+
+  useEffect(() => {
+    // Validate classId
+    if (!classId) {
+      navigate("/classes");
     }
-    return null;
-  };
+  }, [classId, navigate]);
 
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-lg text-slate-600">Loading class dashboard...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-lg text-red-600">{error}</div>
-      </div>
-    );
-  }
-
-  // Permission: Only show dashboard if user is enrolled (role is present)
-  if (!role) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-lg text-red-600">Unable to load class. Please try again.</div>
-      </div>
-    );
-  }
-
-  // Teacher: all tabs, Student: no Students tab
-  const allowedTabs: TabId[] = role === UserRole.Teacher
-    ? ["general", "assignment", "posts", "students", "files", "grades"]
-    : ["general", "assignment", "posts", "files", "grades"];
-
-  return (
-    <div className="flex min-h-screen bg-slate-50">
-      <MainNavigation activeId="classes" />
-      <div className="flex flex-col flex-1 min-w-0">
-        <div className="flex w-full min-h-screen">
-          {/* Class Sidebar (middle left) */}
-          <ClassSidebar
-            classId={classId}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            allowedTabs={allowedTabs}
-            role={role}
-          />
-
-          {/* Main Content Area */}
-          <div className="flex flex-col flex-1 min-w-0">
-            {/* Top Header Navigation */}
-            <ClassTabs activeTab={activeTab} allowedTabs={allowedTabs} />
-
-            {/* Tab Content */}
-            <main className="flex-1 overflow-y-auto bg-slate-50">
-              <div key={activeTab} className="animate-fadeIn">
-                {renderTabContent()}
-              </div>
-            </main>
+      <div className="flex min-h-screen bg-slate-50">
+        <MainNavigation activeId="classes" />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            <p className="text-slate-600 font-medium">Loading your dashboard...</p>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // Require role from class context
+  if (!role) {
+    return (
+      <div className="flex min-h-screen bg-slate-50">
+        <MainNavigation activeId="classes" />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <p className="text-red-600 font-medium">Unable to determine your role in this class</p>
+            <button
+              onClick={() => navigate("/classes")}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            >
+              Back to Classes
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Route to appropriate dashboard based on class role
+  if (role === UserRole.Teacher || role === UserRole.TeacherAssistant) {
+
+    return <TeacherDashboard />;
+  } else {
+    return <StudentDashboard />;
+  }
 }

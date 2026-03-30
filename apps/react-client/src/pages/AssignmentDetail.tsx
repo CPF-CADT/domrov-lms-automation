@@ -95,7 +95,7 @@ export default function AssignmentDetail() {
                       onFilesAdded={addFiles}
                       onFileRemoved={removeFile}
                       assignmentId={assignmentId}
-                      userId="1"
+                      submissionId={assignment.submissionId}
                       onUploadComplete={handleUploadComplete}
                       onFileClick={handleFileClick}
                     />

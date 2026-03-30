@@ -9,58 +9,61 @@ import MainNavigation from "@/components/navigation/Navigation";
 import {
     ClassSidebar,
     ClassTabs,
+    StudentsTab,
 } from "@/features/classDashboard";
-import StudentGeneralTab from "@/features/classDashboard/tabs/StudentGeneralTab";
-import StudentAssignmentTab from "@/features/classDashboard/tabs/StudentAssignmentTab";
-import StudentGradesTab from "@/features/classDashboard/tabs/StudentGradesTab";
+import TeacherGeneralTab from "@/features/classDashboard/tabs/TeacherGeneralTab";
+import TeacherAssignmentTab from "@/features/classDashboard/tabs/TeacherAssignmentTab";
+import TeacherGradesTab from "@/features/classDashboard/tabs/TeacherGradesTab";
 
-type StudentTabId = "general" | "assignment" | "posts" | "files" | "grades";
+type TeacherTabId = "general" | "assignment" | "posts" | "students" | "files" | "grades";
 
 /**
- * StudentDashboard - Student-specific class view with tabs for assignments, grades, posts, and files
- * Optimized for student workflows with focus on assignment submission and grading
+ * TeacherDashboard - Teacher-specific class management interface
+ * Includes assignment creation/grading, student management, and class administration
  */
-export default function StudentDashboard() {
+export default function TeacherDashboard() {
     const params = useParams();
     const classId = params.id as string;
     const location = useLocation();
     const { isLoading: authLoading } = useAuth();
 
     // Restore tab state from navigation or default to general
-    const initialTab = (location.state?.activeTab as StudentTabId) || "general";
-    const [activeTab, setActiveTab] = useState<StudentTabId>(initialTab);
+    const initialTab = (location.state?.activeTab as TeacherTabId) || "general";
+    const [activeTab, setActiveTab] = useState<TeacherTabId>(initialTab);
 
-    // Student-only allowed tabs (no teacher-specific tabs like "students")
-    const allowedTabs: StudentTabId[] = ["general", "assignment", "posts", "files", "grades"];
+    // Teacher-specific tabs include "students" for class roster management
+    const allowedTabs: TeacherTabId[] = ["general", "assignment", "posts", "students", "files", "grades"];
 
     /**
-     * Render tab content - STUDENT-SPECIFIC
-     * Each tab component is optimized for student workflow (submission, tracking, feedback)
-     * NOT shared with teacher dashboard - uses dedicated StudentXTab components
+     * Render tab content - TEACHER-SPECIFIC
+     * Each tab component is optimized for classroom management (creation, grading, administration)
+     * NOT shared with student dashboard - uses dedicated TeacherXTab components
      */
     const renderTabContent = () => {
         switch (activeTab) {
-            // Student General Tab - Shows assignment overview, deadlines, and status
+            // Teacher General Tab - Class overview, assignment management
             case "general":
-                return <StudentGeneralTab classId={classId} />;
+                return <TeacherGeneralTab classId={classId} />;
 
-            // Student Assignment Tab - Focused on submission workflow (student-specific)
+            // Teacher Assignment Tab - Create, edit, grade assignments
             case "assignment":
-                return <StudentAssignmentTab classId={classId} />;
+                return <TeacherAssignmentTab classId={classId} />;
 
-            // Student Grades Tab - View feedback and scores (read-only)
+            // Teacher Students Tab - Class roster and student management (teacher only)
+            case "students":
+                return <StudentsTab classId={classId} />;
+
+            // Teacher Grades Tab - Grade management and analytics
             case "grades":
-                return <StudentGradesTab />;
+                return <TeacherGradesTab />;
 
             default:
-                return <StudentGeneralTab classId={classId} />;
+                return <TeacherGeneralTab classId={classId} />;
         }
     };
 
-    const handleTabChange = (tab: StudentTabId | string) => {
-        if (tab !== "students") {
-            setActiveTab(tab as StudentTabId);
-        }
+    const handleTabChange = (tab: TeacherTabId | string) => {
+        setActiveTab(tab as TeacherTabId);
     };
 
     if (authLoading) {
@@ -90,7 +93,7 @@ export default function StudentDashboard() {
                         activeTab={activeTab}
                         onTabChange={handleTabChange as any}
                         allowedTabs={allowedTabs}
-                        role={UserRole.Student}
+                        role={UserRole.Teacher}
                     />
 
                     {/* Main Content Area */}

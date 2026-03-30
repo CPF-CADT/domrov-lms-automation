@@ -24,4 +24,7 @@ export class PresignedUrlResponseDto {
 export class NotifyUploadResponseDto {
   @ApiProperty({ description: 'Success message', example: 'Resource saved successfully' })
   message: string;
+
+  @ApiProperty({ type: Number, description: 'ID of the created resource', example: 123 })
+  resourceId?: number;
 }

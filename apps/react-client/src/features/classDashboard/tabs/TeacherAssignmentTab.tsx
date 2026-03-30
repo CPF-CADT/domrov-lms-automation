@@ -7,6 +7,13 @@ import CreateAssignmentDetail from "@/features/assignment/components/CreateAssig
 import assessmentService from "@/services/assessmentService";
 import type { AssessmentListItemDto } from "@/types/assessment";
 
+/**
+ * TeacherAssignmentTab - TEACHER-SPECIFIC
+ * Teacher interface for creating, editing, publishing, and managing assignment lifecycle
+ * Includes assignment creation, draft/publish management, and grading tools
+ * NOT shared with student dashboard
+ */
+
 function getStatusColor(isPublic: boolean): string {
   return isPublic ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700";
 }

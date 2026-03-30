@@ -10,12 +10,26 @@ export class R2Service {
   private s3: S3Client;
 
   constructor(private readonly configService: ConfigService) {
+    const accountId = this.configService.get('R2_ACCOUNT_ID');
+    const token = this.configService.get<string>('R2_TOKEN');
+    const secretKey = this.configService.get<string>('R2_SECRET_KEY');
+    const bucket = this.configService.get<string>('R2_BUCKET');
+
+    if (!accountId || !token || !secretKey || !bucket) {
+      console.error('R2 configuration missing:', {
+        accountId: !!accountId,
+        token: !!token,
+        secretKey: !!secretKey,
+        bucket: !!bucket,
+      });
+    }
+
     this.s3 = new S3Client({
       region: 'auto',
-      endpoint: `https://${this.configService.get('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com`,
+      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
       credentials: {
-        accessKeyId: this.configService.get<string>('R2_TOKEN')!,
-        secretAccessKey: this.configService.get<string>('R2_SECRET_KEY')!,
+        accessKeyId: token!,
+        secretAccessKey: secretKey!,
       },
       forcePathStyle: true,
     });
@@ -34,8 +48,10 @@ export class R2Service {
       });
       const uploadUrl = await getSignedUrl(this.s3, command, { expiresIn: 300 });
       return { uploadUrl, key };
-    } catch (err) {
-      throw new NotFoundException('Failed to get upload URL');
+    } catch (err: any) {
+      console.error('Error generating upload URL:', err);
+      if (err instanceof NotFoundException) throw err;
+      throw new NotFoundException(`Failed to get upload URL: ${err.message}`);
     }
   }
 
@@ -81,8 +97,10 @@ export class R2Service {
         stream,
         contentType: r2Object.ContentType || 'application/octet-stream',
       };
-    } catch (err) {
-      throw new NotFoundException('Failed to stream file');
+    } catch (err: any) {
+      console.error('Error streaming file:', err);
+      if (err instanceof NotFoundException) throw err;
+      throw new NotFoundException(`Failed to stream file: ${err.message}`);
     }
   }
 

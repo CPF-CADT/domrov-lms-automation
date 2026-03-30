@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import StatusBadge from "@/components/primitives/StatusBadge";
-import { ClipboardIcon } from "./icons";
+import { ClipboardIcon, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 
 interface Assignment {
   id: string;
@@ -11,27 +11,36 @@ interface Assignment {
   module: string;
   status?: "submitted" | "feedback" | "inactive";
   additionalStatus?: "feedback";
+  maxScore?: number;
 }
 
 interface AssignmentCardProps {
   assignment: Assignment;
   classId?: string;
+  submissionStatus?: "not-submitted" | "submitted-early" | "submitted-ontime" | "submitted-late" | "graded" | null;
+  currentScore?: number;
+  maxScore?: number;
 }
 
 /**
- * AssignmentCard - Individual assignment card display.
- * Redesigned to match the reference design with better visual hierarchy.
+ * AssignmentCard - Individual assignment card display with submission status.
+ * Shows visual indicators for submission timing (early, on-time, late) and grading status.
  */
-export default function AssignmentCard({ assignment, classId }: AssignmentCardProps) {
+export default function AssignmentCard({
+  assignment,
+  classId,
+  submissionStatus = null,
+  currentScore,
+  maxScore = assignment.maxScore
+}: AssignmentCardProps) {
   const location = useLocation();
 
-  // Determine if we're in a student context by checking the URL
   const isStudentContext = location.pathname.includes('/student-class/');
 
-  // Build the appropriate link based on context
   const assignmentLink = isStudentContext && classId
     ? `/student-class/${classId}/assignment/${assignment.id}`
     : `/assignment/${assignment.id}`;
+
   const getStatusBadges = () => {
     if (!assignment.status) return null;
 
@@ -41,6 +50,29 @@ export default function AssignmentCard({ assignment, classId }: AssignmentCardPr
         {assignment.additionalStatus === "feedback" && (
           <StatusBadge status="feedback" />
         )}
+      </div>
+    );
+  };
+
+  const getSubmissionStatusBadge = () => {
+    if (!submissionStatus) return null;
+
+    const badgeConfig: Record<string, { icon: any; label: string; color: string }> = {
+      "not-submitted": { icon: Clock, label: "Not Submitted", color: "bg-slate-100 text-slate-700" },
+      "submitted-early": { icon: CheckCircle2, label: "Submitted Early", color: "bg-green-100 text-green-700" },
+      "submitted-ontime": { icon: CheckCircle2, label: "Submitted", color: "bg-blue-100 text-blue-700" },
+      "submitted-late": { icon: AlertCircle, label: "Submitted Late", color: "bg-orange-100 text-orange-700" },
+      "graded": { icon: CheckCircle2, label: `Graded ${currentScore !== undefined ? `• ${currentScore}/${maxScore}` : ''}`, color: "bg-purple-100 text-purple-700" },
+    };
+
+    const config = badgeConfig[submissionStatus];
+    if (!config) return null;
+
+    const IconComponent = config.icon;
+    return (
+      <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold ${config.color}`}>
+        <IconComponent className="w-4 h-4" />
+        {config.label}
       </div>
     );
   };
@@ -61,7 +93,10 @@ export default function AssignmentCard({ assignment, classId }: AssignmentCardPr
             <span>{assignment.module}</span>
           </div>
         </div>
-        {getStatusBadges()}
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          {getSubmissionStatusBadge()}
+          {getStatusBadges()}
+        </div>
       </div>
     </Link>
   );

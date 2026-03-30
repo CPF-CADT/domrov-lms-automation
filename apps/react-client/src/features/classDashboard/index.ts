@@ -5,10 +5,13 @@ export { default as AssignmentCard } from './AssignmentCard';
 export { default as AssignmentFilters } from './AssignmentFilters';
 export { default as AssignmentList } from './AssignmentList';
 
-// Tab Components
-export { default as GeneralTab } from './tabs/GeneralTab';
-export { default as AssignmentTab } from './tabs/AssignmentTab';
-export { default as PostsTab } from './tabs/PostsTab';
+// Student Tab Components - STUDENT-SPECIFIC
+export { default as StudentGeneralTab } from './tabs/StudentGeneralTab';
+export { default as StudentAssignmentTab } from './tabs/StudentAssignmentTab';
+export { default as StudentGradesTab } from './tabs/StudentGradesTab';
+
+// Teacher Tab Components - TEACHER-SPECIFIC
+export { default as TeacherGeneralTab } from './tabs/TeacherGeneralTab';
+export { default as TeacherAssignmentTab } from './tabs/TeacherAssignmentTab';
+export { default as TeacherGradesTab } from './tabs/TeacherGradesTab';
 export { default as StudentsTab } from './tabs/StudentsTab';
-export { default as FilesTab } from './tabs/FilesTab';
-export { default as GradesTab } from './tabs/GradesTab';

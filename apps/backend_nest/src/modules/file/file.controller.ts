@@ -47,11 +47,21 @@ export class FileController {
     @UserId() userId: number
   ): Promise<{ success: true; data: PresignedUrlResponseDto }> {
     if (!filename || !contentType || !resourceType || !resourceId) {
-      throw new Error('Missing required query params');
+      console.error('Missing query params:', { filename, contentType, resourceType, resourceId });
+      throw new NotFoundException('Missing required query params: filename, contentType, resourceType, resourceId');
+    }
+    if (!userId) {
+      console.error('Missing userId from auth');
+      throw new NotFoundException('User ID not found in token');
     }
 
-    const data = await this.fileService.generatePresignedUrl(userId, resourceType, resourceId, filename, contentType);
-    return { success: true, data };
+    try {
+      const data = await this.fileService.generatePresignedUrl(userId, resourceType, resourceId, filename, contentType);
+      return { success: true, data };
+    } catch (err) {
+      console.error('Error in getPresignedUrl:', err);
+      throw err;
+    }
   }
 
   /**
@@ -66,7 +76,8 @@ export class FileController {
       example: {
         success: true,
         data: {
-          message: 'Resource saved successfully'
+          message: 'Resource saved successfully',
+          resourceId: 123
         }
       }
     }
@@ -77,11 +88,21 @@ export class FileController {
   ): Promise<{ success: true; data: NotifyUploadResponseDto }> {
     const { key, filename } = body;
     if (!key || !filename) {
-      throw new Error('Missing required body params');
+      console.error('Missing notify upload body params:', { key, filename });
+      throw new NotFoundException('Missing required body params: key, filename');
+    }
+    if (!userId) {
+      console.error('Missing userId from auth');
+      throw new NotFoundException('User ID not found in token');
     }
 
-    const data = await this.fileService.notifyUploadSuccess(userId, key, filename);
-    return { success: true, data };
+    try {
+      const data = await this.fileService.notifyUploadSuccess(userId, key, filename);
+      return { success: true, data };
+    } catch (err) {
+      console.error('Error in notifyUpload:', err);
+      throw err;
+    }
   }
 
   @Get('download/:resourceId')

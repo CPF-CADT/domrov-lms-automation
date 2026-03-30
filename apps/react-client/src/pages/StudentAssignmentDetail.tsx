@@ -5,7 +5,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import MainNavigation from "@/components/navigation/Navigation";
 import { useZipExtractor } from "@/hooks";
-import { useAuth } from "@/context/AuthContext";
 import { ClassSidebar } from "@/features/classDashboard";
 import AssignmentHeader from "@/features/assignment/AssignmentHeader";
 import AssignmentInstructions from "@/features/assignment/AssignmentInstructions";
@@ -24,7 +23,6 @@ type StudentTabId = "general" | "assignment" | "posts" | "files" | "grades";
 export default function StudentAssignmentDetail() {
   const { classId, assignmentId } = useParams<{ classId: string; assignmentId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   const id = assignmentId || "";
   const cId = classId || "";
@@ -35,8 +33,48 @@ export default function StudentAssignmentDetail() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [draftSyncError, setDraftSyncError] = useState<string | null>(null);
+  const [isSyncingResources, setIsSyncingResources] = useState(false);
 
   const { editorFiles, showCodeEditor, extractAndOpen, openFileInEditor, closeEditor } = useZipExtractor();
+
+  // Helper function to update submission resources on backend
+  const updateSubmissionResources = useCallback(async (resources: { resourceId?: number }[]) => {
+    if (!submission?.id) return;
+
+    setIsSyncingResources(true);
+    setDraftSyncError(null);
+
+    try {
+      // Save resources to backend
+      await submissionService.saveDraftAssignment(Number(id), {
+        resources,
+      });
+
+      // Fetch detailed submission to get actual saved resources
+      const detailedSubmission = await submissionService.getSubmissionDetails(submission.id);
+      setSubmission(detailedSubmission as any);
+
+      // Map updated resources to UploadedFile format
+      if (detailedSubmission.resources && Array.isArray(detailedSubmission.resources)) {
+        const files: UploadedFile[] = detailedSubmission.resources.map((r) => ({
+          resourceId: r.resource?.id,
+          name: r.resource?.title || "Untitled",
+          path: r.resource?.url || "",
+          size: "0 KB",
+          uploadedAt: new Date().toISOString(),
+          type: "file",
+          url: r.resource?.url || "",
+        }));
+        setUploadedFiles(files);
+      }
+    } catch (err: any) {
+      console.error("Error updating submission resources:", err);
+      setDraftSyncError(err.message || "Failed to save submission changes.");
+    } finally {
+      setIsSyncingResources(false);
+    }
+  }, [id, submission?.id]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -58,16 +96,43 @@ export default function StudentAssignmentDetail() {
         const submissionData = await submissionService.getMySubmissionStatus(Number(id));
         if (submissionData) {
           setSubmission(submissionData);
-          // Map API resources to UploadedFile format
-          if (submissionData.resources && Array.isArray(submissionData.resources)) {
-            const files: UploadedFile[] = submissionData.resources.map((resource) => ({
-              id: resource.id?.toString() || Math.random().toString(),
-              name: resource.title || "Untitled",
-              path: resource.url || "",
-              size: "0 KB",
-              uploadedAt: new Date().toISOString(),
-            }));
-            setUploadedFiles(files);
+
+          // Fetch detailed submission data if we have a submission ID
+          if (submissionData.id) {
+            try {
+              const detailedSubmission = await submissionService.getSubmissionDetails(submissionData.id);
+              // Merge detailed data with existing submission for full context
+              setSubmission(detailedSubmission as any);
+
+              // Map resources from detailed submission (has the actual structure)
+              if (detailedSubmission.resources && Array.isArray(detailedSubmission.resources)) {
+                const files: UploadedFile[] = detailedSubmission.resources.map((r) => ({
+                  resourceId: r.resource?.id,
+                  name: r.resource?.title || "Untitled",
+                  path: r.resource?.url || "",
+                  size: "0 KB",
+                  uploadedAt: new Date().toISOString(),
+                  type: "file",
+                  url: r.resource?.url || "",
+                }));
+                setUploadedFiles(files);
+              }
+            } catch (err: any) {
+              console.warn("Could not fetch detailed submission:", err);
+              // Fallback: Map resources from basic submission
+              if (submissionData.resources && Array.isArray(submissionData.resources)) {
+                const files: UploadedFile[] = submissionData.resources.map((resource) => ({
+                  resourceId: resource.id,
+                  name: resource.title || "Untitled",
+                  path: resource.url || "",
+                  size: "0 KB",
+                  uploadedAt: new Date().toISOString(),
+                  type: "file",
+                  url: resource.url || "",
+                }));
+                setUploadedFiles(files);
+              }
+            }
           }
         }
       } catch (err: any) {
@@ -110,12 +175,31 @@ export default function StudentAssignmentDetail() {
   }, [extractAndOpen, openFileInEditor]);
 
   const handleAddFiles = useCallback((files: UploadedFile[]) => {
-    setUploadedFiles((prev) => [...prev, ...files]);
-  }, []);
+    setUploadedFiles((prev) => {
+      const updated = [...prev, ...files];
+      // Trigger backend sync with all resources
+      const allResources = updated.map(f => ({ resourceId: f.resourceId }));
+      updateSubmissionResources(allResources);
+      return updated;
+    });
+  }, [updateSubmissionResources]);
 
   const handleRemoveFile = useCallback((index: number) => {
-    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
-  }, []);
+    setUploadedFiles((prev) => {
+      const updated = prev.filter((_, i) => i !== index);
+
+      // Trigger backend sync with remaining resources
+      const resources = updated.map(f => ({ resourceId: f.resourceId }));
+      updateSubmissionResources(resources);
+
+      return updated;
+    });
+  }, [updateSubmissionResources]);
+
+  // Handler for when resources are changed (e.g., delete confirmation)
+  const handleResourcesChanged = useCallback((resources: { resourceId?: number }[]) => {
+    updateSubmissionResources(resources);
+  }, [updateSubmissionResources]);
 
   if (loading) {
     return (
@@ -182,9 +266,25 @@ export default function StudentAssignmentDetail() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <h1 className="text-3xl font-bold text-slate-900 mb-2">{assignment.title || "Untitled Assignment"}</h1>
-                        <p className="text-slate-600 whitespace-pre-wrap">{assignment.instruction || "No instruction provided"}</p>
                       </div>
-                      <div className="flex flex-col gap-2 items-end">
+                      <div className="flex flex-col gap-3 items-end">
+                        {/* Score Card */}
+                        <div className={`px-4 py-3 rounded-xl font-semibold text-sm whitespace-nowrap border-2 ${submission?.evaluation?.isApproved
+                          ? 'bg-blue-50 border-blue-200 text-blue-900'
+                          : 'bg-slate-50 border-slate-200 text-slate-600'
+                          }`}>
+                          {submission?.evaluation?.score !== undefined ? (
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-2xl font-bold">{submission.evaluation.score}</span>
+                              <span className="text-sm opacity-75">/ {assignment.maxScore || 0}</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="inline-block w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
+                              <span className="text-slate-700">Not graded yet</span>
+                            </div>
+                          )}
+                        </div>
                         {assignment.isPublic !== undefined && (
                           <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${assignment.isPublic
                             ? 'bg-green-100 text-green-700'
@@ -195,11 +295,21 @@ export default function StudentAssignmentDetail() {
                         )}
                       </div>
                     </div>
+                    <AssignmentInstructions
+                      dueDate={assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      }) : 'No due date'}
+                      objective={assignment.instruction || 'No objective provided'}
+                    />
 
-                    {/* Assignment Details Card */}
+                    {/* Assignment Details & Submission Guidelines */}
                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                      <h2 className="text-xl font-bold text-slate-900 mb-4">Assignment Details</h2>
-                      <div className="grid grid-cols-2 gap-4">
+                      <h2 className="text-xl font-bold text-slate-900 mb-6">Assignment Details</h2>
+
+                      {/* Details Grid */}
+                      <div className="grid grid-cols-2 gap-4 mb-6 pb-6 border-b border-slate-200">
                         <div>
                           <p className="text-sm text-slate-600 mb-1">Start Date</p>
                           <p className="font-semibold text-slate-900">
@@ -239,11 +349,8 @@ export default function StudentAssignmentDetail() {
                           <p className="font-semibold text-slate-900">{assignment.session || 'Not specified'}</p>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Submission Guidelines */}
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                      <h2 className="text-xl font-bold text-slate-900 mb-4">Submission Guidelines</h2>
+                      {/* Submission Guidelines */}
                       <div className="space-y-4">
                         <div>
                           <p className="text-sm font-semibold text-slate-700 mb-2">Allowed Submission Method</p>
@@ -292,16 +399,6 @@ export default function StudentAssignmentDetail() {
                         )}
                       </div>
                     </div>
-
-                    <AssignmentInstructions
-                      dueDate={assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      }) : 'No due date'}
-                      objective={assignment.instruction || 'No objective provided'}
-                    />
-
                     {/* Grading Rubric Details */}
                     {assignment.rubrics && assignment.rubrics.length > 0 && (
                       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
@@ -332,6 +429,23 @@ export default function StudentAssignmentDetail() {
                   </div>
 
                   <div className="space-y-6">
+                    {/* Draft Sync Error Display */}
+                    {draftSyncError && (
+                      <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 flex items-start gap-3">
+                        <div className="flex-1">
+                          <h4 className="text-sm font-bold text-red-900 mb-1">Sync Error</h4>
+                          <p className="text-sm text-red-800">{draftSyncError}</p>
+                          <p className="text-xs text-red-700 mt-1">Your changes may not have been saved. Please review and try again.</p>
+                        </div>
+                        <button
+                          onClick={() => setDraftSyncError(null)}
+                          className="shrink-0 text-red-600 hover:text-red-800 font-bold"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )}
+
                     <StudentPortal
                       status={submission?.status || "PENDING"}
                       progress={{ current: Math.floor(Math.random() * 100), total: 100 }}
@@ -346,10 +460,59 @@ export default function StudentAssignmentDetail() {
                       uploadedFiles={uploadedFiles}
                       onFilesAdded={handleAddFiles}
                       onFileRemoved={handleRemoveFile}
+                      onResourcesChanged={handleResourcesChanged}
                       assignmentId={id}
-                      userId={user?.id.toString() || ""}
+                      submissionId={submission?.id}
+                      submissionMethod={assignment.allowedSubmissionMethod || "ANY"}
                       onUploadComplete={handleUploadComplete}
                       onFileClick={handleFileClick}
+                      evaluationStatus={submission?.evaluation?.isApproved}
+                      isEditDisabled={submission?.evaluation?.isApproved || submission?.status === "GRADED"}
+                      isLoading={isSyncingResources}
+                      onSubmissionStateChange={() => {
+                        // Refresh submission data after unsubmit
+                        const refreshSubmission = async () => {
+                          const submissionData = await submissionService.getMySubmissionStatus(Number(id));
+                          if (submissionData?.id) {
+                            try {
+                              // Fetch detailed submission to get actual resources
+                              const detailedSubmission = await submissionService.getSubmissionDetails(submissionData.id);
+                              setSubmission(detailedSubmission as any);
+
+                              // Map resources from detailed submission
+                              if (detailedSubmission.resources && Array.isArray(detailedSubmission.resources)) {
+                                const files: UploadedFile[] = detailedSubmission.resources.map((r) => ({
+                                  resourceId: r.resource?.id,
+                                  name: r.resource?.title || "Untitled",
+                                  path: r.resource?.url || "",
+                                  size: "0 KB",
+                                  uploadedAt: new Date().toISOString(),
+                                  type: "file",
+                                  url: r.resource?.url || "",
+                                }));
+                                setUploadedFiles(files);
+                              }
+                            } catch (err: any) {
+                              console.warn("Could not fetch detailed submission:", err);
+                              // Fallback to basic submission data
+                              setSubmission(submissionData);
+                              if (submissionData.resources && Array.isArray(submissionData.resources)) {
+                                const files: UploadedFile[] = submissionData.resources.map((resource) => ({
+                                  resourceId: resource.id,
+                                  name: resource.title || "Untitled",
+                                  path: resource.url || "",
+                                  size: "0 KB",
+                                  uploadedAt: new Date().toISOString(),
+                                  type: "file",
+                                  url: resource.url || "",
+                                }));
+                                setUploadedFiles(files);
+                              }
+                            }
+                          }
+                        };
+                        refreshSubmission();
+                      }}
                     />
                   </div>
                 </div>
