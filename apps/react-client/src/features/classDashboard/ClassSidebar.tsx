@@ -11,7 +11,7 @@ import {
 import classService from "@/services/classService";
 
 
-type TabId = "general" | "assignment" | "posts" | "students" | "files" | "grades";
+type TabId = "general" | "assignment" | "students" | "grades";
 
 interface ClassSidebarProps {
   classId: string;
@@ -120,9 +120,7 @@ export default function ClassSidebar({ classId, activeTab, onTabChange, allowedT
   const allNavItems = [
     { id: "general" as TabId, icon: TvIcon, label: "General" },
     { id: "assignment" as TabId, icon: GraduationCapIcon, label: "Assignment" },
-    { id: "posts" as TabId, icon: TvIcon, label: "Posts" },
     { id: "students" as TabId, icon: GraduationCapIcon, label: "Students" },
-    { id: "files" as TabId, icon: TvIcon, label: "Files" },
     { id: "grades" as TabId, icon: TvIcon, label: "Grades" },
   ];
   // Only show allowed tabs

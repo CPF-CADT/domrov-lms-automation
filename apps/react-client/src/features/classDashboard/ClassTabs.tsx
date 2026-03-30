@@ -3,9 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import {
   ClipboardIcon,
-  MessageIcon,
   UsersIcon,
-  FolderIcon
 } from "./icons";
 
 type TabId = "general" | "assignment" | "posts" | "students" | "files" | "grades";
@@ -44,9 +42,7 @@ export default function ClassTabs({ activeTab, allowedTabs }: Omit<ClassTabsProp
   const allTabs: { id: TabId; label: string; icon: any }[] = [
     { id: "general", label: "General", icon: ClipboardIcon },
     { id: "assignment", label: "Assignment", icon: ClipboardIcon },
-    { id: "posts", label: "Posts", icon: MessageIcon },
     { id: "students", label: "Students", icon: UsersIcon },
-    { id: "files", label: "Files", icon: FolderIcon },
     { id: "grades", label: "Grades", icon: ClipboardIcon },
   ];
   const tabs = allowedTabs
