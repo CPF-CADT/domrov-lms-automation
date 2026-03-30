@@ -197,6 +197,12 @@ export default function UploadSection({
   };
 
   const handleFiles = async (files: File[]) => {
+    // Check if submission ID is available
+    if (!submissionId) {
+      setError("Submission data is still loading. Please wait a moment and try again.");
+      return;
+    }
+
     setIsUploading(true);
     setError(null);
     setSuccessMessage(null);
@@ -209,7 +215,7 @@ export default function UploadSection({
         const uploadResponse = await fileUploadService.uploadFileFlow(
           file,
           'submission',
-          submissionId || Number(assignmentId),
+          submissionId,
           (progress) => {
             console.log(`Upload progress for ${file.name}: ${progress}%`);
           }
@@ -391,6 +397,14 @@ export default function UploadSection({
       {/* NORMAL UPLOAD STATE - Show upload UI */}
       {(submissionStatus !== "SUBMITTED" || uploadedFiles.length === 0) && evaluationStatus !== true && (
         <>
+          {/* Submission Loading State */}
+          {!submissionId && (
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-2">
+              <span className="inline-block w-4 h-4 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm text-yellow-900 font-medium">Loading submission data...</p>
+            </div>
+          )}
+
           {/* Submission Type Restriction Message - When not ANY */}
           {!showModeSelector && (
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -419,24 +433,24 @@ export default function UploadSection({
           {/* File Upload Area */}
           {((uploadMode === 'file' && allowFileUpload) || uploadedFiles.length === 0) && (
             <div
-              onDragEnter={handleDragEnter}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
+              onDragEnter={!submissionId ? undefined : handleDragEnter}
+              onDragOver={!submissionId ? undefined : handleDragOver}
+              onDragLeave={!submissionId ? undefined : handleDragLeave}
+              onDrop={!submissionId ? undefined : handleDrop}
               className={`
-                relative border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer mb-6
-                ${isDragging
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'
-                }
+                relative border-2 border-dashed rounded-2xl p-8 text-center transition-all mb-6
+                ${!submissionId ? 'border-slate-300 bg-slate-50 cursor-not-allowed opacity-60' : ''}
+                ${submissionId && isDragging ? 'border-blue-500 bg-blue-50 cursor-pointer' : ''}
+                ${submissionId && !isDragging ? 'border-slate-300 hover:border-blue-400 hover:bg-slate-50 cursor-pointer' : ''}
               `}
-              onClick={handleBrowseFiles}
+              onClick={!submissionId ? undefined : handleBrowseFiles}
             >
               <input
                 ref={fileInputRef}
                 type="file"
                 multiple
                 onChange={handleFileInput}
+                disabled={!submissionId}
                 className="hidden"
               />
               <div className="flex flex-col items-center gap-3">
@@ -472,7 +486,7 @@ export default function UploadSection({
                 />
                 <button
                   onClick={handleAddLink}
-                  disabled={!linkInput.trim() || isUploading}
+                  disabled={!linkInput.trim() || isUploading || !submissionId}
                   className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all"
                 >
                   {isUploading ? 'Adding...' : 'Add Link'}

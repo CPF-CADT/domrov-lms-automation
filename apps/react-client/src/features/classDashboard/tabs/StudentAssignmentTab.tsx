@@ -1,6 +1,6 @@
 import { useState } from "react";
 import AssignmentFilters from "../AssignmentFilters";
-import AssignmentList from "../AssignmentList";
+import StudentAssignmentList from "../../assignment/StudentAssignmentList";
 
 interface StudentAssignmentTabProps {
     classId: string;
@@ -22,7 +22,7 @@ export default function StudentAssignmentTab({ classId }: StudentAssignmentTabPr
 
             {/* Assignment List - Student submission view */}
             <div className="mt-6">
-                <AssignmentList classId={classId} filter={activeFilter} />
+                <StudentAssignmentList classId={classId} filter={activeFilter} />
             </div>
         </div>
     );

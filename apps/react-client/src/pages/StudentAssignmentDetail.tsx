@@ -11,6 +11,9 @@ import AssignmentInstructions from "@/features/assignment/AssignmentInstructions
 import CodeEditorView from "@/features/assignment/CodeEditorView";
 import ReferenceMaterials from "@/features/assignment/ReferenceMaterials";
 import StudentPortal from "@/features/assignment/StudentPortal";
+import GradingSection from "@/features/assignment/GradingSection";
+import SubmissionResources from "@/features/assignment/SubmissionResources";
+import ResourceViewer from "@/features/assignment/ResourceViewer";
 import type { UploadedFile } from "@/features/assignment/UploadSection";
 import { UserRole } from "@/types/enums";
 import assessmentService from "@/services/assessmentService";
@@ -35,6 +38,8 @@ export default function StudentAssignmentDetail() {
   const [error, setError] = useState<string | null>(null);
   const [draftSyncError, setDraftSyncError] = useState<string | null>(null);
   const [isSyncingResources, setIsSyncingResources] = useState(false);
+  const [selectedResource, setSelectedResource] = useState<any | null>(null);
+  const [resourceViewerOpen, setResourceViewerOpen] = useState(false);
 
   const { editorFiles, showCodeEditor, extractAndOpen, openFileInEditor, closeEditor } = useZipExtractor();
 
@@ -174,6 +179,11 @@ export default function StudentAssignmentDetail() {
     }
   }, [extractAndOpen, openFileInEditor]);
 
+  const handleViewResourceDetails = useCallback((resource: any) => {
+    setSelectedResource(resource);
+    setResourceViewerOpen(true);
+  }, []);
+
   const handleAddFiles = useCallback((files: UploadedFile[]) => {
     setUploadedFiles((prev) => {
       const updated = [...prev, ...files];
@@ -303,6 +313,15 @@ export default function StudentAssignmentDetail() {
                       }) : 'No due date'}
                       objective={assignment.instruction || 'No objective provided'}
                     />
+
+                    {/* Grading Section - Show when evaluation exists */}
+                    {submission?.evaluation && (
+                      <GradingSection
+                        evaluation={submission.evaluation}
+                        maxScore={assignment.maxScore || 0}
+                        submissionStatus={submission.status || "PENDING"}
+                      />
+                    )}
 
                     {/* Assignment Details & Submission Guidelines */}
                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
@@ -514,12 +533,37 @@ export default function StudentAssignmentDetail() {
                         refreshSubmission();
                       }}
                     />
+
+                    {/* Submission Resources - Show when submission has resources */}
+                    {submission?.resources && submission.resources.length > 0 && (
+                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                        <h2 className="text-lg font-bold text-slate-900 mb-4">Submitted Resources</h2>
+                        <SubmissionResources
+                          resources={submission.resources.map((r: any) => ({
+                            id: r.resource?.id || r.id,
+                            title: r.resource?.title || "Untitled",
+                            type: r.resource?.type || "OTHER",
+                            url: r.resource?.url,
+                          }))}
+                          isViewOnly={submission?.evaluation?.isApproved || submission?.status === "GRADED"}
+                          onViewDetails={handleViewResourceDetails}
+                          onViewInIDE={handleFileClick}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Resource Viewer Modal */}
+        <ResourceViewer
+          isOpen={resourceViewerOpen}
+          onClose={() => setResourceViewerOpen(false)}
+          resource={selectedResource}
+        />
       </div>
     </div>
   );

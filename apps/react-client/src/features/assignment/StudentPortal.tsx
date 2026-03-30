@@ -116,6 +116,43 @@ export default function StudentPortal({
   };
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm sticky top-6 mt-8">
+      {/* Status Banner */}
+      <div className="px-6 pt-6 pb-3">
+        {evaluationStatus === true ? (
+          <div className="bg-gradient-to-r from-purple-50 to-purple-50 border-l-4 border-purple-500 p-4 rounded-lg mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-2 h-2 bg-purple-600 rounded-full" />
+              <h3 className="text-sm font-bold text-purple-900">Assignment Graded</h3>
+            </div>
+            <p className="text-xs text-purple-700">This assignment has been graded and is now locked from further modifications.</p>
+          </div>
+        ) : status === "LATE" ? (
+          <div className="bg-gradient-to-r from-orange-50 to-orange-50 border-l-4 border-orange-500 p-4 rounded-lg mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-2 h-2 bg-orange-600 rounded-full" />
+              <h3 className="text-sm font-bold text-orange-900">Submitted Late</h3>
+            </div>
+            <p className="text-xs text-orange-700">Your submission was received after the due date and may incur a penalty.</p>
+          </div>
+        ) : status === "SUBMITTED" ? (
+          <div className="bg-gradient-to-r from-blue-50 to-blue-50 border-l-4 border-blue-500 p-4 rounded-lg mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-2 h-2 bg-blue-600 rounded-full" />
+              <h3 className="text-sm font-bold text-blue-900">Submitted - Awaiting Grade</h3>
+            </div>
+            <p className="text-xs text-blue-700">Your assignment has been submitted successfully and is under review.</p>
+          </div>
+        ) : (
+          <div className="bg-gradient-to-r from-slate-50 to-slate-50 border-l-4 border-slate-400 p-4 rounded-lg mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-2 h-2 bg-slate-600 rounded-full" />
+              <h3 className="text-sm font-bold text-slate-900">Ready to Submit</h3>
+            </div>
+            <p className="text-xs text-slate-700">Upload your work and submit when ready. You can edit before submitting.</p>
+          </div>
+        )}
+      </div>
+
       {/* Upload Section */}
       <div className="p-6">
         <UploadSection
