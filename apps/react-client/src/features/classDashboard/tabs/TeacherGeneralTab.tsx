@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { ClipboardIcon } from "../icons";
 import assessmentService from "@/services/assessmentService";
-import AnimatedPage from "@/components/AnimatedPage";
 import type { AssessmentListItemDto } from "@/types";
 
 interface TeacherGeneralTabProps {
