@@ -13,7 +13,6 @@ import Signup from '@/pages/Signup';
 import VerifyEmail from '@/pages/VerifyEmail';
 import OAuthCallback from '@/pages/auth/OAuthCallback';
 import ClassDashboard from '@/pages/ClassDashboard';
-import StudentDashboard from '@/pages/StudentDashboard';
 import StudentAssignmentDetail from '@/pages/StudentAssignmentDetail';
 import CreateClass from '@/pages/CreateClass';
 import CreateAssignmentPage from '@/pages/CreateAssignmentPage';
@@ -34,7 +33,7 @@ import StudentGeneralTab from "@/features/classDashboard/tabs/StudentGeneralTab"
 import StudentAssignmentTab from "@/features/classDashboard/tabs/StudentAssignmentTab";
 import StudentGradesTab from "@/features/classDashboard/tabs/StudentGradesTab";
 import UserProfilePage from '@/pages/profile';
-import { useParams, Outlet } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
 const CreateAssignmentPageWrapper: React.FC = () => {
   const { id } = useParams<{ id: string }>();

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Loader2, ChevronUp, ChevronDown, File, Download, RefreshCw, Sparkles, CheckCircle2 } from "lucide-react";
 import assessmentService from "@/services/assessmentService";
 import submissionService from "@/services/submissionService";
-import evaluationService from "@/services/evaluationService";
 import { useToast } from "@/components/Toast";
 import type { AssessmentListItemDto, TeamTrackingItemDto, IndividualTrackingItemDto } from "@/types/assessment";
 import type { TeamRosterItemDto, IndividualRosterItemDto, SubmissionViewerResponseDto } from "@/types/submission";
@@ -32,7 +31,6 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
     const [submissionDetail, setSubmissionDetail] = useState<SubmissionViewerResponseDto | null>(null);
     const [submissionLoading, setSubmissionLoading] = useState(false);
     const [isApproving, setIsApproving] = useState(false);
-    const [isManualGrading, setIsManualGrading] = useState(false);
     const [manualScore, setManualScore] = useState<number>(0);
     const [manualFeedback, setManualFeedback] = useState<string>("");
 
@@ -85,7 +83,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
         setSubmissionLoading(true);
 
         submissionService
-            .getSubmissionDetails(rosterItem.submissionId)
+            .getSubmissionDetailsTeacher(rosterItem.submissionId)
             .then((data) => {
                 if (!cancelled) setSubmissionDetail(data);
             })
@@ -101,7 +99,6 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
         };
     }, [selectedStudentId, rosterData]);
 
-    // Update form when details change
     useEffect(() => {
         if (submissionDetail?.evaluation) {
             setManualScore(submissionDetail.evaluation.score);
@@ -176,19 +173,22 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
         if (rosterItem?.submissionId) {
             setSubmissionLoading(true);
             submissionService
-                .getSubmissionDetails(rosterItem.submissionId)
+                .getSubmissionDetailsTeacher(rosterItem.submissionId)
                 .then((data) => {
                     setSubmissionDetail(data);
                     if (data.evaluation) {
                         setManualScore(data.evaluation.score);
                         setManualFeedback(data.evaluation.feedback || "");
+                    } else {
+                        setManualScore(0);
+                        setManualFeedback("");
                     }
                 })
                 .finally(() => setSubmissionLoading(false));
         }
     };
 
-    const handleManualGradeAndApprove = async () => {
+    const handleSaveGrade = async () => {
         try {
             const rosterItem = rosterData.find(item => {
                 const id = "userId" in item ? item.userId : item.id;
@@ -205,24 +205,20 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                 return;
             }
 
-            setIsManualGrading(true);
-            
-            // First grade the submission
+            setIsApproving(true);
+
             await submissionService.gradeSubmission(rosterItem.submissionId, {
                 score: manualScore,
                 feedback: manualFeedback
             });
 
-            // Then immediately approve it
-            await submissionService.approveSubmission(rosterItem.submissionId);
-
-            showToast("✅ Graded and Approved successfully!", "success");
+            showToast("✅ Score updated successfully!", "success");
             setRefreshCurrent();
         } catch (err: any) {
-            const message = err?.response?.data?.message || err?.message || "Failed to grade and approve submission";
+            const message = err?.response?.data?.message || err?.message || "Failed to update score";
             showToast(message, "error");
         } finally {
-            setIsManualGrading(false);
+            setIsApproving(false);
         }
     };
 
@@ -252,65 +248,6 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
             const message = err?.response?.data?.message || err?.message || "Failed to approve submission";
             showToast(message, "error");
         } finally {
-            setIsApproving(false);
-        }
-    };
-
-    const handleTriggerEvaluation = async () => {
-        try {
-            if (!submissionDetail || selectedStudentId === null) {
-                showToast("No submission details loaded. Please try again.", "error");
-                return;
-            }
-
-            const rosterItem = rosterData.find(item => {
-                const id = "userId" in item ? item.userId : item.id;
-                return id === selectedStudentId;
-            });
-
-            if (!rosterItem || !rosterItem.submissionId) {
-                showToast("Could not find submission. Please try again.", "error");
-                return;
-            }
-
-            const submissionId = rosterItem.submissionId;
-            setIsApproving(true);
-            await evaluationService.triggerAIEvaluation(submissionId);
-
-            showToast("⏳ Evaluating code... checking progress...", "info");
-
-            // Auto-poll for evaluation completion (check every 5 seconds)
-            let pollAttempts = 0;
-            const maxPollAttempts = 24; // 24 * 5 seconds = 2 minutes max
-
-            const pollTimer = setInterval(async () => {
-                pollAttempts++;
-
-                if (pollAttempts >= maxPollAttempts) {
-                    clearInterval(pollTimer);
-                    setIsApproving(false);
-                    showToast("AI evaluation is still processing. Please refresh manually.", "info");
-                    return;
-                }
-
-                try {
-                    // Fetch fresh submission details
-                    const freshSubmission = await submissionService.getSubmissionDetails(submissionId);
-
-                    // If evaluation is now available, stop polling
-                    if (freshSubmission.evaluation) {
-                        clearInterval(pollTimer);
-                        setSubmissionDetail(freshSubmission);
-                        setIsApproving(false);
-                        showToast("✅ AI evaluation complete! Ready to review.", "success");
-                    }
-                } catch (err) {
-                    // Silently continue polling on error
-                }
-            }, 5000);
-        } catch (err: any) {
-            const message = err?.response?.data?.message || err?.message || "Failed to trigger AI evaluation";
-            showToast(message, "error");
             setIsApproving(false);
         }
     };
@@ -474,7 +411,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
 
                                 {/* AI Feedback Section */}
                                 {hasEvaluation && (
-                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
                                         <div className="flex items-center gap-2 mb-4">
                                             <Sparkles className="w-5 h-5 text-blue-600" />
                                             <h3 className="text-lg font-semibold text-slate-900">AI Feedback</h3>
@@ -482,7 +419,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                                                 {submissionDetail.evaluation?.evaluationType || 'Manual'}
                                             </span>
                                         </div>
-                                        <p className="text-slate-700 whitespace-pre-wrap">{submissionDetail.evaluation?.feedback || 'No feedback provided'}</p>
+                                        <p className="text-slate-700 whitespace-pre-wrap">{submissionDetail.evaluation?.aiOutput || submissionDetail.evaluation?.feedback || 'No feedback provided'}</p>
                                     </div>
                                 )}
                             </div>
@@ -490,7 +427,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                             {/* Right: Evaluation Summary & Actions */}
                             <div>
                                 {/* AI Score Card */}
-                                {hasEvaluation && (
+                                {hasEvaluation && !isApproved && (
                                     <div className="bg-white rounded-lg border border-slate-200 p-6 mb-6">
                                         <div className="flex items-center gap-2 mb-4">
                                             <Sparkles className="w-5 h-5 text-amber-500" />
@@ -510,7 +447,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
 
                                 {/* Status Card */}
                                 <div className="bg-white rounded-lg border border-slate-200 p-6 mb-6">
-                                    <h3 className="font-semibold text-slate-900 mb-3 text-sm uppercase tracking-wider">Manual Grading</h3>
+                                    <h3 className="font-semibold text-slate-900 mb-3 text-sm uppercase tracking-wider">Override Score</h3>
                                     <div className="space-y-4">
                                         <div>
                                             <label className="block text-xs font-semibold text-slate-600 uppercase mb-2">Score (Max {assignment.maxScore})</label>
@@ -520,7 +457,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                                                 onChange={(e) => setManualScore(Number(e.target.value))}
                                                 max={assignment.maxScore}
                                                 min={0}
-                                                disabled={isApproved || isManualGrading}
+                                                disabled={submissionDetail?.evaluation?.isApproved || isApproving}
                                                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
                                             />
                                         </div>
@@ -530,59 +467,48 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                                                 value={manualFeedback}
                                                 onChange={(e) => setManualFeedback(e.target.value)}
                                                 placeholder="Enter overall feedback..."
-                                                disabled={isApproved || isManualGrading}
+                                                disabled={submissionDetail?.evaluation?.isApproved || isApproving}
                                                 rows={4}
                                                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm resize-none"
                                             />
                                         </div>
-                                        {!isApproved && (
-                                            <button
-                                                onClick={handleManualGradeAndApprove}
-                                                disabled={isManualGrading}
-                                                className="w-full py-2 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 disabled:opacity-50 transition-all text-sm flex items-center justify-center gap-2"
-                                            >
-                                                {isManualGrading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Grade & Approve"}
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
 
-                                {/* Action Buttons */}
-                                <div className="space-y-3">
-                                    {!hasEvaluation && selectedItem?.status !== "NOT_SUBMITTED" && (
-                                        <button
-                                            onClick={handleTriggerEvaluation}
-                                            disabled={isApproving}
-                                            type="button"
-                                            className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                                        >
-                                            <Sparkles className="w-4 h-4" />
-                                            {isApproving ? 'Evaluating...' : 'Run AI Evaluation'}
-                                        </button>
-                                    )}
-                                    {hasEvaluation && !isApproved && (
-                                        <button
-                                            onClick={handleApproveSubmission}
-                                            disabled={isApproving}
-                                            className="w-full px-4 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                                        >
-                                            <CheckCircle2 className="w-4 h-4" />
-                                            {isApproving ? 'Posting...' : 'Approve & Post to Student'}
-                                        </button>
-                                    )}
-                                    {isApproved && (
-                                        <div className="w-full px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-center">
-                                            <p className="text-sm font-semibold text-green-700">✓ Posted to Student</p>
+                                        {/* Action Buttons */}
+                                        <div className="space-y-3">
+                                            {!submissionDetail?.evaluation?.isApproved && (
+                                                <>
+                                                    <button
+                                                        onClick={handleSaveGrade}
+                                                        disabled={isApproving}
+                                                        className="w-full px-4 py-3 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                                                    >
+                                                        {isApproving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Override Score"}
+                                                    </button>
+                                                    <button
+                                                        onClick={handleApproveSubmission}
+                                                        disabled={isApproving}
+                                                        className="w-full px-4 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                                                    >
+                                                        <CheckCircle2 className="w-4 h-4" />
+                                                        {isApproving ? 'Posting...' : 'Approve & Post to Student'}
+                                                    </button>
+                                                </>
+                                            )}
+                                            {submissionDetail?.evaluation?.isApproved && (
+                                                <div className="w-full px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-center">
+                                                    <p className="text-sm font-semibold text-green-700">✓ Posted to Student</p>
+                                                </div>
+                                            )}
+                                            <button
+                                                onClick={() => setRefreshCurrent()}
+                                                disabled={isApproving}
+                                                className="w-full px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                                            >
+                                                <RefreshCw className="w-4 h-4" />
+                                                Refresh
+                                            </button>
                                         </div>
-                                    )}
-                                    <button
-                                        onClick={() => setRefreshCurrent()}
-                                        disabled={isApproving}
-                                        className="w-full px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                                    >
-                                        <RefreshCw className="w-4 h-4" />
-                                        Refresh
-                                    </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>

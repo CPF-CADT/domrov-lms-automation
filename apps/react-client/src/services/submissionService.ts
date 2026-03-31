@@ -39,6 +39,14 @@ export async function getSubmissionDetails(submissionId: number): Promise<Submis
 }
 
 /**
+ * Get detailed submission information for a specific submission (Teacher)
+ */
+export async function getSubmissionDetailsTeacher(submissionId: number): Promise<SubmissionViewerResponseDto> {
+    const response = (await axiosInstance.get(`/submissions/${submissionId}/teacher`)).data;
+    return response.data;
+}
+
+/**
  * Get submission roster for an assessment (Teacher)
  */
 export async function getSubmissionRoster(assessmentId: number): Promise<(TeamRosterItemDto | IndividualRosterItemDto)[]> {
@@ -105,9 +113,9 @@ export async function deleteSubmissionResource(submissionId: number, resourcePat
 /**
  * Approve submission evaluation (Teacher)
  */
-export async function approveSubmission(submissionId: number): Promise<{ success: boolean; data: any }> {
-    const response = (await axiosInstance.patch(`/submissions/approve/${submissionId}`)).data;
-    return response;
+export async function approveSubmission(submissionId: number): Promise<any> {
+    const response = await axiosInstance.patch(`/submissions/approve/${submissionId}`);
+    return response.data?.data ?? response.data;
 }
 
 /**
@@ -129,6 +137,7 @@ const submissionService = {
     getMySubmissionStatusInClass,
     getMySubmissionStatus,
     getSubmissionDetails,
+    getSubmissionDetailsTeacher,
     getSubmissionRoster,
     getSubmissionStats,
     gradeSubmission,

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Upload, Link2, FileText, Eye, AlertTriangle, Sparkles, ChevronDown, Info, Trash } from "lucide-react";
 import Dialog from "@/components/Dialog";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
