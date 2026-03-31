@@ -50,7 +50,7 @@ export default function StudentDashboard() {
 
             // Student Grades Tab - View feedback and scores (read-only)
             case "grades":
-                return <StudentGradesTab />;
+                return <StudentGradesTab classId={classId} />;
 
             default:
                 return <StudentGeneralTab classId={classId} />;

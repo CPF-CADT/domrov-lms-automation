@@ -1034,7 +1034,7 @@ export class SubmissionService {
     if (!submission) throw new NotFoundException('Submission not found');
 
     const assessment = submission.assessment;
-    const R2_KEY = `${submission.userId??`Team${submission.teamId}`}/submission/${submission.id}`;
+    const R2_KEY = `${submission.userId ?? `Team${submission.teamId}`}/submission/${submission.id}`;
     let resourceUrl: string | null = null;
 
     if (

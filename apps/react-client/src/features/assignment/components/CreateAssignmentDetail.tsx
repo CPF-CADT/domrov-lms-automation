@@ -345,7 +345,7 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
                     onChange={handleInputChange}
                     className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg appearance-none cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   >
-                    <option value="GITHUB">GitHub</option>
+                    <option value="GITHUB">ANY</option>
                     <option value="UPLOAD">File Upload</option>
                     <option value="LINK">Link</option>
                   </select>
