@@ -329,8 +329,8 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                   className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors appearance-none"
                 >
                   <option value="GITHUB">GitHub</option>
-                  <option value="UPLOAD">File Upload</option>
-                  <option value="LINK">Link</option>
+                  <option value="ANY">Any</option>
+                  <option value="ZIP">Zip</option>
                 </select>
               </div>
             </div>

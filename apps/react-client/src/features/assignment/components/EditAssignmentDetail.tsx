@@ -33,7 +33,7 @@ interface FormData {
   startDate: string;
   dueDate: string;
   maxScore: number;
-  allowedSubmissionMethod: "GITHUB" | "UPLOAD" | "LINK";
+  allowedSubmissionMethod: "GITHUB" | "ANY" | "ZIP";
   allowLateSubmissions: boolean;
   aiEvaluationEnabled: boolean;
   rubrics: RubricItem[];
@@ -64,9 +64,9 @@ function mapDtoToFormWithMethods(dto: any): FormData {
     dueDate: dto.dueDate ? new Date(dto.dueDate).toISOString().slice(0, 16) : "",
     maxScore: Math.min(100, dto.maxScore ?? 100),
     allowedSubmissionMethod:
-      dto.allowedSubmissionMethod === SubmissionMethod.ZIP ? "UPLOAD"
-        : dto.allowedSubmissionMethod === SubmissionMethod.GITHUB ? "LINK"
-          : "GITHUB",
+      dto.allowedSubmissionMethod === SubmissionMethod.ZIP ? "ZIP"
+        : dto.allowedSubmissionMethod === SubmissionMethod.GITHUB ? "GITHUB"
+          : "ANY",
     allowLateSubmissions: dto.allowLate ?? false,
     aiEvaluationEnabled: dto.aiEvaluationEnable ?? false,
     rubrics,
@@ -87,8 +87,8 @@ function mapToDto(data: FormData, uploadedFiles: UploadedFile[]): UpdateAssessme
       : SubmissionType.INDIVIDUAL,
     aiEvaluationEnable: data.aiEvaluationEnabled,
     allowedSubmissionMethod:
-      data.allowedSubmissionMethod === "UPLOAD" ? SubmissionMethod.ZIP
-        : data.allowedSubmissionMethod === "LINK" ? SubmissionMethod.GITHUB
+      data.allowedSubmissionMethod === "ANY" ? SubmissionMethod.ZIP
+        : data.allowedSubmissionMethod === "ZIP" ? SubmissionMethod.ZIP
           : SubmissionMethod.GITHUB,
     rubrics: data.rubrics.length > 0 ? data.rubrics : [
       { definition: "Overall Score", totalScore: data.maxScore }
@@ -564,9 +564,9 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
                     onChange={handleInputChange}
                     className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg appearance-none cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   >
-                    <option value="GITHUB">GitHub</option>
-                    <option value="UPLOAD">File Upload</option>
-                    <option value="LINK">Link</option>
+                    <option value="ZIP">ZIP File</option>
+                    <option value="GITHUB">GitHub Repository</option>
+                    <option value="ANY">Any (ZIP or GitHub)</option>
                   </select>
                 </div>
               </div>
