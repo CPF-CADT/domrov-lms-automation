@@ -8,12 +8,10 @@ interface DashboardHeaderProps {
   activeStatus: StatusFilter;
   onChangeStatus: (status: StatusFilter) => void;
   onJoinClass?: () => void;
-  onViewAllClasses?: () => void;
 }
 
 export default function DashboardHeader({
   onJoinClass,
-  onViewAllClasses,
 }: DashboardHeaderProps) {
 
   return (
@@ -24,12 +22,6 @@ export default function DashboardHeader({
       </div>
 
       <div className="flex items-center space-x-3">
-        <button
-          className="px-4 py-2 bg-white text-primary font-semibold rounded-md shadow-sm hover:bg-blue-50"
-          onClick={onViewAllClasses}
-        >
-          View All Classes
-        </button>
         <Link
           to="/class/create"
           className="px-4 py-2 bg-white text-primary font-semibold rounded-md shadow-sm hover:bg-blue-50"

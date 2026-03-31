@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { ClipboardIcon } from "../icons";
 import assessmentService from "@/services/assessmentService";
+import EditAssignmentDetail from "@/features/assignment/components/EditAssignmentDetail";
+import ViewAssignmentDetail from "@/features/assignment/components/ViewAssignmentDetail";
+import GradeStudentsDetail from "@/features/assignment/components/GradeStudentsDetail";
+import AnimatedPage from "@/components/AnimatedPage";
 import type { AssessmentListItemDto } from "@/types";
 
 interface TeacherGeneralTabProps {
@@ -21,36 +25,81 @@ const TeacherGeneralTab = ({ classId }: TeacherGeneralTabProps) => {
     const [groupedAssignments, setGroupedAssignments] = useState<Record<number, AssessmentListItemDto[]>>({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [viewingAssignmentId, setViewingAssignmentId] = useState<number | null>(null);
+    const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null);
+    const [gradingAssignmentId, setGradingAssignmentId] = useState<number | null>(null);
+
+    const fetchAssignments = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const data: AssessmentListItemDto[] = await assessmentService.getAssessmentsByClass(classIdNum);
+            setAssignments(data);
+            const grouped: Record<number, AssessmentListItemDto[]> = {};
+            data.forEach((assignment: AssessmentListItemDto) => {
+                const session = assignment.session || 1;
+                if (!grouped[session]) {
+                    grouped[session] = [];
+                }
+                grouped[session].push(assignment);
+            });
+            setGroupedAssignments(grouped);
+        } catch (err) {
+            setError("Failed to load assignments");
+            setAssignments([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [classIdNum]);
 
     useEffect(() => {
-        const fetchAssignments = async () => {
-            setLoading(true);
-            setError(null);
-
-            try {
-                const data: AssessmentListItemDto[] = (await assessmentService.getAssessmentsByClass(classIdNum));
-                setAssignments(data);
-
-                const grouped: Record<number, AssessmentListItemDto[]> = {};
-                data.forEach((assignment: AssessmentListItemDto) => {
-                    const session = assignment.session || 1;
-                    if (!grouped[session]) {
-                        grouped[session] = [];
-                    }
-                    grouped[session].push(assignment);
-                });
-
-                setGroupedAssignments(grouped);
-            } catch (err) {
-                setError("Failed to load assignments");
-                setAssignments([]);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         if (classIdNum) fetchAssignments();
-    }, [classIdNum]);
+    }, [classIdNum, fetchAssignments]);
+
+    // View assignment details
+    if (viewingAssignmentId !== null) {
+        return (
+            <div className="p-8 mx-auto max-w-7xl">
+                <AnimatedPage>
+                    <ViewAssignmentDetail
+                        assignmentId={viewingAssignmentId}
+                        onBack={() => setViewingAssignmentId(null)}
+                    />
+                </AnimatedPage>
+            </div>
+        );
+    }
+
+    // Grading/student list view
+    if (gradingAssignmentId !== null) {
+        return (
+            <div className="p-8 mx-auto max-w-7xl">
+                <AnimatedPage>
+                    <GradeStudentsDetail
+                        assignmentId={gradingAssignmentId}
+                        onBack={() => setGradingAssignmentId(null)}
+                    />
+                </AnimatedPage>
+            </div>
+        );
+    }
+
+    // Edit view
+    if (editingAssignmentId !== null) {
+        return (
+            <div className="p-8 mx-auto max-w-7xl">
+                <AnimatedPage>
+                    <EditAssignmentDetail
+                        assignmentId={editingAssignmentId}
+                        onBack={() => {
+                            setEditingAssignmentId(null);
+                            fetchAssignments();
+                        }}
+                    />
+                </AnimatedPage>
+            </div>
+        );
+    }
 
     return (
         <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -60,9 +109,6 @@ const TeacherGeneralTab = ({ classId }: TeacherGeneralTabProps) => {
                         <ClipboardIcon className="w-5 h-5 text-slate-700" />
                         <h2 className="text-lg font-semibold text-slate-900">Class Assignments</h2>
                     </div>
-                    <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
-                        + Create Assignment
-                    </button>
                 </div>
 
                 {loading ? (
@@ -80,7 +126,8 @@ const TeacherGeneralTab = ({ classId }: TeacherGeneralTabProps) => {
                                     {sessionAssignments.map((assignment) => (
                                         <div
                                             key={assignment.id}
-                                            className="p-4 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors group"
+                                            onClick={() => setViewingAssignmentId(assignment.id)}
+                                            className="p-4 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors group cursor-pointer"
                                         >
                                             <div className="flex items-start justify-between">
                                                 <div className="flex-1">
@@ -91,11 +138,15 @@ const TeacherGeneralTab = ({ classId }: TeacherGeneralTabProps) => {
                                                         Due: {assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : "Not set"}
                                                     </p>
                                                 </div>
-                                                <div className="flex gap-2 ml-2">
-                                                    <button className="px-3 py-1 text-sm bg-white border border-slate-300 rounded hover:bg-slate-100 transition-colors">
+                                                <div className="flex gap-2 ml-2" onClick={(e) => e.stopPropagation()}>
+                                                    <button
+                                                        onClick={() => setEditingAssignmentId(assignment.id)}
+                                                        className="px-3 py-1 text-black text-sm bg-white border border-slate-300 rounded hover:bg-slate-100 transition-colors">
                                                         Edit
                                                     </button>
-                                                    <button className="px-3 py-1 text-sm bg-white border border-slate-300 rounded hover:bg-slate-100 transition-colors">
+                                                    <button
+                                                        onClick={() => setGradingAssignmentId(assignment.id)}
+                                                        className="px-3 py-1 text-black text-sm bg-white border border-slate-300 rounded hover:bg-slate-100 transition-colors">
                                                         Grade
                                                     </button>
                                                 </div>

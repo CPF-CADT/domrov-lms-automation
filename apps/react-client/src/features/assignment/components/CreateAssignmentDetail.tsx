@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Upload, Link2, FileText, Video, Package, X, Eye, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Upload, Link2, FileText, Video, Package, X, Eye, AlertTriangle, Sparkles, ChevronDown, Info } from "lucide-react";
 import Dialog from "@/components/Dialog";
 import assessmentService from "@/services/assessmentService";
 import { SubmissionType, SubmissionMethod } from "@/types/enums";
@@ -51,8 +51,8 @@ function mapToDto(data: FormData): UpdateAssessmentDto {
     aiEvaluationEnable: data.aiEvaluationEnabled,
     allowedSubmissionMethod:
       data.allowedSubmissionMethod === "UPLOAD" ? SubmissionMethod.ZIP
-      : data.allowedSubmissionMethod === "LINK"   ? SubmissionMethod.GITHUB
-      : SubmissionMethod.ANY,
+        : data.allowedSubmissionMethod === "LINK" ? SubmissionMethod.GITHUB
+          : SubmissionMethod.ANY,
     rubrics: [
       { definition: "Overall Score", totalScore: data.maxScore }
     ],
@@ -76,6 +76,7 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiExpanded, setAiExpanded] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(draftKey, JSON.stringify(formData));
@@ -87,13 +88,15 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value, type } = e.currentTarget;
+    const isCheckbox = type === "checkbox";
+    const checkedValue = isCheckbox ? (e.currentTarget as HTMLInputElement).checked : false;
+
     setFormData((prev) => ({
       ...prev,
       [name]:
-        type === "checkbox"
-          ? (e.currentTarget as HTMLInputElement).checked
+        isCheckbox
+          ? checkedValue
           : name === "maxScore"
-            // ✅ Clamp maxScore between 1 and 100
             ? Math.min(100, Math.max(1, Number(value)))
             : value,
     }));
@@ -337,13 +340,78 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
               <div className="flex items-center justify-between pt-2">
                 <p className="text-sm font-medium text-slate-900">AI Evaluation</p>
                 <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" name="aiEvaluationEnabled" checked={formData.aiEvaluationEnabled} onChange={handleInputChange} className="sr-only peer" />
+                  <input
+                    type="checkbox"
+                    name="aiEvaluationEnabled"
+                    checked={formData.aiEvaluationEnabled}
+                    onChange={(e) => {
+                      const isChecked = (e.target as HTMLInputElement).checked;
+                      handleInputChange(e);
+                      if (isChecked) {
+                        setAiExpanded(true);
+                      }
+                    }}
+                    className="sr-only peer"
+                  />
                   <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600" />
                 </label>
               </div>
             </div>
           </div>
         </div>
+
+        {/* AI Evaluation Info Section */}
+        {formData.aiEvaluationEnabled && (
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4 cursor-pointer" onClick={() => setAiExpanded(!aiExpanded)}>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Sparkles className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold tracking-wider uppercase text-slate-900">AI Evaluation Enabled</h3>
+                  <p className="text-xs text-slate-600 mt-0.5">Automated grading with AI</p>
+                </div>
+              </div>
+              <ChevronDown className={`w-5 h-5 text-slate-600 transition-transform ${aiExpanded ? 'rotate-180' : ''}`} />
+            </div>
+
+            {aiExpanded && (
+              <div className="space-y-4 pt-4 border-t border-blue-200">
+                <div className="flex gap-3 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                  <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                  <div className="text-sm text-blue-900">
+                    <p className="font-semibold mb-1">How AI Evaluation Works:</p>
+                    <ul className="space-y-1 list-disc list-inside text-blue-800">
+                      <li>Students submit code or assignments</li>
+                      <li>AI automatically analyzes and grades submissions</li>
+                      <li>You review and adjust AI feedback & scores</li>
+                      <li>Approved grades become visible to students</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-white rounded-lg border border-blue-100">
+                    <p className="text-xs font-semibold text-slate-600 uppercase mb-2">Status</p>
+                    <p className="text-sm font-semibold text-green-600 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                      Enabled
+                    </p>
+                  </div>
+                  <div className="p-4 bg-white rounded-lg border border-blue-100">
+                    <p className="text-xs font-semibold text-slate-600 uppercase mb-2">Max Score</p>
+                    <p className="text-sm font-semibold text-slate-900">{formData.maxScore} points</p>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-amber-100 text-amber-900 rounded-lg border border-amber-200 text-xs">
+                  <strong>⚠️ Before Publishing:</strong> Make sure you've configured an AI provider in Dashboard → AI Evaluation settings.
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Bottom Grid */}
         <div className="grid grid-cols-2 gap-6">
@@ -389,7 +457,7 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
                     <div className="flex items-center flex-1 min-w-0 gap-3">
                       {file.type.includes("pdf") ? <FileText className="w-5 h-5 text-red-500 shrink-0" />
                         : file.type.includes("video") ? <Video className="w-5 h-5 text-blue-500 shrink-0" />
-                        : <Package className="w-5 h-5 text-slate-500 shrink-0" />}
+                          : <Package className="w-5 h-5 text-slate-500 shrink-0" />}
                       <span className="text-sm font-medium truncate text-slate-900">{file.name}</span>
                     </div>
                     <button type="button" onClick={() => handleRemoveFile(index)} className="flex-shrink-0 p-1 ml-2 text-slate-400 hover:text-red-600 transition-colors">
