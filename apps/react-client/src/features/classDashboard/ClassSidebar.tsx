@@ -11,7 +11,7 @@ import {
 import classService from "@/services/classService";
 
 
-type TabId = "general" | "assignment" | "students" | "grades";
+type TabId = "general" | "assignment" | "posts" | "students" | "teams" | "files" | "grades";
 
 interface ClassSidebarProps {
   classId: string;

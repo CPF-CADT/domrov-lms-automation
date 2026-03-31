@@ -6,7 +6,7 @@ import {
   UsersIcon,
 } from "./icons";
 
-type TabId = "general" | "assignment" | "posts" | "students" | "files" | "grades";
+type TabId = "general" | "assignment" | "posts" | "students" | "teams" | "files" | "grades";
 
 interface ClassTabsProps {
   activeTab: TabId;
@@ -43,6 +43,7 @@ export default function ClassTabs({ activeTab, allowedTabs }: Omit<ClassTabsProp
     { id: "general", label: "General", icon: ClipboardIcon },
     { id: "assignment", label: "Assignment", icon: ClipboardIcon },
     { id: "students", label: "Students", icon: UsersIcon },
+    { id: "teams", label: "Teams", icon: UsersIcon },
     { id: "grades", label: "Grades", icon: ClipboardIcon },
   ];
   const tabs = allowedTabs
@@ -66,7 +67,7 @@ export default function ClassTabs({ activeTab, allowedTabs }: Omit<ClassTabsProp
       <div className="flex items-center justify-between">
         {/* Tab Title */}
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 bg-linear-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+          <div className="flex items-center justify-center rounded-lg w-9 h-9 bg-linear-to-br from-blue-500 to-purple-600">
             {TabIconComponent({ className: "w-4 h-4 text-white" })}
           </div>
           <h1 className="text-xl font-semibold text-slate-900">{getTabTitle()}</h1>

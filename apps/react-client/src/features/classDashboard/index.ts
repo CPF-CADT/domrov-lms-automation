@@ -15,3 +15,4 @@ export { default as TeacherGeneralTab } from './tabs/TeacherGeneralTab';
 export { default as TeacherAssignmentTab } from './tabs/TeacherAssignmentTab';
 export { default as TeacherGradesTab } from './tabs/TeacherGradesTab';
 export { default as StudentsTab } from './tabs/StudentsTab';
+export { default as TeamsTab } from './tabs/TeamsTab';

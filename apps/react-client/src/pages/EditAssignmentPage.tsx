@@ -7,7 +7,7 @@ import { useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Toast } from "@/components/Toast";
 
-type TabId = "general" | "assignment" | "students"| "grades";
+type TabId = "general" | "assignment" | "posts" | "students" | "teams" | "files" | "grades";
 
 export default function EditAssignmentPage() {
   const params = useParams();

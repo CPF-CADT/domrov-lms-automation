@@ -6,7 +6,7 @@ import { ClassSidebar } from "@/features/classDashboard";
 import { getAssessmentDetails, deleteAssessment } from "@/services/assessmentService";
 import type { AssessmentDetailDto } from "@/types/assessment";
 
-type TabId = "general" | "assignment" | "students" | "grades";
+type TabId = "general" | "assignment" | "posts" | "students" | "teams" | "files" | "grades";
 
 export default function TeacherAssignmentDetail() {
   const { id } = useParams<{ id: string }>();
