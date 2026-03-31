@@ -1,4 +1,5 @@
 import { Body, Controller, Post, Req, Res, UseGuards, Get, HttpCode, HttpStatus } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import {
     ApiTags,
@@ -32,7 +33,8 @@ import { RateLimiterGuard } from '../../common/security/guards/custom-throttler.
 @Controller('auth')
 export class AuthController {
     constructor(
-        private readonly authService: AuthService
+        private readonly authService: AuthService,
+        private readonly configService: ConfigService
     ) { }
 
     // ==================== SIGN UP ====================
@@ -453,7 +455,7 @@ export class AuthController {
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:5173';
 
         // Redirect to callback page (no sensitive data in URL)
         // Frontend will use refresh token cookie to get access token
