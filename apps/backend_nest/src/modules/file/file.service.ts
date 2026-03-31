@@ -33,18 +33,13 @@ export class FileService {
       if (!parentType || !parentId) throw new NotFoundException('Parent type and ID are required');
       if (!filename || !contentType) throw new NotFoundException('Filename and content type are required');
       const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-      let key: string;
-      if (key.includes('/submission/')) {
-        const submissionId = parseInt(key.split('/submission/')[1].split('/')[0]);
-        const submission = await this.submissionService.getAssessmentBySubmissionId(submissionId);
+      let key = `${userId}/${parentType}/${parentId}/${safeName}`;
+      if (parentType === 'submission') {
+        const submission = await this.submissionService.getAssessmentBySubmissionId(parentId);
         if (!submission) throw new NotFoundException('Associated submission not found');
         if (submission.assessment.submissionType === SubmissionType.TEAM) {
           key = `Team${submission.teamId}/${parentType}/${parentId}/${safeName}`;
-        } else {
-          key = `${userId}/${parentType}/${parentId}/${safeName}`;
         }
-      } else {
-        key = `${userId}/${parentType}/${parentId}/${safeName}`;
       }
 
       const { uploadUrl } = await this.r2Service.getUploadUrl(key, contentType);

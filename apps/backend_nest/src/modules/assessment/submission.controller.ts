@@ -342,15 +342,15 @@ export class SubmissionController {
     }
 
     // ==================== UNSUBMIT ASSIGNMENT ====================
-    @Post(':assessmentId/unsubmit')
-    @UseGuards(AssessmentStudentGuard)
-    @AssessmentIdParam('assessmentId')
+    @Post(':submissionId/unsubmit')
+    @UseGuards(SubmissionMemberGuard)
+    @SubmissionIdParam('submissionId')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({
         summary: 'Unsubmit assignment',
-        description: 'Revert a submitted assignment back to draft (if allowed).'
+        description: 'Revert a submitted assignment back to draft (if allowed). Accessible by the submission owner or team members.'
     })
-    @ApiParam({ name: 'assessmentId', type: Number, description: 'Assessment ID', example: 1 })
+    @ApiParam({ name: 'submissionId', type: Number, description: 'Submission ID', example: 511 })
     @ApiOkResponse({
         description: 'Assignment unsubmitted successfully',
         schema: {
@@ -364,11 +364,18 @@ export class SubmissionController {
             }
         }
     })
+    @ApiForbiddenResponse({
+        description: 'Not authorized to unsubmit this submission',
+        example: {
+            statusCode: 403,
+            message: 'You do not have permission to unsubmit this submission',
+            error: 'Forbidden'
+        }
+    })
     async unsubmit(
-        @UserId() userId: number,
-        @Param('assessmentId', ParseIntPipe) assessmentId: number,
+        @GetSubmissionContext() context: SubmissionContext,
     ) {
-        const data = await this.submissionService.unsubmitAssignment(userId, assessmentId);
+        const data = await this.submissionService.unsubmitAssignment(context.userId, context.submissionEntity.assessmentId);
         return { success: true, data };
     }
 
