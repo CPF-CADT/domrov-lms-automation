@@ -76,12 +76,12 @@ export default function OAuthCallback() {
     }, [navigate]);
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-600 to-purple-800">
+        <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-purple-600 to-purple-800">
             <div className="text-center">
                 {status === 'loading' && (
                     <>
-                        <div className="inline-flex items-center justify-center w-12 h-12 mb-4 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <h2 className="text-2xl font-semibold text-white mb-2">Completing Login</h2>
+                        <div className="inline-flex items-center justify-center w-12 h-12 mb-4 border-4 border-white rounded-full border-t-transparent animate-spin"></div>
+                        <h2 className="mb-2 text-2xl font-semibold text-white">Completing Login</h2>
                         <p className="text-purple-100">Please wait while we authenticate you...</p>
                     </>
                 )}
@@ -93,7 +93,7 @@ export default function OAuthCallback() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
                         </div>
-                        <h2 className="text-2xl font-semibold text-white mb-2">Login Successful</h2>
+                        <h2 className="mb-2 text-2xl font-semibold text-white">Login Successful</h2>
                         <p className="text-purple-100">Redirecting to dashboard...</p>
                     </>
                 )}
@@ -105,10 +105,10 @@ export default function OAuthCallback() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </div>
-                        <h2 className="text-2xl font-semibold text-white mb-2">Authentication Failed</h2>
-                        <p className="text-red-200 mb-4 font-mono text-sm">{errorMessage}</p>
-                        <p className="text-purple-200 text-sm">Check console (F12) for more details</p>
-                        <p className="text-purple-200 text-sm mt-2">Redirecting to login in 3 seconds...</p>
+                        <h2 className="mb-2 text-2xl font-semibold text-white">Authentication Failed</h2>
+                        <p className="mb-4 font-mono text-sm text-red-200">{errorMessage}</p>
+                        <p className="text-sm text-purple-200">Check console (F12) for more details</p>
+                        <p className="mt-2 text-sm text-purple-200">Redirecting to login in 3 seconds...</p>
                     </>
                 )}
             </div>

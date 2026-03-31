@@ -11,7 +11,7 @@ import ReferenceMaterials from "@/features/assignment/ReferenceMaterials";
 import StudentPortal from "@/features/assignment/StudentPortal";
 import type { UploadedFile } from "@/features/assignment/UploadSection";
 
-type TabId = "general" | "assignment" | "students" | "grades";
+type TabId = "general" | "assignment" | "posts" | "students" | "teams" | "files" | "grades";
 
 export default function AssignmentDetail() {
   const { id } = useParams<{ id: string }>();
