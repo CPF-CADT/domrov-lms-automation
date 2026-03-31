@@ -121,15 +121,16 @@ export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssig
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     if (!formData) return;
-    const { name, value, type } = e.currentTarget;
+    const { name, type } = e.currentTarget;
+    const value =
+      type === "checkbox"
+        ? (e.currentTarget as HTMLInputElement).checked
+        : e.currentTarget.value;
+
     setFormData((prev) => ({
       ...prev!,
       [name]:
-        type === "checkbox"
-          ? (e.currentTarget as HTMLInputElement).checked
-          : name === "maxScore"
-            ? Math.min(100, Math.max(1, Number(value)))
-            : value,
+        name === "maxScore" ? Math.min(100, Math.max(1, Number(value))) : value,
     }));
   };
 
