@@ -21,25 +21,9 @@ async function bootstrap() {
   app.useGlobalInterceptors(new PerformanceSentryInterceptor());
 
   // CORS configuration with proper origin handling for credentials
-  const allowedOrigins = ('http://localhost:5173,http://localhost:3000,https://domrov.app').split(',');
   app.enableCors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, curl requests)
-      if (!origin) {
-        callback(null, true);
-        return;
-      }
-
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('CORS not allowed'));
-      }
-    },
+    origin: true,
     credentials: true,
-    exposedHeaders: ['Content-Disposition'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
   });
   app.use(helmet());
 
