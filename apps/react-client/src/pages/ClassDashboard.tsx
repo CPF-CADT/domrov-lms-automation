@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -8,6 +8,7 @@ import { UserRole } from "@/types/enums";
 import MainNavigation from "@/components/navigation/Navigation";
 import StudentDashboard from "./StudentDashboard";
 import TeacherDashboard from "./TeacherDashboard";
+import classService from "@/services/classService";
 
 /**
  * ClassDashboard - Router component that delegates to StudentDashboard or TeacherDashboard
@@ -20,17 +21,41 @@ export default function ClassDashboard() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isLoading: authLoading } = useAuth();
+  const [role, setRole] = useState<string | undefined>();
 
   // Role MUST come from class context only (passed from ClassCard)
   // A user can be a teacher in one class and a student in another
-  const role = location.state?.role;
-
   useEffect(() => {
-    // Validate classId
     if (!classId) {
-      navigate("/classes");
+      navigate("/dashboard");
+      return;
     }
-  }, [classId, navigate]);
+
+    let cancelled = false;
+
+    async function loadRole() {
+      try {
+        const classes = await classService.getMyClasses();
+        const currentClass = classes.find((c) => c.id === Number(classId));
+
+        if (!cancelled) {
+          setRole(currentClass?.role ?? location.state?.role);
+        }
+      } catch (err) {
+        console.error("Failed to load role:", err);
+
+        if (!cancelled) {
+          setRole(location.state?.role);
+        }
+      }
+    }
+
+    loadRole();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [classId, location.state, navigate]);
 
   if (authLoading) {
     return (
@@ -55,7 +80,7 @@ export default function ClassDashboard() {
           <div className="flex flex-col items-center gap-4">
             <p className="text-red-600 font-medium">Unable to determine your role in this class</p>
             <button
-              onClick={() => navigate("/classes")}
+              onClick={() => navigate("/dashboard")}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
             >
               Back to Classes
