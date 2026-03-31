@@ -291,6 +291,7 @@ export class AuthController {
             example: {
                 success: true,
                 data: {
+                    accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
                     message: 'Email verified successfully'
                 }
             }
@@ -341,9 +342,18 @@ export class AuthController {
             }
         }
     })
-    async verifyOtp(@Body() body: VerifyOtpDTO): Promise<{ success: true; data: MessageResponseDto }> {
-        const data = await this.authService.verifyEmailOtp(body.email, body.otp);
-        return { success: true, data };
+    async verifyOtp(
+        @Body() body: VerifyOtpDTO,
+        @Res({ passthrough: true }) res: Response
+    ): Promise<{ success: true; data: { accessToken: string; message: string } }> {
+        const { refreshToken, ...verifyResponse } = await this.authService.verifyEmailOtp(body.email, body.otp);
+        res.cookie('refresh_token', refreshToken, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
+        return { success: true, data: verifyResponse };
     }
 
     // ==================== RESEND VERIFICATION OTP ====================
