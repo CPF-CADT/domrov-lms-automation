@@ -1006,6 +1006,18 @@ export class SubmissionService {
     throw new NotFoundException('Submission not found');
   }
 
+  async getAssessmentBySubmissionId(submissionId: number) {
+    const submission = await this.submissionRepo.findOne({
+      where: { id: submissionId },
+      relations: [
+        'assessment',
+      ],
+    });
+
+    if (!submission) throw new NotFoundException('Submission not found');
+    return submission;
+  }
+
   async getSubmissionResoucrs(
     submissionId: number,
   ): Promise<SubmissionResourceUrlResponseDto> {

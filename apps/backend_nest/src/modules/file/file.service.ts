@@ -8,6 +8,7 @@ import { Readable } from 'stream';
 import { CloudinaryService } from '../../services/cloudinary.service';
 import { SubmissionService } from '../assessment/submission.service';
 import { AssessmentService } from '../assessment/assessment.service';
+import { SubmissionType } from '../../libs/enums/Assessment';
 
 @Injectable()
 export class FileService {
@@ -32,7 +33,20 @@ export class FileService {
       if (!parentType || !parentId) throw new NotFoundException('Parent type and ID are required');
       if (!filename || !contentType) throw new NotFoundException('Filename and content type are required');
       const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const key = `${userId}/${parentType}/${parentId}/${safeName}`;
+      let key: string;
+      if (key.includes('/submission/')) {
+        const submissionId = parseInt(key.split('/submission/')[1].split('/')[0]);
+        const submission = await this.submissionService.getAssessmentBySubmissionId(submissionId);
+        if (!submission) throw new NotFoundException('Associated submission not found');
+        if (submission.assessment.submissionType === SubmissionType.TEAM) {
+          key = `Team${submission.teamId}/${parentType}/${parentId}/${safeName}`;
+        } else {
+          key = `${userId}/${parentType}/${parentId}/${safeName}`;
+        }
+      } else {
+        key = `${userId}/${parentType}/${parentId}/${safeName}`;
+      }
+
       const { uploadUrl } = await this.r2Service.getUploadUrl(key, contentType);
       return { presignedUrl: uploadUrl, key };
     } catch (err: any) {
