@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams, useLocation, Outlet } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { UserRole } from "@/types/enums";
@@ -10,9 +10,6 @@ import {
     ClassSidebar,
     ClassTabs,
 } from "@/features/classDashboard";
-import StudentGeneralTab from "@/features/classDashboard/tabs/StudentGeneralTab";
-import StudentAssignmentTab from "@/features/classDashboard/tabs/StudentAssignmentTab";
-import StudentGradesTab from "@/features/classDashboard/tabs/StudentGradesTab";
 
 type StudentTabId = "general" | "assignment" | "grades";
 
@@ -24,42 +21,30 @@ export default function StudentDashboard() {
     const params = useParams();
     const classId = params.id as string;
     const location = useLocation();
+    const navigate = useNavigate();
     const { isLoading: authLoading } = useAuth();
 
-    // Restore tab state from navigation or default to general
-    const initialTab = (location.state?.activeTab as StudentTabId) || "general";
-    const [activeTab, setActiveTab] = useState<StudentTabId>(initialTab);
+    // Determine active tab from path
+    const pathParts = location.pathname.split('/');
+    const lastPart = pathParts[pathParts.length - 1];
+    const currentTab = (["general", "assignment", "grades"].includes(lastPart) 
+        ? lastPart 
+        : "general") as StudentTabId;
+
+    const [activeTab, setActiveTab] = useState<StudentTabId>(currentTab);
+
+    // Sync state if navigation happens externally
+    useEffect(() => {
+        setActiveTab(currentTab);
+    }, [currentTab]);
 
     // Student-only allowed tabs (no teacher-specific tabs like "students")
     const allowedTabs: StudentTabId[] = ["general", "assignment", "grades"];
 
-    /**
-     * Render tab content - STUDENT-SPECIFIC
-     * Each tab component is optimized for student workflow (submission, tracking, feedback)
-     * NOT shared with teacher dashboard - uses dedicated StudentXTab components
-     */
-    const renderTabContent = () => {
-        switch (activeTab) {
-            // Student General Tab - Shows assignment overview, deadlines, and status
-            case "general":
-                return <StudentGeneralTab classId={classId} />;
-
-            // Student Assignment Tab - Focused on submission workflow (student-specific)
-            case "assignment":
-                return <StudentAssignmentTab classId={classId} />;
-
-            // Student Grades Tab - View feedback and scores (read-only)
-            case "grades":
-                return <StudentGradesTab classId={classId} />;
-
-            default:
-                return <StudentGeneralTab classId={classId} />;
-        }
-    };
-
     const handleTabChange = (tab: StudentTabId | string) => {
         if (tab !== "students") {
             setActiveTab(tab as StudentTabId);
+            navigate(`/student-class/${classId}/${tab}`);
         }
     };
 
@@ -103,8 +88,8 @@ export default function StudentDashboard() {
 
                         {/* Tab Content with Transition Animation */}
                         <main className="flex-1 overflow-y-auto bg-slate-50">
-                            <div key={activeTab} className="animate-fadeIn">
-                                {renderTabContent()}
+                            <div key={activeTab} className="animate-fadeIn p-8">
+                                <Outlet />
                             </div>
                         </main>
                     </div>

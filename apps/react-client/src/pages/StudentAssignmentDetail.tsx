@@ -100,7 +100,28 @@ export default function StudentAssignmentDetail() {
 
         // Fetch submission status
         const submissionData = await submissionService.getMySubmissionStatus(Number(id));
+
         if (submissionData) {
+          // Merge basic status data immediately
+          setSubmission(submissionData as any);
+
+          // Map resources from basic submission if available
+          if (submissionData.resources && Array.isArray(submissionData.resources)) {
+            const files: UploadedFile[] = submissionData.resources.map((resource: any) => ({
+              resourceId: resource.id,
+              name: resource.title || "Untitled",
+              path: resource.url || "",
+              size: "0 KB",
+              uploadedAt: new Date().toISOString(),
+              type: "file",
+              url: resource.url || "",
+            }));
+            setUploadedFiles(files);
+          }
+
+          // STOP LOADING IMMEDIATELY if we have any submission info (status/id)
+          setLoading(false);
+
           // Fetch detailed submission data if we have a submission ID
           if (submissionData.id) {
             try {
@@ -110,7 +131,7 @@ export default function StudentAssignmentDetail() {
 
               // Map resources from detailed submission (has the actual structure)
               if (detailedSubmission.resources && Array.isArray(detailedSubmission.resources)) {
-                const files: UploadedFile[] = detailedSubmission.resources.map((r) => ({
+                const files: UploadedFile[] = detailedSubmission.resources.map((r: any) => ({
                   resourceId: r.resource?.id,
                   name: r.resource?.title || "Untitled",
                   path: r.resource?.url || "",
@@ -123,26 +144,15 @@ export default function StudentAssignmentDetail() {
               }
             } catch (err: any) {
               console.warn("Could not fetch detailed submission:", err);
-              // Fallback: Map resources from basic submission
-              if (submissionData.resources && Array.isArray(submissionData.resources)) {
-                const files: UploadedFile[] = submissionData.resources.map((resource) => ({
-                  resourceId: resource.id,
-                  name: resource.title || "Untitled",
-                  path: resource.url || "",
-                  size: "0 KB",
-                  uploadedAt: new Date().toISOString(),
-                  type: "file",
-                  url: resource.url || "",
-                }));
-                setUploadedFiles(files);
-              }
             }
           }
+        } else {
+          // No submission data at all, we're done loading
+          setLoading(false);
         }
       } catch (err: any) {
         console.error("Error fetching assignment or submission:", err);
         setError(err.message || "Failed to load assignment details");
-      } finally {
         setLoading(false);
       }
     };
@@ -186,12 +196,9 @@ export default function StudentAssignmentDetail() {
   const handleAddFiles = useCallback((files: UploadedFile[]) => {
     setUploadedFiles((prev) => {
       const updated = [...prev, ...files];
-      // Trigger backend sync with all resources
-      const allResources = updated.map(f => ({ resourceId: f.resourceId }));
-      updateSubmissionResources(allResources);
       return updated;
     });
-  }, [updateSubmissionResources]);
+  }, []);
 
   const handleRemoveFile = useCallback((index: number) => {
     setUploadedFiles((prev) => {

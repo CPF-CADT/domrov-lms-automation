@@ -98,18 +98,20 @@ export async function unsubmitSubmission(submissionId: number): Promise<MySubmis
  * Delete a file/resource from a submission (Student)
  */
 export async function deleteSubmissionResource(submissionId: number, resourcePath: string): Promise<MySubmissionResponseDto> {
-    const response = (await axiosInstance.delete(`/submissions/${submissionId}/resource`, {
-        data: { resourcePath }
-    })).data;
+    const response = (await axiosInstance.delete(`/submissions/${submissionId}/resource`, { data: { path: resourcePath } })).data;
     return response.data;
 }
 
 /**
+ * Approve submission evaluation (Teacher)
+ */
+export async function approveSubmission(submissionId: number): Promise<{ success: boolean; data: any }> {
+    const response = (await axiosInstance.patch(`/submissions/approve/${submissionId}`)).data;
+    return response;
+}
+
+/**
  * Save or update draft assignment (Student) - Backend-driven state sync
- * Fully replaces submission resources on each call
- * @param assessmentId - Assessment ID
- * @param data - Draft data with resources, githubUrl, and comments
- * @returns Updated submission response from backend
  */
 export async function saveDraftAssignment(
     assessmentId: number,
@@ -121,15 +123,6 @@ export async function saveDraftAssignment(
 ): Promise<MySubmissionResponseDto> {
     const response = (await axiosInstance.patch(`/submissions/${assessmentId}/submit`, data)).data;
     return response.data;
-}
-
-/**
- * Approve a submission evaluation and post grades to student (Teacher)
- * Makes the evaluation visible to the student
- */
-export async function approveSubmission(submissionId: number): Promise<any> {
-    const response = await axiosInstance.patch(`/submissions/approve/${submissionId}`);
-    return response.data?.data || response.data;
 }
 
 const submissionService = {

@@ -142,6 +142,14 @@ export default function StudentPortal({
             </div>
             <p className="text-xs text-blue-700">Your assignment has been submitted successfully and is under review.</p>
           </div>
+        ) : submissionId ? (
+          <div className="bg-gradient-to-r from-blue-50 to-blue-50 border-l-4 border-blue-400 p-4 rounded-lg mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-2 h-2 bg-blue-600 rounded-full" />
+              <h3 className="text-sm font-bold text-blue-900">Draft Saved</h3>
+            </div>
+            <p className="text-xs text-blue-700">Your progress is saved. Click "Submit Assignment" when you're ready to send it to the instructor.</p>
+          </div>
         ) : (
           <div className="bg-gradient-to-r from-slate-50 to-slate-50 border-l-4 border-slate-400 p-4 rounded-lg mb-4">
             <div className="flex items-center gap-2 mb-2">

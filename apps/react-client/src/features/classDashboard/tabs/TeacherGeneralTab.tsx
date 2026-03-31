@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
 import { ClipboardIcon } from "../icons";
 import assessmentService from "@/services/assessmentService";
-import EditAssignmentDetail from "@/features/assignment/components/EditAssignmentDetail";
-import ViewAssignmentDetail from "@/features/assignment/components/ViewAssignmentDetail";
-import GradeStudentsDetail from "@/features/assignment/components/GradeStudentsDetail";
 import AnimatedPage from "@/components/AnimatedPage";
 import type { AssessmentListItemDto } from "@/types";
 
@@ -20,14 +18,12 @@ interface TeacherGeneralTabProps {
  */
 const TeacherGeneralTab = ({ classId }: TeacherGeneralTabProps) => {
     const classIdNum = Number(classId);
+    const navigate = useNavigate();
 
     const [, setAssignments] = useState<AssessmentListItemDto[]>([]);
     const [groupedAssignments, setGroupedAssignments] = useState<Record<number, AssessmentListItemDto[]>>({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [viewingAssignmentId, setViewingAssignmentId] = useState<number | null>(null);
-    const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null);
-    const [gradingAssignmentId, setGradingAssignmentId] = useState<number | null>(null);
 
     const fetchAssignments = useCallback(async () => {
         setLoading(true);
@@ -56,51 +52,6 @@ const TeacherGeneralTab = ({ classId }: TeacherGeneralTabProps) => {
         if (classIdNum) fetchAssignments();
     }, [classIdNum, fetchAssignments]);
 
-    // View assignment details
-    if (viewingAssignmentId !== null) {
-        return (
-            <div className="p-8 mx-auto max-w-7xl">
-                <AnimatedPage>
-                    <ViewAssignmentDetail
-                        assignmentId={viewingAssignmentId}
-                        onBack={() => setViewingAssignmentId(null)}
-                    />
-                </AnimatedPage>
-            </div>
-        );
-    }
-
-    // Grading/student list view
-    if (gradingAssignmentId !== null) {
-        return (
-            <div className="p-8 mx-auto max-w-7xl">
-                <AnimatedPage>
-                    <GradeStudentsDetail
-                        assignmentId={gradingAssignmentId}
-                        onBack={() => setGradingAssignmentId(null)}
-                    />
-                </AnimatedPage>
-            </div>
-        );
-    }
-
-    // Edit view
-    if (editingAssignmentId !== null) {
-        return (
-            <div className="p-8 mx-auto max-w-7xl">
-                <AnimatedPage>
-                    <EditAssignmentDetail
-                        assignmentId={editingAssignmentId}
-                        onBack={() => {
-                            setEditingAssignmentId(null);
-                            fetchAssignments();
-                        }}
-                    />
-                </AnimatedPage>
-            </div>
-        );
-    }
-
     return (
         <div className="p-6 max-w-4xl mx-auto space-y-6">
             <div className="bg-white rounded-lg border border-slate-200 p-6">
@@ -126,7 +77,7 @@ const TeacherGeneralTab = ({ classId }: TeacherGeneralTabProps) => {
                                     {sessionAssignments.map((assignment) => (
                                         <div
                                             key={assignment.id}
-                                            onClick={() => setViewingAssignmentId(assignment.id)}
+                                            onClick={() => navigate(`/class/${classId}/assignment/${assignment.id}/view`)}
                                             className="p-4 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors group cursor-pointer"
                                         >
                                             <div className="flex items-start justify-between">
@@ -140,12 +91,12 @@ const TeacherGeneralTab = ({ classId }: TeacherGeneralTabProps) => {
                                                 </div>
                                                 <div className="flex gap-2 ml-2" onClick={(e) => e.stopPropagation()}>
                                                     <button
-                                                        onClick={() => setEditingAssignmentId(assignment.id)}
+                                                        onClick={() => navigate(`/class/${classId}/assignment/${assignment.id}/edit`)}
                                                         className="px-3 py-1 text-black text-sm bg-white border border-slate-300 rounded hover:bg-slate-100 transition-colors">
                                                         Edit
                                                     </button>
                                                     <button
-                                                        onClick={() => setGradingAssignmentId(assignment.id)}
+                                                        onClick={() => navigate(`/class/${classId}/assignment/${assignment.id}/grade`)}
                                                         className="px-3 py-1 text-black text-sm bg-white border border-slate-300 rounded hover:bg-slate-100 transition-colors">
                                                         Grade
                                                     </button>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams, useLocation, Outlet } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { UserRole } from "@/types/enums";
@@ -9,12 +9,7 @@ import MainNavigation from "@/components/navigation/Navigation";
 import {
     ClassSidebar,
     ClassTabs,
-    StudentsTab,
 } from "@/features/classDashboard";
-import TeacherGeneralTab from "@/features/classDashboard/tabs/TeacherGeneralTab";
-import TeacherAssignmentTab from "@/features/classDashboard/tabs/TeacherAssignmentTab";
-import TeacherGradesTab from "@/features/classDashboard/tabs/TeacherGradesTab";
-import TeamsTab from "@/features/classDashboard/tabs/TeamsTab";
 
 type TeacherTabId = "general" | "assignment" | "students" | "teams" | "grades";
 
@@ -26,49 +21,29 @@ export default function TeacherDashboard() {
     const params = useParams();
     const classId = params.id as string;
     const location = useLocation();
+    const navigate = useNavigate();
     const { isLoading: authLoading } = useAuth();
 
-    // Restore tab state from navigation or default to general
-    const initialTab = (location.state?.activeTab as TeacherTabId) || "general";
-    const [activeTab, setActiveTab] = useState<TeacherTabId>(initialTab);
+    // Determine active tab from current path
+    const pathParts = location.pathname.split('/');
+    const lastPart = pathParts[pathParts.length - 1];
+    const currentTab = (["general", "assignment", "students", "teams", "grades"].includes(lastPart) 
+        ? lastPart 
+        : "general") as TeacherTabId;
+
+    const [activeTab, setActiveTab] = useState<TeacherTabId>(currentTab);
+
+    // Sync state if navigation happens externally
+    useEffect(() => {
+        setActiveTab(currentTab);
+    }, [currentTab]);
 
     // Teacher-specific tabs include "students" for class roster management and "teams" for team management
     const allowedTabs: TeacherTabId[] = ["general", "assignment", "students", "teams", "grades"];
 
-    /**
-     * Render tab content - TEACHER-SPECIFIC
-     * Each tab component is optimized for classroom management (creation, grading, administration)
-     * NOT shared with student dashboard - uses dedicated TeacherXTab components
-     */
-    const renderTabContent = () => {
-        switch (activeTab) {
-            // Teacher General Tab - Class overview, assignment management
-            case "general":
-                return <TeacherGeneralTab classId={classId} />;
-
-            // Teacher Assignment Tab - Create, edit, grade assignments
-            case "assignment":
-                return <TeacherAssignmentTab classId={classId} />;
-
-            // Teacher Students Tab - Class roster and student management (teacher only)
-            case "students":
-                return <StudentsTab classId={classId} />;
-
-            // Teacher Teams Tab - Team creation and management
-            case "teams":
-                return <TeamsTab classId={classId} />;
-
-            // Teacher Grades Tab - Grade management and analytics
-            case "grades":
-                return <TeacherGradesTab classId={classId} />;
-
-            default:
-                return <TeacherGeneralTab classId={classId} />;
-        }
-    };
-
     const handleTabChange = (tab: TeacherTabId | string) => {
         setActiveTab(tab as TeacherTabId);
+        navigate(`/class/${classId}/${tab}`);
     };
 
     if (authLoading) {
@@ -111,8 +86,8 @@ export default function TeacherDashboard() {
 
                         {/* Tab Content with Transition Animation */}
                         <main className="flex-1 overflow-y-auto bg-slate-50">
-                            <div key={activeTab} className="animate-fadeIn">
-                                {renderTabContent()}
+                            <div key={activeTab} className="animate-fadeIn p-8">
+                                <Outlet />
                             </div>
                         </main>
                     </div>

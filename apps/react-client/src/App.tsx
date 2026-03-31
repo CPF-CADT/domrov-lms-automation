@@ -18,6 +18,11 @@ import StudentAssignmentDetail from '@/pages/StudentAssignmentDetail';
 import CreateClass from '@/pages/CreateClass';
 import CreateAssignmentPage from '@/pages/CreateAssignmentPage';
 import EditAssignmentPage from '@/pages/EditAssignmentPage';
+import TeacherGeneralTab from "@/features/classDashboard/tabs/TeacherGeneralTab";
+import TeacherAssignmentTab from "@/features/classDashboard/tabs/TeacherAssignmentTab";
+import StudentsTab from "@/features/classDashboard/tabs/StudentsTab";
+import TeamsTab from "@/features/classDashboard/tabs/TeamsTab";
+import TeacherGradesTab from "@/features/classDashboard/tabs/TeacherGradesTab";
 import Docs from '@/pages/Docs';
 import About from '@/pages/About';
 import Pricing from '@/pages/Pricing';
@@ -25,13 +30,64 @@ import AssignmentDetail from '@/pages/AssignmentDetail';
 import CreditPurchasePage from './pages/CreditPurchase';
 import AIEvaluationPage from '@/pages/AIEvaluationPage';
 
+import StudentGeneralTab from "@/features/classDashboard/tabs/StudentGeneralTab";
+import StudentAssignmentTab from "@/features/classDashboard/tabs/StudentAssignmentTab";
+import StudentGradesTab from "@/features/classDashboard/tabs/StudentGradesTab";
 import UserProfilePage from '@/pages/profile';
-import { useParams } from 'react-router-dom';
+import { useParams, Outlet } from 'react-router-dom';
 
 const CreateAssignmentPageWrapper: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   if (!id) return null;
   return <CreateAssignmentPage classId={id} />;
+};
+
+const TeacherGeneralTabWrapper: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  if (!id) return null;
+  return <TeacherGeneralTab classId={id} />;
+};
+
+const TeacherAssignmentTabWrapper: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  if (!id) return null;
+  return <TeacherAssignmentTab classId={id} />;
+};
+
+const StudentsTabWrapper: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  if (!id) return null;
+  return <StudentsTab classId={id} />;
+};
+
+const TeamsTabWrapper: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  if (!id) return null;
+  return <TeamsTab classId={id} />;
+};
+
+const TeacherGradesTabWrapper: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  if (!id) return null;
+  return <TeacherGradesTab classId={id} />;
+};
+
+const StudentGeneralTabWrapper: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  if (!id) return null;
+  return <StudentGeneralTab classId={id} />;
+};
+
+const StudentAssignmentTabWrapper: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  if (!id) return null;
+  return <StudentAssignmentTab classId={id} />;
+};
+
+const StudentGradesTabWrapper: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  if (!id) return null;
+  return <StudentGradesTab classId={id} />;
 };
 
 const AppRoutes: React.FC = () => {
@@ -51,8 +107,20 @@ const AppRoutes: React.FC = () => {
       {/* Protected pages - require authentication */}
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/class/create" element={<ProtectedRoute><CreateClass /></ProtectedRoute>} />
-      <Route path="/class/:id" element={<ProtectedRoute><ClassDashboard /></ProtectedRoute>} />
-      <Route path="/student-class/:id" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
+      <Route path="/class/:id" element={<ProtectedRoute><ClassDashboard /></ProtectedRoute>}>
+        <Route index element={<TeacherGeneralTabWrapper />} />
+        <Route path="general" element={<TeacherGeneralTabWrapper />} />
+        <Route path="assignment" element={<TeacherAssignmentTabWrapper />} />
+        <Route path="students" element={<StudentsTabWrapper />} />
+        <Route path="teams" element={<TeamsTabWrapper />} />
+        <Route path="grades" element={<TeacherGradesTabWrapper />} />
+      </Route>
+      <Route path="/student-class/:id" element={<ProtectedRoute><ClassDashboard /></ProtectedRoute>}>
+        <Route index element={<StudentGeneralTabWrapper />} />
+        <Route path="general" element={<StudentGeneralTabWrapper />} />
+        <Route path="assignment" element={<StudentAssignmentTabWrapper />} />
+        <Route path="grades" element={<StudentGradesTabWrapper />} />
+      </Route>
       <Route path="/student-class/:classId/assignment/:assignmentId" element={<ProtectedRoute><StudentAssignmentDetail /></ProtectedRoute>} />
       <Route
         path="/class/:id/assignment/create"
@@ -64,6 +132,8 @@ const AppRoutes: React.FC = () => {
       />
       <Route path="/class/:id/assignment/:assignmentId/create" element={<ProtectedRoute><EditAssignmentPage /></ProtectedRoute>} />
       <Route path="/class/:id/assignment/:assignmentId/edit" element={<ProtectedRoute><EditAssignmentPage /></ProtectedRoute>} />
+      <Route path="/class/:id/assignment/:assignmentId/grade" element={<ProtectedRoute><EditAssignmentPage /></ProtectedRoute>} />
+      <Route path="/class/:id/assignment/:assignmentId/view" element={<ProtectedRoute><EditAssignmentPage /></ProtectedRoute>} />
       <Route path="/assignment/:id" element={<ProtectedRoute><AssignmentDetail /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><UserProfilePage /></ProtectedRoute>} />
       <Route path="/creditPurchase" element={<ProtectedRoute><CreditPurchasePage /></ProtectedRoute>} />

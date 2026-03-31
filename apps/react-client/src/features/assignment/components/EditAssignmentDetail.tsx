@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Upload, Link2, FileText, Eye, AlertTriangle, Sparkles, ChevronDown, Info, Trash } from "lucide-react";
 import Dialog from "@/components/Dialog";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
@@ -33,7 +34,7 @@ interface FormData {
   startDate: string;
   dueDate: string;
   maxScore: number;
-  allowedSubmissionMethod: "GITHUB" | "ANY" | "ZIP";
+  allowedSubmissionMethod: SubmissionMethod;
   allowLateSubmissions: boolean;
   aiEvaluationEnabled: boolean;
   rubrics: RubricItem[];
@@ -47,7 +48,7 @@ const DEFAULT_FORM: FormData = {
   startDate: "",
   dueDate: "",
   maxScore: 100,
-  allowedSubmissionMethod: "GITHUB",
+  allowedSubmissionMethod: SubmissionMethod.GITHUB,
   allowLateSubmissions: false,
   aiEvaluationEnabled: false,
   rubrics: [{ definition: "Overall Score", totalScore: 100 }],
@@ -64,9 +65,9 @@ function mapDtoToFormWithMethods(dto: any): FormData {
     dueDate: dto.dueDate ? new Date(dto.dueDate).toISOString().slice(0, 16) : "",
     maxScore: Math.min(100, dto.maxScore ?? 100),
     allowedSubmissionMethod:
-      dto.allowedSubmissionMethod === SubmissionMethod.ZIP ? "ZIP"
-        : dto.allowedSubmissionMethod === SubmissionMethod.GITHUB ? "GITHUB"
-          : "ANY",
+      dto.allowedSubmissionMethod === SubmissionMethod.ZIP ? SubmissionMethod.ZIP
+        : dto.allowedSubmissionMethod === SubmissionMethod.GITHUB ? SubmissionMethod.GITHUB
+          : SubmissionMethod.ANY,
     allowLateSubmissions: dto.allowLate ?? false,
     aiEvaluationEnabled: dto.aiEvaluationEnable ?? false,
     rubrics,
@@ -87,9 +88,9 @@ function mapToDto(data: FormData, uploadedFiles: UploadedFile[]): UpdateAssessme
       : SubmissionType.INDIVIDUAL,
     aiEvaluationEnable: data.aiEvaluationEnabled,
     allowedSubmissionMethod:
-      data.allowedSubmissionMethod === "ANY" ? SubmissionMethod.ZIP
-        : data.allowedSubmissionMethod === "ZIP" ? SubmissionMethod.ZIP
-          : SubmissionMethod.GITHUB,
+      data.allowedSubmissionMethod === SubmissionMethod.ZIP ? SubmissionMethod.ZIP
+        : data.allowedSubmissionMethod === SubmissionMethod.GITHUB ? SubmissionMethod.GITHUB
+          : SubmissionMethod.ANY,
     rubrics: data.rubrics.length > 0 ? data.rubrics : [
       { definition: "Overall Score", totalScore: data.maxScore }
     ],
@@ -100,6 +101,7 @@ function mapToDto(data: FormData, uploadedFiles: UploadedFile[]): UpdateAssessme
 }
 
 export default function EditAssignmentDetail({ assignmentId, classId, onBack }: EditAssignmentDetailProps) {
+  const navigate = useNavigate();
   const id = assignmentId ? Number(assignmentId) : 0;
   const isNewDraft = !assignmentId || id === 0 || isNaN(id);
   const draftKey = classId ? `draft_assignment_detail_${classId}` : "draft_assignment_detail";
@@ -390,7 +392,13 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
       await updateAssignmentData();
       console.log("✅ Changes saved");
       if (isNewDraft) localStorage.removeItem(draftKey);
-      setTimeout(() => onBack(), 500);
+
+      // Navigate to the edit page after saving
+      if (classId && id) {
+        navigate(`/class/${classId}/assignment/${id}/edit`);
+      } else {
+        setTimeout(() => onBack(), 500);
+      }
     } catch (err: any) {
       console.error("❌ Save error:", err);
       setError(err?.message ?? "Failed to save changes. Please try again.");

@@ -309,6 +309,13 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => navigate(`/class/${classId}/assignment/${assignment.id}/grade`)}
+                            className="px-2 py-1 text-xs font-medium text-green-600 border border-green-200 rounded-lg hover:bg-green-50 transition-colors"
+                            title="Grade"
+                          >
+                            Grade
+                          </button>
                           {!assignment.isPublic && (
                             <button
                               onClick={() => handlePublish(assignment.id)}

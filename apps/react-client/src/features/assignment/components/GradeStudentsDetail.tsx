@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2, ChevronUp, ChevronDown, File, Download, RefreshCw, Sparkles, CheckCircle2, MessageSquare } from "lucide-react";
+import { ArrowLeft, Loader2, ChevronUp, ChevronDown, File, Download, RefreshCw, Sparkles, CheckCircle2 } from "lucide-react";
 import assessmentService from "@/services/assessmentService";
 import submissionService from "@/services/submissionService";
 import evaluationService from "@/services/evaluationService";
@@ -32,6 +32,9 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
     const [submissionDetail, setSubmissionDetail] = useState<SubmissionViewerResponseDto | null>(null);
     const [submissionLoading, setSubmissionLoading] = useState(false);
     const [isApproving, setIsApproving] = useState(false);
+    const [isManualGrading, setIsManualGrading] = useState(false);
+    const [manualScore, setManualScore] = useState<number>(0);
+    const [manualFeedback, setManualFeedback] = useState<string>("");
 
     const fetchData = async (isRefresh = false) => {
         try {
@@ -58,11 +61,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
 
     useEffect(() => {
         fetchData();
-
-        // Auto-refresh every 10 seconds
-        const interval = setInterval(() => fetchData(true), 10000);
-
-        return () => clearInterval(interval);
+        // Removed auto-refresh to prevent UI from resetting while typing
     }, [assignmentId]);
 
     // Load submission details when student is selected
@@ -101,6 +100,17 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
             cancelled = true;
         };
     }, [selectedStudentId, rosterData]);
+
+    // Update form when details change
+    useEffect(() => {
+        if (submissionDetail?.evaluation) {
+            setManualScore(submissionDetail.evaluation.score);
+            setManualFeedback(submissionDetail.evaluation.feedback || "");
+        } else {
+            setManualScore(0);
+            setManualFeedback("");
+        }
+    }, [submissionDetail]);
 
     const filteredData = trackingData.filter((item) => {
         const name = "studentId" in item ? item.name : item.name;
@@ -167,8 +177,52 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
             setSubmissionLoading(true);
             submissionService
                 .getSubmissionDetails(rosterItem.submissionId)
-                .then(setSubmissionDetail)
+                .then((data) => {
+                    setSubmissionDetail(data);
+                    if (data.evaluation) {
+                        setManualScore(data.evaluation.score);
+                        setManualFeedback(data.evaluation.feedback || "");
+                    }
+                })
                 .finally(() => setSubmissionLoading(false));
+        }
+    };
+
+    const handleManualGradeAndApprove = async () => {
+        try {
+            const rosterItem = rosterData.find(item => {
+                const id = "userId" in item ? item.userId : item.id;
+                return id === selectedStudentId;
+            });
+
+            if (!rosterItem || !rosterItem.submissionId) {
+                showToast("Could not find submission.", "error");
+                return;
+            }
+
+            if (manualScore < 0 || (assignment && manualScore > assignment.maxScore)) {
+                showToast(`Score must be between 0 and ${assignment?.maxScore}`, "error");
+                return;
+            }
+
+            setIsManualGrading(true);
+            
+            // First grade the submission
+            await submissionService.gradeSubmission(rosterItem.submissionId, {
+                score: manualScore,
+                feedback: manualFeedback
+            });
+
+            // Then immediately approve it
+            await submissionService.approveSubmission(rosterItem.submissionId);
+
+            showToast("✅ Graded and Approved successfully!", "success");
+            setRefreshCurrent();
+        } catch (err: any) {
+            const message = err?.response?.data?.message || err?.message || "Failed to grade and approve submission";
+            showToast(message, "error");
+        } finally {
+            setIsManualGrading(false);
         }
     };
 
@@ -456,16 +510,40 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
 
                                 {/* Status Card */}
                                 <div className="bg-white rounded-lg border border-slate-200 p-6 mb-6">
-                                    <h3 className="font-semibold text-slate-900 mb-3">Status</h3>
-                                    <div className="space-y-2">
-                                        <div className="flex items-center gap-2">
-                                            <div className={`w-2 h-2 rounded-full ${isApproved ? 'bg-green-500' : 'bg-amber-500'}`}></div>
-                                            <span className="text-sm text-slate-700">{isApproved ? 'Approved - Visible to Student' : 'Pending Approval'}</span>
+                                    <h3 className="font-semibold text-slate-900 mb-3 text-sm uppercase tracking-wider">Manual Grading</h3>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-600 uppercase mb-2">Score (Max {assignment.maxScore})</label>
+                                            <input
+                                                type="number"
+                                                value={manualScore}
+                                                onChange={(e) => setManualScore(Number(e.target.value))}
+                                                max={assignment.maxScore}
+                                                min={0}
+                                                disabled={isApproved || isManualGrading}
+                                                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
+                                            />
                                         </div>
-                                        <div className="flex items-center gap-2 text-slate-500">
-                                            <MessageSquare className="w-4 h-4" />
-                                            <span className="text-sm">{submissionDetail && submissionDetail.evaluation?.feedbacks?.length || 0} Comments</span>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-600 uppercase mb-2">General Feedback</label>
+                                            <textarea
+                                                value={manualFeedback}
+                                                onChange={(e) => setManualFeedback(e.target.value)}
+                                                placeholder="Enter overall feedback..."
+                                                disabled={isApproved || isManualGrading}
+                                                rows={4}
+                                                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm resize-none"
+                                            />
                                         </div>
+                                        {!isApproved && (
+                                            <button
+                                                onClick={handleManualGradeAndApprove}
+                                                disabled={isManualGrading}
+                                                className="w-full py-2 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 disabled:opacity-50 transition-all text-sm flex items-center justify-center gap-2"
+                                            >
+                                                {isManualGrading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Grade & Approve"}
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
 
