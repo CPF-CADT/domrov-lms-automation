@@ -356,6 +356,11 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
         const hasEvaluation = submissionDetail?.evaluation;
         const isApproved = submissionDetail?.evaluation?.isApproved;
 
+        // Debug log
+        console.log("Submission Detail:", submissionDetail);
+        console.log("Has Evaluation:", hasEvaluation);
+        console.log("AI Output:", submissionDetail?.evaluation?.aiOutput);
+
         return (
             <div className="min-h-screen bg-slate-50">
                 {/* Evaluation Workflow Header */}
@@ -473,7 +478,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                                 </div>
 
                                 {/* AI Feedback Section */}
-                                {hasEvaluation && (
+                                {hasEvaluation && submissionDetail?.evaluation && (
                                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
                                         <div className="flex items-center gap-2 mb-4">
                                             <Sparkles className="w-5 h-5 text-blue-600" />
@@ -482,7 +487,40 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                                                 {submissionDetail.evaluation?.evaluationType || 'Manual'}
                                             </span>
                                         </div>
-                                        <p className="text-slate-700 whitespace-pre-wrap">{submissionDetail.evaluation?.feedback || 'No feedback provided'}</p>
+                                        <div className="space-y-3">
+                                            {submissionDetail.evaluation?.aiOutput ? (
+                                                <div>
+                                                    <p className="text-sm font-medium text-slate-600 mb-2">Evaluation Details:</p>
+                                                    <p className="text-slate-700 whitespace-pre-wrap bg-white p-4 rounded border border-blue-100">
+                                                        {(() => {
+                                                            const content = submissionDetail.evaluation.aiOutput;
+                                                            if (typeof content === 'string') {
+                                                                return content
+                                                                    .replace(/\\"/g, '"')
+                                                                    .replace(/\\n/g, '\n')
+                                                                    .replace(/^["']|["']$/g, '')
+                                                                    .trim();
+                                                            }
+                                                            return content;
+                                                        })()}
+                                                    </p>
+                                                </div>
+                                            ) : submissionDetail.evaluation?.feedback ? (
+                                                <div>
+                                                    <p className="text-sm font-medium text-slate-600 mb-2">Evaluation Details:</p>
+                                                    <p className="text-slate-700 whitespace-pre-wrap bg-white p-4 rounded border border-blue-100">
+                                                        {submissionDetail.evaluation.feedback}
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <p className="text-slate-600 italic">No feedback provided</p>
+                                            )}
+                                            {submissionDetail.evaluation?.penaltyScore && submissionDetail.evaluation.penaltyScore > 0 && (
+                                                <div className="p-3 bg-red-50 border border-red-200 rounded">
+                                                    <p className="text-xs font-semibold text-red-700">Penalty Applied: -{submissionDetail.evaluation.penaltyScore} points</p>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -541,7 +579,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                                                 disabled={isManualGrading}
                                                 className="w-full py-2 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 disabled:opacity-50 transition-all text-sm flex items-center justify-center gap-2"
                                             >
-                                                {isManualGrading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Grade & Approve"}
+                                                {isManualGrading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Score"}
                                             </button>
                                         )}
                                     </div>
@@ -557,7 +595,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                                             className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
                                         >
                                             <Sparkles className="w-4 h-4" />
-                                            {isApproving ? 'Evaluating...' : 'Run AI Evaluation'}
+                                            {isApproving ? 'Approving...' : 'Approve'}
                                         </button>
                                     )}
                                     {hasEvaluation && !isApproved && (
@@ -575,14 +613,6 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                                             <p className="text-sm font-semibold text-green-700">✓ Posted to Student</p>
                                         </div>
                                     )}
-                                    <button
-                                        onClick={() => setRefreshCurrent()}
-                                        disabled={isApproving}
-                                        className="w-full px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                                    >
-                                        <RefreshCw className="w-4 h-4" />
-                                        Refresh
-                                    </button>
                                 </div>
                             </div>
                         </div>
