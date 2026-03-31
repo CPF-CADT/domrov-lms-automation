@@ -124,10 +124,10 @@ export default function ResourceViewer({ isOpen, onClose, resource }: ResourceVi
                             <div className="text-center">
                                 <div className="text-6xl mb-4">
                                     {resource.type === "FILE"
-                                        ? "📄"
+                                        ? ""
                                         : resource.type === "GITHUB"
-                                            ? "🔗"
-                                            : "📎"}
+                                            ? ""
+                                            : ""}
                                 </div>
                                 <h3 className="font-bold text-slate-900 mb-2">{resource.title}</h3>
                                 <p className="text-sm text-slate-600">
