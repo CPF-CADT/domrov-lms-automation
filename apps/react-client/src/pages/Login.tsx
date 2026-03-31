@@ -9,11 +9,13 @@ import { LoginCard } from "@/features/login";
  */
 export default function Login() {
   return (
-    <div className="min-h-screen bg-white font-sans text-slate-800">
+    <div className="flex flex-col h-screen bg-white font-sans text-slate-800">
       <Header />
-      <SectionWrapper>
-        <LoginCard />
-      </SectionWrapper>
+      <div className="flex-1 flex items-center justify-center overflow-hidden">
+        <SectionWrapper>
+          <LoginCard />
+        </SectionWrapper>
+      </div>
       <Footer />
     </div>
   );

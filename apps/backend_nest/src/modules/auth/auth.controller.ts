@@ -1,4 +1,5 @@
 import { Body, Controller, Post, Req, Res, UseGuards, Get, HttpCode, HttpStatus } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import {
     ApiTags,
@@ -32,7 +33,8 @@ import { RateLimiterGuard } from '../../common/security/guards/custom-throttler.
 @Controller('auth')
 export class AuthController {
     constructor(
-        private readonly authService: AuthService
+        private readonly authService: AuthService,
+        private readonly configService: ConfigService
     ) { }
 
     // ==================== SIGN UP ====================
@@ -291,6 +293,7 @@ export class AuthController {
             example: {
                 success: true,
                 data: {
+                    accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
                     message: 'Email verified successfully'
                 }
             }
@@ -341,9 +344,18 @@ export class AuthController {
             }
         }
     })
-    async verifyOtp(@Body() body: VerifyOtpDTO): Promise<{ success: true; data: MessageResponseDto }> {
-        const data = await this.authService.verifyEmailOtp(body.email, body.otp);
-        return { success: true, data };
+    async verifyOtp(
+        @Body() body: VerifyOtpDTO,
+        @Res({ passthrough: true }) res: Response
+    ): Promise<{ success: true; data: { accessToken: string; message: string } }> {
+        const { refreshToken, ...verifyResponse } = await this.authService.verifyEmailOtp(body.email, body.otp);
+        res.cookie('refresh_token', refreshToken, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
+        return { success: true, data: verifyResponse };
     }
 
     // ==================== RESEND VERIFICATION OTP ====================
@@ -443,7 +455,7 @@ export class AuthController {
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:5173';
 
         // Redirect to callback page (no sensitive data in URL)
         // Frontend will use refresh token cookie to get access token

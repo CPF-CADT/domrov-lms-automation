@@ -74,6 +74,10 @@ export class AuthService {
         const { confirmPassword, ...userData } = signUpUserDto
         // Hash the password before creating the user
         const createdUser = await this.userService.create(userData)
+        
+        // Automatically send verification OTP to user email
+        await this.sendVerificationEmail(createdUser.email)
+        
         return {
             userId: createdUser.id,
             firstName: createdUser.firstName,
@@ -86,6 +90,8 @@ export class AuthService {
     if (!login?.email || !login?.password) throw new BadRequestException('Email and password are required')
     const user = await this.userService.findByEmail(login.email)
     if (!user) throw new UnauthorizedException('User not found with this email')
+    if (user.status !== UserStatus.ACTIVE) throw new UnauthorizedException('User account is not active')
+    if (user.isVerified !== true) throw new BadRequestException('User account is not verified')
     const passwordMatches = await Encryption.verifyPassword(user.password, login.password)
     if (!passwordMatches) throw new UnauthorizedException('Password Incorrect Please Try Again')
     const payload = { sub: user.id, email: user.email, role: user.role }
@@ -176,7 +182,7 @@ export class AuthService {
     return { message: 'Verification OTP sent successfully' }
   }
 
-  async verifyEmailOtp(email: string, otp: string): Promise<MessageResponseDto> {
+  async verifyEmailOtp(email: string, otp: string): Promise<{ accessToken: string; refreshToken: string; message: string }> {
     const user = await this.userService.findByEmail(email)
     if (!user) throw new NotFoundException('User with this email not found')
     if (user.isVerified) throw new BadRequestException('Email is already verified')
@@ -189,7 +195,16 @@ export class AuthService {
     if (otp !== userOtp.otp) throw new BadRequestException('Invalid OTP. Please check and try again.')
     await this.userEmailOtpRepository.delete(userOtp.id)
     await this.userService.verifyUser(user.id);
-    return { message: 'Email verified successfully' }
+    
+    // Generate tokens after verification
+    const payload = { sub: user.id, email: user.email, role: user.role }
+    const accessToken = await this.accessJwtService.signAsync(payload)
+    const refreshToken = await this.refreshJwtService.signAsync(payload)
+    const expiresAt = new Date()
+    expiresAt.setDate(expiresAt.getDate() + 7)
+    await this.userRefreshTokenRepository.save({ user, refreshToken, expiresAt })
+    
+    return { accessToken, refreshToken, message: 'Email verified successfully' }
   }
 
   async validateGoogleUser(googleUser: Partial<RegisterUserDTO>) {
