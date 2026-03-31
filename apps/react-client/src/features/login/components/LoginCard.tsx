@@ -7,19 +7,13 @@ import LoginForm from "./LoginForm";
  */
 export default function LoginCard() {
   return (
-    <div className="max-w-xl mx-auto bg-white border border-slate-200 shadow-xl rounded-2xl p-10">
-      <div className="text-center mb-8 space-y-2">
+    <div className="max-w-xl mx-auto bg-white border border-slate-200 shadow-xl rounded-2xl p-6 md:p-8">
+      <div className="text-center mb-4 space-y-1">
         <Badge label="MOCK LOGIN" variant="primary" />
-        <h1 className="text-3xl font-black text-primary">Sign in to Domrov</h1>
-        <p className="text-slate-600 text-sm">
-        </p>
+        <h1 className="text-2xl md:text-3xl font-black text-primary">Sign in to Domrov</h1>
       </div>
 
       <LoginForm />
-
-      <div className="mt-8 text-center text-sm text-slate-600">
-
-      </div>
     </div>
   );
 }

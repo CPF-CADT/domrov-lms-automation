@@ -50,9 +50,9 @@ export default function LoginForm() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Email/Password Form */}
-      <form className="space-y-6" onSubmit={handleSubmit}>
+      <form className="space-y-3" onSubmit={handleSubmit}>
         <FormField
           id="email"
           label="Email"
@@ -74,12 +74,12 @@ export default function LoginForm() {
         />
 
         {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+          <div className="p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs">
             {error}
           </div>
         )}
 
-        <div className="space-y-3">
+        <div className="space-y-2 pt-1">
           <PrimaryButton type="submit" disabled={loading}>
             {loading ? "Logging in..." : "Continue"}
           </PrimaryButton>
@@ -90,24 +90,24 @@ export default function LoginForm() {
       </form>
 
       {/* Divider */}
-      <div className="relative">
+      <div className="relative py-1">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-slate-300"></div>
         </div>
-        <div className="relative flex justify-center text-sm">
+        <div className="relative flex justify-center text-xs">
           <span className="px-2 bg-white text-slate-500">Or continue with</span>
         </div>
       </div>
 
       {/* OAuth Buttons */}
-      <div className="space-y-3">
+      <div className="scale-90 origin-top -my-2">
         <GoogleOAuthButton />
       </div>
 
       {/* Sign Up Link */}
-      <div className="mt-6 text-center">
-        <span className="text-sm text-slate-600">Don't have an account?</span>
-        <a href="/login/signup" className="ml-2 text-sm text-blue-700 hover:underline font-semibold">Sign Up</a>
+      <div className="text-center pt-1">
+        <span className="text-xs text-slate-600">Don't have an account?</span>
+        <a href="/login/signup" className="ml-1 text-xs text-blue-700 hover:underline font-semibold">Sign Up</a>
       </div>
     </div>
   );

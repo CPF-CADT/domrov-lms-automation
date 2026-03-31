@@ -9,6 +9,8 @@ import PublicRoute from '@/components/PublicRoute';
 import Landing from '@/pages/Landing';
 import Dashboard from '@/pages/Dashboard';
 import Login from '@/pages/Login';
+import Signup from '@/pages/Signup';
+import VerifyEmail from '@/pages/VerifyEmail';
 import OAuthCallback from '@/pages/auth/OAuthCallback';
 import ClassDashboard from '@/pages/ClassDashboard';
 import StudentDashboard from '@/pages/StudentDashboard';
@@ -41,6 +43,9 @@ const AppRoutes: React.FC = () => {
       <Route path="/about" element={<About />} />
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+      <Route path="/login/signup" element={<PublicRoute><Signup /></PublicRoute>} />
+      <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
+      <Route path="/verify-email" element={<PublicRoute><VerifyEmail /></PublicRoute>} />
       <Route path="/auth/callback" element={<OAuthCallback />} />
 
       {/* Protected pages - require authentication */}

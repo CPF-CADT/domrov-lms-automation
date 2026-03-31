@@ -48,7 +48,7 @@ export async function refreshToken(): Promise<RefreshTokenResponseDto> {
 /**
  * Verify OTP for email confirmation
  */
-export async function verifyOtp(data: VerifyOtpDTO): Promise<MessageResponse> {
+export async function verifyOtp(data: VerifyOtpDTO): Promise<{ accessToken: string; message: string }> {
     const response = (await axiosInstance.post('/auth/verify-email', data)).data;
     return response.data;
 }
