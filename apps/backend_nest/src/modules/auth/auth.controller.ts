@@ -419,7 +419,7 @@ export class AuthController {
     @UseGuards(DynamicOAuthGuard)
     @ApiOperation({
         summary: 'OAuth callback',
-        description: 'Handles OAuth provider callback and authenticates the user.'
+        description: 'Handles OAuth provider callback and authenticates the user. Redirects to dashboard with token in URL.'
     })
     @ApiParam({
         name: 'provider',
@@ -427,7 +427,7 @@ export class AuthController {
         required: true
     })
     @ApiOkResponse({
-        description: 'Login successful and sets refresh_token cookie. Redirects to dashboard with accessToken in URL.'
+        description: 'Login successful. Sets refresh_token as HTTP-only cookie and redirects to dashboard.'
     })
     async oauthCallback(
         @OAuthProfileDecorator() profile: OAuthProfile,
@@ -435,13 +435,18 @@ export class AuthController {
     ) {
         const token = await this.authService.oauthLogin(profile);
 
+        // Set refresh token as HTTP-only cookie
         res.cookie('refresh_token', token.refreshToken, {
             httpOnly: true,
             secure: true,
             sameSite: 'strict',
-            maxAge: 7 * 24 * 60 * 60 * 1000, 
+            maxAge: 7 * 24 * 60 * 60 * 1000,
         });
+
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-        return res.redirect(`${frontendUrl}/auth/oauth-callback?accessToken=${token.accessToken}`);
+
+        // Redirect to callback page (no sensitive data in URL)
+        // Frontend will use refresh token cookie to get access token
+        return res.redirect(`${frontendUrl}/auth/callback`);
     }
 }

@@ -381,6 +381,86 @@ export async function seed() {
         console.log(`✅ Created ${teamMemberCount} team members`);
 
         // -----------------------
+        // HELPER: Create submissions for assessment based on submission type
+        // -----------------------
+        const createSubmissionsForAssessmentSeed = async (assessment: Assessment): Promise<number> => {
+            let submissionsCreated = 0;
+            try {
+                if (assessment.submissionType === SubmissionType.INDIVIDUAL) {
+                    const classEnrollments = enrollmentArray.filter(e => e.class.id === assessment.class.id);
+                    const submissionRate = faker.number.float({ min: 0.6, max: 0.85 });
+                    const submittersCount = Math.ceil(classEnrollments.length * submissionRate);
+                    const submitters = classEnrollments
+                        .sort(() => Math.random() - 0.5)
+                        .slice(0, submittersCount);
+
+                    for (const enrollment of submitters) {
+                        const submission = new Submission();
+                        submission.assessment = assessment;
+                        submission.user = enrollment.user;
+                        submission.userId = enrollment.user.id;
+                        submission.team = null;
+                        submission.teamId = null;
+
+                        let submissionDate = randomDateWithinLast2Months();
+                        if (submissionDate < assessment.startDate) submissionDate = assessment.startDate;
+                        if (submissionDate > assessment.dueDate) submissionDate = assessment.dueDate;
+                        submission.submissionTime = submissionDate;
+
+                        submission.status = faker.helpers.arrayElement([
+                            SubmissionStatus.PENDING,
+                            SubmissionStatus.SUBMITTED,
+                            SubmissionStatus.GRADED,
+                            SubmissionStatus.LATE,
+                            SubmissionStatus.RESUBMITTED
+                        ]);
+                        submission.attemptNumber = submission.status === SubmissionStatus.RESUBMITTED ? faker.number.int({ min: 2, max: 5 }) : 1;
+                        submission.comments = faker.datatype.boolean(0.3) ? faker.lorem.sentence() : null;
+
+                        await queryRunner.manager.save(submission);
+                        submissionsCreated++;
+                    }
+                } else if (assessment.submissionType === SubmissionType.TEAM) {
+                    const classTeams = teamArray.filter(t => t.class.id === assessment.class.id);
+                    const submissionRate = faker.number.float({ min: 0.6, max: 0.8 });
+                    const submittingTeams = classTeams
+                        .sort(() => Math.random() - 0.5)
+                        .slice(0, Math.ceil(classTeams.length * submissionRate));
+
+                    for (const team of submittingTeams) {
+                        const submission = new Submission();
+                        submission.assessment = assessment;
+                        submission.team = team;
+                        submission.teamId = team.id;
+                        submission.user = null;
+                        submission.userId = null;
+
+                        let submissionDate = randomDateWithinLast2Months();
+                        if (submissionDate < assessment.startDate) submissionDate = assessment.startDate;
+                        if (submissionDate > assessment.dueDate) submissionDate = assessment.dueDate;
+                        submission.submissionTime = submissionDate;
+
+                        submission.status = faker.helpers.arrayElement([
+                            SubmissionStatus.PENDING,
+                            SubmissionStatus.SUBMITTED,
+                            SubmissionStatus.GRADED,
+                            SubmissionStatus.LATE,
+                            SubmissionStatus.RESUBMITTED
+                        ]);
+                        submission.attemptNumber = submission.status === SubmissionStatus.RESUBMITTED ? faker.number.int({ min: 2, max: 4 }) : 1;
+                        submission.comments = faker.datatype.boolean(0.3) ? faker.lorem.sentence() : null;
+
+                        await queryRunner.manager.save(submission);
+                        submissionsCreated++;
+                    }
+                }
+            } catch (err) {
+                console.error(`⚠️  Failed to create submissions for assessment ${assessment.id}:`, err instanceof Error ? err.message : String(err));
+            }
+            return submissionsCreated;
+        };
+
+        // -----------------------
         // SEED STEP 8: ASSESSMENTS (Depends on Classes, 40-70)
         // -----------------------
         console.log('📊 Step 8: Seeding Assessments...');
@@ -402,6 +482,8 @@ export async function seed() {
             'Employee Management',
             'Performance Analysis'
         ];
+
+        let totalSubmissionsFromPublished = 0;
 
         for (const myClass of classData) {
             const assessmentsPerClass = faker.number.int({ min: 3, max: 8 });
@@ -452,19 +534,28 @@ export async function seed() {
                     rubric.assessment = savedAssessment;
                     await queryRunner.manager.save(rubric);
                 }
+
+                // Create submissions if assessment is public (simulates publishing)
+                if (savedAssessment.isPublic) {
+                    const submissionsCreated = await createSubmissionsForAssessmentSeed(savedAssessment);
+                    totalSubmissionsFromPublished += submissionsCreated;
+                    console.log(`   └─ Created ${submissionsCreated} submissions for published assessment: ${savedAssessment.title}`);
+                }
             }
         }
-        console.log(`✅ Created ${assessmentArray.length} assessments with rubrics`);
+        console.log(`✅ Created ${assessmentArray.length} assessments with rubrics (${totalSubmissionsFromPublished} submissions from published assessments)`);
 
         // -----------------------
-        // SEED STEP 9: SUBMISSIONS (Depends on Assessments, Users, Teams, 250-400)
-        // Must respect submission_type (INDIVIDUAL vs TEAM)
+        // SEED STEP 9: SUBMISSIONS FOR NON-PUBLIC ASSESSMENTS (Depends on Assessments, Users, Teams)
+        // Note: Public assessments already had submissions created in Step 8
         // -----------------------
-        console.log('📋 Step 9: Seeding Submissions...');
+        console.log('📋 Step 9: Seeding Submissions for Non-Public Assessments...');
         const submissionArray: Submission[] = [];
         let submissionCount = 0;
 
         for (const assessment of assessmentArray) {
+            if (assessment.isPublic) continue; // Skip if submissions already created in Step 8
+
             const classEnrollments = enrollmentArray.filter(e => e.class.id === assessment.class.id);
             if (classEnrollments.length === 0) continue;
 
@@ -540,7 +631,7 @@ export async function seed() {
                 }
             }
         }
-        console.log(`✅ Created ${submissionCount} submissions`);
+        console.log(`✅ Created ${submissionCount} submissions for non-public assessments`);
 
         // -----------------------
         // SEED STEP 10: RESOURCES & SUBMISSION RESOURCES (Depends on Submissions)

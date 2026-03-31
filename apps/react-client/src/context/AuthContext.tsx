@@ -90,6 +90,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setIsLoading(false);
             }
         })();
+
+        // Listen for storage changes (e.g., from OAuth callback)
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'token' && e.newValue) {
+                console.log('Token updated from OAuth callback');
+                setToken(e.newValue);
+                // Fetch user profile when token is set via OAuth
+                (async () => {
+                    try {
+                        const userResponse = await userService.getMyProfile();
+                        const userData = (userResponse as any).data || userResponse;
+                        setUser(userData);
+                        localStorage.setItem('user', JSON.stringify(userData));
+                    } catch (error) {
+                        console.error('Failed to fetch profile after OAuth:', error);
+                    }
+                })();
+            } else if (e.key === 'token' && !e.newValue) {
+                // Token was cleared
+                handleLogout();
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
     }, []);
 
     const handleLogin = async (credentials: {

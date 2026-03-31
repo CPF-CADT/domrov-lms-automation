@@ -19,11 +19,27 @@ async function bootstrap() {
 
   app.use(cookieParser());
   app.useGlobalInterceptors(new PerformanceSentryInterceptor());
+
+  // CORS configuration with proper origin handling for credentials
+  const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:3000,https://domrov.app').split(',');
   app.enableCors({
-    origin: '*',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl requests)
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('CORS not allowed'));
+      }
+    },
     credentials: true,
     exposedHeaders: ['Content-Disposition'],
-
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
   app.use(helmet());
 
@@ -35,7 +51,7 @@ async function bootstrap() {
       cookie: { secure: true, httpOnly: true, sameSite: 'strict' }
     }),
   );
-    app.useGlobalPipes(new ValidationPipe({
+  app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
     forbidNonWhitelisted: true,
     transform: true,
