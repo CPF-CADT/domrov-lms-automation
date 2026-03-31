@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Upload, Link2, X, Eye, FileText, Video, Package, AlertTriangle, Loader2 } from "lucide-react";
+import { ArrowLeft, Upload, Link2, X, Eye, FileText, Video, Package, AlertTriangle, Loader2, Calendar } from "lucide-react";
 import Dialog from "@/components/Dialog";
 import { RubricEditor, type RubricItem } from "./RubricEditor";
 import assessmentService from "@/services/assessmentService";
 import { SubmissionType, SubmissionMethod } from "@/types/enums";
 import type { AssessmentDetailDto, UpdateAssessmentDto } from "@/types/assessment";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 interface EditAssignmentDetailProps {
   assignmentId: number | string;
@@ -144,15 +146,16 @@ export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssig
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     if (!formData) return;
-    const { name, value, type } = e.currentTarget;
+    const { name, type } = e.currentTarget;
+    const value =
+      type === "checkbox"
+        ? (e.currentTarget as HTMLInputElement).checked
+        : e.currentTarget.value;
+
     setFormData((prev) => ({
       ...prev!,
       [name]:
-        type === "checkbox"
-          ? (e.currentTarget as HTMLInputElement).checked
-          : name === "maxScore"
-            ? Math.min(100, Math.max(1, Number(value)))
-            : value,
+        name === "maxScore" ? Math.min(100, Math.max(1, Number(value))) : value,
     }));
   };
 
@@ -306,24 +309,52 @@ export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssig
             <h2 className="mb-6 text-sm font-bold tracking-wider uppercase text-slate-900">Scheduling</h2>
             <div className="space-y-5">
               <div>
-                <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">Start Date</label>
-                <input
-                  type="datetime-local"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                />
+                <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
+                  Start Date <span className="text-red-500">*</span>
+                </label>
+
+                <div className="relative">
+                  <DatePicker
+                    selected={
+                      formData.startDate ? new Date(formData.startDate) : null
+                    }
+                    onChange={(date: Date | null) =>
+                      setFormData({
+                        ...formData,
+                        startDate: date ? date.toISOString() : "",
+                      })
+                    }
+                    showTimeSelect
+                    dateFormat="MMM d, yyyy h:mm aa"
+                    className="w-full px-3 py-2.5 pr-10 text-sm bg-white border border-slate-200 rounded-lg hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    popperClassName="z-50"
+                  />
+                  <Calendar className="absolute w-4 h-4 text-slate-400 right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
               <div>
                 <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
                   Due Date <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="datetime-local"
-                  value={formData.dueDate}
-                  onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                  className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                />
+
+                <div className="relative">
+                  <DatePicker
+                    selected={
+                      formData.dueDate ? new Date(formData.dueDate) : null
+                    }
+                    onChange={(date: Date | null) =>
+                      setFormData({
+                        ...formData,
+                        dueDate: date ? date.toISOString() : "",
+                      })
+                    }
+                    showTimeSelect
+                    dateFormat="MMM d, yyyy h:mm aa"
+                    className="w-full px-3 py-2.5 pr-10 text-sm bg-white border border-slate-200 rounded-lg hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    popperClassName="z-50"
+                  />
+                  <Calendar className="absolute w-4 h-4 text-slate-400 right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
             </div>
           </div>

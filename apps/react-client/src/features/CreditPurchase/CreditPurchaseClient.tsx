@@ -3,11 +3,11 @@ import { useState, useEffect, useRef } from "react";
 import { io, type Socket } from "socket.io-client";
 import type { CreditPackageResponseDto } from "@/types/wallet.types";
 import walletService from "@/services/wallet.api";
-import { checkTransactionByHash, startPayment } from "@/services/payment-flow.api";
+import { startPayment } from "@/services/payment-flow.api";
+import { useAuth } from "@/context/AuthContext";
 import Khqr from "./khqr";
 
 const CUSTOM_PRICE_RATE = 0.00157302;
-const PAYMENT_CHECK_INTERVAL = 3000;
 const PAYMENT_TIMEOUT = 300000;
 const SUCCESS_DISPLAY_TIME = 3000;
 
@@ -20,6 +20,9 @@ interface PaymentStatusPayload {
 }
 
 export default function CreditPurchaseClient() {
+    // --- Auth Context ---
+    const { user } = useAuth();
+
     // --- Package & Token States ---
     const [currentTokens, setCurrentTokens] = useState<number>(0);
     const [packages, setPackages] = useState<CreditPackageResponseDto[]>([]);
@@ -42,69 +45,104 @@ export default function CreditPurchaseClient() {
     // const [showTimeoutTransition, setShowTimeoutTransition] = useState(false);
 
     // --- Refs ---
-    const checkStatusIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    const checkStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const socketRef = useRef<Socket | null>(null);
-    const userId = useRef<number | null>(null);
+    const paymentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // --- Initialize WebSocket ---
+    // ✅ Connect WebSocket on mount
     useEffect(() => {
-        const token = localStorage.getItem("jwtToken");
-        const userIdFromStorage = localStorage.getItem("userId");
-
-        if (userIdFromStorage) {
-            userId.current = parseInt(userIdFromStorage);
-
-            const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3000' , {
-                query: { userId: userIdFromStorage },
-                transports: ["websocket"],
-                auth: {
-                    token: token ?? "",
-                },
-                reconnection: true,
-                reconnectionDelay: 1000,
-                reconnectionDelayMax: 5000,
-                reconnectionAttempts: 5,
-            });
-
-            socketRef.current = socket;
-
-            socket.on("connect", () => {
-                console.log("✅ Socket connected");
-            });
-
-            socket.on("disconnect", () => {
-                console.log("❌ Socket disconnected - will use polling fallback");
-            });
-
-            socket.on("connect_error", (err) => {
-                console.error("❌ Connection error:", err.message);
-            });
-
-            // Listen for QR code from WebSocket
-            socket.on("QR_READY", (payload: QRReadyPayload) => {
-                console.log("✅ QR Ready from WebSocket");
-                setPaymentData({
-                    paymentId: 0,
-                    message: payload.qr,
-                });
-                setIsProcessingPayment(false);
-                startPaymentStatusCheck();
-            });
-
-            // Listen for payment status from WebSocket (instant notification)
-            socket.on("PAYMENT_STATUS", (payload: PaymentStatusPayload) => {
-                console.log("📦 Payment Status:", payload.status);
-                if (payload.status === "PAID" || payload.status === "SUCCESS") {
-                    handlePaymentSuccess();
-                }
-            });
-
-            return () => {
-                if (socket.connected) socket.disconnect();
-            };
+        if (!user?.id) {
+            console.log("⚠️  Waiting for user ID...");
+            return;
         }
-    }, []);
+
+        console.log("🔌 Initiating WebSocket connection...");
+        console.log("📍 Frontend running on:", window.location.origin);
+        console.log("🎯 Backend URL:", import.meta.env.VITE_API_URL || 'http://localhost:3000');
+        console.log("👤 User ID:", user.id);
+
+        // ✅ Only create one socket - match PaymentComponent pattern
+        const newSocket: Socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3000', {
+            query: { userId: user.id },
+            transports: ["websocket"],
+        });
+
+        newSocket.on("connect", () => {
+            console.log("✅ Socket connected successfully");
+            console.log("📡 Socket ID:", newSocket.id);
+        });
+
+        newSocket.on("disconnect", () => {
+            console.log("❌ Socket disconnected");
+        });
+
+        newSocket.on("connect_error", (err) => {
+            console.error("❌ Connection error:", err.message);
+            console.error("🔍 Full error:", err);
+        });
+
+        // Listen for QR code from WebSocket
+        newSocket.on("QR_READY", (payload: QRReadyPayload) => {
+            console.log("✅ QR Ready from WebSocket - Raw payload:", payload);
+            console.log("📊 QR Payload analysis:", {
+                hasQr: !!payload.qr,
+                qrType: typeof payload.qr,
+                qrLength: typeof payload.qr === 'string' ? payload.qr.length : 'N/A',
+                isValidQR: typeof payload.qr === 'string' && payload.qr.length > 10,
+            });
+
+            // ✅ Validate: Must be a non-empty string
+            if (!payload.qr || typeof payload.qr !== 'string') {
+                console.error("❌ Invalid QR: Not a string", { received: payload.qr, type: typeof payload.qr });
+                setPaymentError("QR code generation failed - invalid format");
+                setIsProcessingPayment(false);
+                return;
+            }
+
+            // ✅ Validate: Must look like a QR string (KHQR starts with "0002" or is long enough)
+            if (payload.qr.length < 20 || (!payload.qr.startsWith("0002") && payload.qr.length < 50)) {
+                console.error("❌ Invalid QR format: String too short or wrong prefix", {
+                    length: payload.qr.length,
+                    startsWith: payload.qr.substring(0, 10)
+                });
+                setPaymentError("Invalid QR code format from server");
+                setIsProcessingPayment(false);
+                return;
+            }
+
+            console.log("✅ QR value is valid KHQR string, storing in paymentData...");
+            console.log("📌 QR string preview:", payload.qr.substring(0, 50) + "...");
+
+            // ✅ Only set paymentData when we have a valid QR from WebSocket
+            setPaymentData({
+                paymentId: 0,
+                message: payload.qr,
+            });
+            setIsProcessingPayment(false);
+        });
+
+        // Listen for payment status from WebSocket
+        newSocket.on("PAYMENT_STATUS", (payload: PaymentStatusPayload) => {
+            console.log("📦 Payment Status:", payload.status);
+            if (payload.status === "PAID" || payload.status === "SUCCESS") {
+                handlePaymentSuccess();
+            }
+        });
+
+        // 🔒 Cleanup on unmount
+        return () => {
+            console.log("🧹 Cleaning up WebSocket connection");
+            if (newSocket.connected) {
+                newSocket.disconnect();
+            }
+        };
+    }, [user?.id]); // ✅ Reconnect if user ID changes
+
+    // ✅ Setup payment timeout when QR code arrives (WebSocket will send PAYMENT_STATUS event)
+    useEffect(() => {
+        if (paymentData?.message && isPaymentModalOpen) {
+            console.log("🎯 Valid QR code received from WebSocket, waiting for PAYMENT_STATUS event...");
+            setupPaymentTimeout();
+        }
+    }, [paymentData?.message, isPaymentModalOpen]);
 
     // --- Load Packages & Balance ---
     useEffect(() => {
@@ -152,8 +190,7 @@ export default function CreditPurchaseClient() {
     // --- Cleanup on unmount ---
     useEffect(() => {
         return () => {
-            if (checkStatusIntervalRef.current) clearInterval(checkStatusIntervalRef.current);
-            if (checkStatusTimeoutRef.current) clearTimeout(checkStatusTimeoutRef.current);
+            if (paymentTimeoutRef.current) clearTimeout(paymentTimeoutRef.current);
         };
     }, []);
 
@@ -179,14 +216,12 @@ export default function CreditPurchaseClient() {
 
     // --- Handle Payment Success ---
     const handlePaymentSuccess = () => {
+        console.log("✅ Payment success - WebSocket PAYMENT_STATUS event received");
         setPaymentSuccess(true);
         setIsCheckingStatus(false);
 
-        if (checkStatusIntervalRef.current) {
-            clearInterval(checkStatusIntervalRef.current);
-        }
-        if (checkStatusTimeoutRef.current) {
-            clearTimeout(checkStatusTimeoutRef.current);
+        if (paymentTimeoutRef.current) {
+            clearTimeout(paymentTimeoutRef.current);
         }
 
         setTimeout(() => {
@@ -194,8 +229,6 @@ export default function CreditPurchaseClient() {
             setPaymentSuccess(false);
             setPaymentData(null);
             setPaymentTimeout(false);
-            // setShowTimeoutTransition(false);
-            // Optionally refresh balance here
             loadBalance();
         }, SUCCESS_DISPLAY_TIME);
     };
@@ -215,44 +248,24 @@ export default function CreditPurchaseClient() {
         }
     };
 
-    // --- Auto-check payment status (Polling Fallback) ---
-    const startPaymentStatusCheck = () => {
+    // --- Setup payment timeout (WebSocket only) ---
+    const setupPaymentTimeout = () => {
+        console.log("⏱️  Setting up payment timeout (5 minutes)...");
         setIsCheckingStatus(true);
         setPaymentError(null);
         setPaymentTimeout(false);
-        // setShowTimeoutTransition(false);
 
-        checkStatusTimeoutRef.current = setTimeout(() => {
-            if (checkStatusIntervalRef.current) {
-                clearInterval(checkStatusIntervalRef.current);
-            }
+        // Clear any existing timeout
+        if (paymentTimeoutRef.current) {
+            clearTimeout(paymentTimeoutRef.current);
+        }
+
+        // Set timeout: if WebSocket doesn't emit PAYMENT_STATUS within 5 minutes, show error
+        paymentTimeoutRef.current = setTimeout(() => {
+            console.log("❌ Payment timeout: No PAYMENT_STATUS received from WebSocket");
             setIsCheckingStatus(false);
             setPaymentTimeout(true);
-            // setShowTimeoutTransition(true);
         }, PAYMENT_TIMEOUT);
-
-        const checkNow = async () => {
-            if (!paymentData?.message) return;
-
-            try {
-                const res = await checkTransactionByHash({
-                    hash: paymentData.message,
-                    amount: summaryPrice,
-                    currency: "USD" as any
-                });
-
-                const responseData = (res as any).data || res;
-
-                if (responseData?.responseCode === 0) {
-                    handlePaymentSuccess();
-                }
-            } catch (err) {
-                console.error("Payment check error:", err);
-            }
-        };
-
-        checkNow();
-        checkStatusIntervalRef.current = setInterval(checkNow, PAYMENT_CHECK_INTERVAL);
     };
 
     // --- Start Payment ---
@@ -267,17 +280,14 @@ export default function CreditPurchaseClient() {
             setIsProcessingPayment(true);
             setPaymentError(null);
             setPaymentTimeout(false);
+            setPaymentData(null); // ✅ Clear old data, wait for WebSocket QR_READY
             // setShowTimeoutTransition(false);
 
             try {
                 const response = await startPayment(Number(selectedPackId));
-                const data = (response as any).data || response;
-                setPaymentData(data);
-
-                setTimeout(() => {
-                    setIsProcessingPayment(false);
-                    startPaymentStatusCheck();
-                }, 500);
+                // ✅ Don't set paymentData here - wait for WebSocket QR_READY event
+                // The backend will emit QR_READY with actual QR code
+                console.log("📤 Payment initiated, waiting for QR from WebSocket...", response);
             } catch (err) {
                 setError(err instanceof Error ? err.message : "Failed to initiate payment.");
                 setIsProcessingPayment(false);
@@ -285,28 +295,6 @@ export default function CreditPurchaseClient() {
             }
         } else {
             alert("Processing ABA Payment...");
-        }
-    };
-
-    // --- Manual check payment ---
-    const handleManualCheckPaymentStatus = async () => {
-        if (!paymentData?.message) return;
-
-        try {
-            const res = await checkTransactionByHash({
-                hash: paymentData.message,
-                amount: summaryPrice,
-                currency: "USD" as any
-            });
-
-            const responseData = (res as any).data || res;
-            if (responseData?.responseCode === 0) {
-                handlePaymentSuccess();
-            } else {
-                setPaymentError("Payment not yet received or pending.");
-            }
-        } catch (err) {
-            setPaymentError(err instanceof Error ? err.message : "Failed to check status.");
         }
     };
 
@@ -325,8 +313,7 @@ export default function CreditPurchaseClient() {
     // --- Close Modal ---
     const handleCloseModal = () => {
         setIsPaymentModalOpen(false);
-        if (checkStatusIntervalRef.current) clearInterval(checkStatusIntervalRef.current);
-        if (checkStatusTimeoutRef.current) clearTimeout(checkStatusTimeoutRef.current);
+        if (paymentTimeoutRef.current) clearTimeout(paymentTimeoutRef.current);
         setIsCheckingStatus(false);
         setPaymentData(null);
         setPaymentTimeout(false);
@@ -348,7 +335,7 @@ export default function CreditPurchaseClient() {
     return (
         <main className="flex-1 overflow-y-auto bg-slate-50">
             <div className="p-8 mx-auto max-w-7xl">
-                
+
                 {/* HEADER */}
                 <div className="flex items-center justify-between gap-6 p-4 mb-6 bg-white rounded-lg">
                     <div>
@@ -373,7 +360,7 @@ export default function CreditPurchaseClient() {
 
                 {/* TWO COLUMN LAYOUT */}
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-                    
+
                     {/* LEFT COLUMN - PACKAGES (2 cols) */}
                     <div className="lg:col-span-2">
                         <h2 className="flex items-center gap-2 mb-6 text-xs font-bold tracking-widest uppercase text-slate-900">
@@ -390,11 +377,10 @@ export default function CreditPurchaseClient() {
                                     <div
                                         key={pack.id}
                                         onClick={() => setSelectedPackId(pack.id.toString())}
-                                        className={`rounded-xl border-2 p-5 cursor-pointer transition-all relative ${
-                                            isSelected
-                                                ? "border-blue-600 bg-blue-50"
-                                                : "border-slate-200 bg-white hover:shadow-sm"
-                                        }`}
+                                        className={`rounded-xl border-2 p-5 cursor-pointer transition-all relative ${isSelected
+                                            ? "border-blue-600 bg-blue-50"
+                                            : "border-slate-200 bg-white hover:shadow-sm"
+                                            }`}
                                     >
                                         {/* POPULAR Badge */}
                                         {isPopular && (
@@ -409,7 +395,7 @@ export default function CreditPurchaseClient() {
                                                 {tokens.toLocaleString()}
                                             </p>
                                             <p className="mb-4 text-xs text-slate-600">Tokens</p>
-                                            
+
                                             <div className="flex items-center justify-between">
                                                 <p className="text-xl font-bold text-blue-600">${pack.price.toFixed(2)}</p>
 
@@ -436,7 +422,7 @@ export default function CreditPurchaseClient() {
                             <div className="flex items-start justify-between gap-6 mb-6">
                                 {/* LEFT - Title & Description */}
                                 <div className="flex-shrink-0 min-w-fit">
-                                    <h3 className="mb-1 text-base font-bold text-slate-900">Custom<br/>Token<br/>Calculator</h3>
+                                    <h3 className="mb-1 text-base font-bold text-slate-900">Custom<br />Token<br />Calculator</h3>
                                     <p className="text-xs leading-relaxed text-slate-500">Perfect for specific grading cycles or large batches.</p>
                                 </div>
 
@@ -483,7 +469,7 @@ export default function CreditPurchaseClient() {
                     {/* RIGHT COLUMN - ORDER SUMMARY SIDEBAR */}
                     <div className="lg:col-span-1">
                         <div className="sticky p-6 bg-white border top-8 rounded-2xl border-slate-200">
-                            
+
                             {/* HEADER */}
                             <h3 className="mb-6 text-lg font-bold text-slate-900">Order Summary</h3>
 
@@ -516,18 +502,17 @@ export default function CreditPurchaseClient() {
                                     {/* KHQR */}
                                     <button
                                         onClick={() => setPaymentMethod("KHQR")}
-                                        className={`flex-1 p-4 rounded-lg border-2 transition flex items-center justify-start gap-3 ${
-                                            paymentMethod === "KHQR"
-                                                ? "border-blue-600 bg-blue-50"
-                                                : "border-slate-200 bg-white hover:border-slate-300"
-                                        }`}
+                                        className={`flex-1 p-4 rounded-lg border-2 transition flex items-center justify-start gap-3 ${paymentMethod === "KHQR"
+                                            ? "border-blue-600 bg-blue-50"
+                                            : "border-slate-200 bg-white hover:border-slate-300"
+                                            }`}
                                     >
                                         <div className="flex items-center gap-2 flex-shrink-0">
                                             <img src="/assets/KHQR.png" alt="KHQR" className="w-8 h-8 rounded" />
                                             <span className="text-xs font-bold text-blue-600">KHQR</span>
                                         </div>
                                     </button>
-                                    
+
                                     {/* ABA */}
                                     <button
                                         disabled
@@ -560,11 +545,10 @@ export default function CreditPurchaseClient() {
                             <button
                                 onClick={handleProcessPayment}
                                 disabled={!termsAgreed || packages.length === 0 || paymentMethod !== "KHQR"}
-                                className={`w-full py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition ${
-                                    termsAgreed && paymentMethod === "KHQR"
-                                        ? "bg-slate-900 text-white hover:bg-slate-800"
-                                        : "bg-slate-300 text-slate-500 cursor-not-allowed"
-                                }`}
+                                className={`w-full py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition ${termsAgreed && paymentMethod === "KHQR"
+                                    ? "bg-slate-900 text-white hover:bg-slate-800"
+                                    : "bg-slate-300 text-slate-500 cursor-not-allowed"
+                                    }`}
                             >
                                 PAY NOW
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -673,7 +657,7 @@ export default function CreditPurchaseClient() {
                                         {isCheckingStatus ? (
                                             <div className="flex items-center gap-2 text-sm text-blue-700">
                                                 <div className="w-3 h-3 border-2 border-blue-600 rounded-full animate-spin border-t-transparent"></div>
-                                                <span>Checking payment status...</span>
+                                                <span>Waiting for payment confirmation...</span>
                                             </div>
                                         ) : paymentError ? (
                                             <p className="text-sm text-red-700">{paymentError}</p>
@@ -687,21 +671,14 @@ export default function CreditPurchaseClient() {
                                         <button
                                             onClick={handleCloseModal}
                                             disabled={isCheckingStatus}
-                                            className="flex-1 py-2.5 rounded-lg border border-slate-200 text-slate-600 font-medium text-sm hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                                            className="w-full py-2.5 rounded-lg border border-slate-200 text-slate-600 font-medium text-sm hover:bg-slate-50 disabled:opacity-50 transition-colors"
                                         >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            onClick={handleManualCheckPaymentStatus}
-                                            disabled={isCheckingStatus}
-                                            className="flex-1 py-2.5 rounded-lg bg-[#E5223A] text-white font-medium text-sm hover:bg-[#d41c33] disabled:opacity-50 shadow-sm transition-colors"
-                                        >
-                                            {isCheckingStatus ? "Checking..." : "Check Status"}
+                                            {isCheckingStatus ? "Waiting for payment..." : "Cancel"}
                                         </button>
                                     </div>
 
                                     <p className="mt-4 text-xs text-slate-400">
-                                        ✅ Auto-checking every 3 seconds • Expires in 5 minutes
+                                        ✅ Waiting for payment via WebSocket • Expires in 5 minutes
                                     </p>
                                 </>
                             )}

@@ -8,7 +8,9 @@ import {
   GraduationCapIcon,
   TvIcon
 } from "./icons";
+import { AiOutlineTeam } from "react-icons/ai";
 import classService from "@/services/classService";
+
 
 
 type TabId = "general" | "assignment" | "posts" | "students" | "teams" | "files" | "grades";
@@ -120,6 +122,7 @@ export default function ClassSidebar({ classId, activeTab, onTabChange, allowedT
   const allNavItems = [
     { id: "general" as TabId, icon: TvIcon, label: "General" },
     { id: "assignment" as TabId, icon: GraduationCapIcon, label: "Assignment" },
+    { id: "teams" as TabId, icon: AiOutlineTeam, label: "Teams" },
     { id: "students" as TabId, icon: GraduationCapIcon, label: "Students" },
     { id: "grades" as TabId, icon: TvIcon, label: "Grades" },
   ];

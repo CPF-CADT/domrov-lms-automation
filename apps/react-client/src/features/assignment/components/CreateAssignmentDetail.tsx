@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Upload, Link2, FileText, Video, Package, X, Eye, AlertTriangle, Sparkles, ChevronDown, Info } from "lucide-react";
+import { ArrowLeft, Upload, Link2, FileText, Video, Package, X, Eye, AlertTriangle, Sparkles, ChevronDown, Info, Calendar } from "lucide-react";
 import Dialog from "@/components/Dialog";
 import { RubricEditor, type RubricItem } from "./RubricEditor";
 import assessmentService from "@/services/assessmentService";
 import { SubmissionType, SubmissionMethod } from "@/types/enums";
 import type { UpdateAssessmentDto } from "@/types/assessment";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 interface CreateAssignmentDetailProps {
   classId: string;
@@ -216,8 +218,13 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Create Assignment</h1>
-          <p className="mt-2 text-slate-600">Set up a new assignment with instructions, resources, and grading rules.</p>
+          <h1 className="text-3xl font-bold text-slate-900">
+            Create Assignment
+          </h1>
+          <p className="mt-2 text-slate-600">
+            Set up a new assignment with instructions, resources, and grading
+            rules.
+          </p>
         </div>
       </div>
 
@@ -225,19 +232,27 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
       {error && (
         <div className="mb-6 px-4 py-3 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
           <p className="text-sm text-red-600">{error}</p>
-          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 ml-4 text-lg leading-none">×</button>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-400 hover:text-red-600 ml-4 text-lg leading-none"
+          >
+            ×
+          </button>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Top Grid */}
         <div className="grid grid-cols-3 gap-6">
-
           {/* General Information */}
           <div className="bg-white border border-slate-200 rounded-lg p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-sm font-bold tracking-wider uppercase text-slate-900">General Information</h2>
-              <span className="px-3 py-1 text-xs font-semibold text-blue-600 bg-blue-50 rounded-full">REQUIRED</span>
+              <h2 className="text-sm font-bold tracking-wider uppercase text-slate-900">
+                General Information
+              </h2>
+              <span className="px-3 py-1 text-xs font-semibold text-blue-600 bg-blue-50 rounded-full">
+                REQUIRED
+              </span>
             </div>
             <div className="space-y-5">
               <div>
@@ -268,10 +283,14 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
                     min="1"
                     className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg placeholder-slate-400 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   />
-                  <p className="mt-1 text-xs text-slate-400">Session number e.g. 1, 2, 3</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Session number e.g. 1, 2, 3
+                  </p>
                 </div>
                 <div>
-                  <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">Type</label>
+                  <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
+                    Type
+                  </label>
                   <select
                     name="submissionType"
                     value={formData.submissionType}
@@ -288,40 +307,74 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
 
           {/* Scheduling */}
           <div className="bg-white border border-slate-200 rounded-lg p-6">
-            <h2 className="mb-6 text-sm font-bold tracking-wider uppercase text-slate-900">Scheduling</h2>
+            <h2 className="mb-6 text-sm font-bold tracking-wider uppercase text-slate-900">
+              Scheduling
+            </h2>
             <div className="space-y-5">
               <div>
-                <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">Start Date</label>
-                <input
-                  type="datetime-local"
-                  className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                />
+                <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
+                  Start Date <span className="text-red-500">*</span>
+                </label>
+
+                <div className="relative">
+                  <DatePicker
+                    selected={
+                      formData.startDate ? new Date(formData.startDate) : null
+                    }
+                    onChange={(date: Date | null) =>
+                      setFormData({
+                        ...formData,
+                        startDate: date ? date.toISOString() : "",
+                      })
+                    }
+                    showTimeSelect
+                    dateFormat="MMM d, yyyy h:mm aa"
+                    className="w-full px-3 py-2.5 pr-10 text-sm bg-white border border-slate-200 rounded-lg hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    popperClassName="z-50"
+                  />
+                  <Calendar className="absolute w-4 h-4 text-slate-400 right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
               <div>
                 <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
                   Due Date <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="datetime-local"
-                  className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  value={formData.dueDate}
-                  onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                />
+
+                <div className="relative">
+                  <DatePicker
+                    selected={
+                      formData.dueDate ? new Date(formData.dueDate) : null
+                    }
+                    onChange={(date: Date | null) =>
+                      setFormData({
+                        ...formData,
+                        dueDate: date ? date.toISOString() : "",
+                      })
+                    }
+                    showTimeSelect
+                    dateFormat="MMM d, yyyy h:mm aa"
+                    className="w-full px-3 py-2.5 pr-10 text-sm bg-white border border-slate-200 rounded-lg hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    popperClassName="z-50"
+                  />
+                  <Calendar className="absolute w-4 h-4 text-slate-400 right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
             </div>
           </div>
 
           {/* Grading & Rules */}
           <div className="bg-white border border-slate-200 rounded-lg p-6">
-            <h2 className="mb-6 text-sm font-bold tracking-wider uppercase text-slate-900">Grading & Rules</h2>
+            <h2 className="mb-6 text-sm font-bold tracking-wider uppercase text-slate-900">
+              Grading & Rules
+            </h2>
             <div className="space-y-5">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
                     Max Score
-                    <span className="ml-1 text-slate-400 font-normal normal-case">(max 100)</span>
+                    <span className="ml-1 text-slate-400 font-normal normal-case">
+                      (max 100)
+                    </span>
                   </label>
                   <input
                     type="number"
@@ -334,11 +387,15 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
                   />
                   {/* ✅ Show warning if somehow over 100 */}
                   {formData.maxScore > 100 && (
-                    <p className="mt-1 text-xs text-red-500">Maximum score is 100</p>
+                    <p className="mt-1 text-xs text-red-500">
+                      Maximum score is 100
+                    </p>
                   )}
                 </div>
                 <div>
-                  <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">Method</label>
+                  <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
+                    Method
+                  </label>
                   <select
                     name="allowedSubmissionMethod"
                     value={formData.allowedSubmissionMethod}
@@ -352,14 +409,24 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
                 </div>
               </div>
               <div className="flex items-center justify-between pt-2">
-                <p className="text-sm font-medium text-slate-900">Late Submissions</p>
+                <p className="text-sm font-medium text-slate-900">
+                  Late Submissions
+                </p>
                 <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" name="allowLateSubmissions" checked={formData.allowLateSubmissions} onChange={handleInputChange} className="sr-only peer" />
+                  <input
+                    type="checkbox"
+                    name="allowLateSubmissions"
+                    checked={formData.allowLateSubmissions}
+                    onChange={handleInputChange}
+                    className="sr-only peer"
+                  />
                   <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600" />
                 </label>
               </div>
               <div className="flex items-center justify-between pt-2">
-                <p className="text-sm font-medium text-slate-900">AI Evaluation</p>
+                <p className="text-sm font-medium text-slate-900">
+                  AI Evaluation
+                </p>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
@@ -384,17 +451,26 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
         {/* AI Evaluation Info Section */}
         {formData.aiEvaluationEnabled && (
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4 cursor-pointer" onClick={() => setAiExpanded(!aiExpanded)}>
+            <div
+              className="flex items-center justify-between mb-4 cursor-pointer"
+              onClick={() => setAiExpanded(!aiExpanded)}
+            >
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-100 rounded-lg">
                   <Sparkles className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold tracking-wider uppercase text-slate-900">AI Evaluation Enabled</h3>
-                  <p className="text-xs text-slate-600 mt-0.5">Automated grading with AI</p>
+                  <h3 className="text-sm font-bold tracking-wider uppercase text-slate-900">
+                    AI Evaluation Enabled
+                  </h3>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    Automated grading with AI
+                  </p>
                 </div>
               </div>
-              <ChevronDown className={`w-5 h-5 text-slate-600 transition-transform ${aiExpanded ? 'rotate-180' : ''}`} />
+              <ChevronDown
+                className={`w-5 h-5 text-slate-600 transition-transform ${aiExpanded ? "rotate-180" : ""}`}
+              />
             </div>
 
             {aiExpanded && (
@@ -402,7 +478,9 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
                 <div className="flex gap-3 p-4 bg-blue-50 rounded-lg border border-blue-100">
                   <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                   <div className="text-sm text-blue-900">
-                    <p className="font-semibold mb-1">How AI Evaluation Works:</p>
+                    <p className="font-semibold mb-1">
+                      How AI Evaluation Works:
+                    </p>
                     <ul className="space-y-1 list-disc list-inside text-blue-800">
                       <li>Students submit code or assignments</li>
                       <li>AI automatically analyzes and grades submissions</li>
@@ -414,20 +492,28 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-white rounded-lg border border-blue-100">
-                    <p className="text-xs font-semibold text-slate-600 uppercase mb-2">Status</p>
+                    <p className="text-xs font-semibold text-slate-600 uppercase mb-2">
+                      Status
+                    </p>
                     <p className="text-sm font-semibold text-green-600 flex items-center gap-2">
                       <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                       Enabled
                     </p>
                   </div>
                   <div className="p-4 bg-white rounded-lg border border-blue-100">
-                    <p className="text-xs font-semibold text-slate-600 uppercase mb-2">Max Score</p>
-                    <p className="text-sm font-semibold text-slate-900">{formData.maxScore} points</p>
+                    <p className="text-xs font-semibold text-slate-600 uppercase mb-2">
+                      Max Score
+                    </p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {formData.maxScore} points
+                    </p>
                   </div>
                 </div>
 
                 <div className="p-3 bg-amber-100 text-amber-900 rounded-lg border border-amber-200 text-xs">
-                  <strong>⚠️ Before Publishing:</strong> Make sure you've configured an AI provider in Dashboard → AI Evaluation settings.
+                  <strong>⚠️ Before Publishing:</strong> Make sure you've
+                  configured an AI provider in Dashboard → AI Evaluation
+                  settings.
                 </div>
               </div>
             )}
@@ -436,7 +522,6 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
 
         {/* Bottom Grid */}
         <div className="grid grid-cols-2 gap-6">
-
           {/* Instructions */}
           <div className="bg-white border border-slate-200 rounded-lg p-6">
             <h2 className="mb-4 text-sm font-bold tracking-wider uppercase text-slate-900">
@@ -444,10 +529,30 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
             </h2>
             <div className="overflow-hidden border border-slate-200 rounded-lg">
               <div className="flex items-center gap-2 p-3 border-b border-slate-200 bg-slate-50">
-                <button type="button" className="p-1 text-sm font-bold text-slate-700 rounded hover:bg-slate-200 transition-colors">B</button>
-                <button type="button" className="p-1 text-sm italic text-slate-700 rounded hover:bg-slate-200 transition-colors">I</button>
-                <button type="button" className="p-1 text-slate-700 rounded hover:bg-slate-200 transition-colors">≡</button>
-                <button type="button" className="p-1 text-slate-700 rounded hover:bg-slate-200 transition-colors"><Link2 className="w-4 h-4" /></button>
+                <button
+                  type="button"
+                  className="p-1 text-sm font-bold text-slate-700 rounded hover:bg-slate-200 transition-colors"
+                >
+                  B
+                </button>
+                <button
+                  type="button"
+                  className="p-1 text-sm italic text-slate-700 rounded hover:bg-slate-200 transition-colors"
+                >
+                  I
+                </button>
+                <button
+                  type="button"
+                  className="p-1 text-slate-700 rounded hover:bg-slate-200 transition-colors"
+                >
+                  ≡
+                </button>
+                <button
+                  type="button"
+                  className="p-1 text-slate-700 rounded hover:bg-slate-200 transition-colors"
+                >
+                  <Link2 className="w-4 h-4" />
+                </button>
               </div>
               <textarea
                 name="instructions"
@@ -462,26 +567,50 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
 
           {/* Resources */}
           <div className="bg-white border border-slate-200 rounded-lg p-6">
-            <h2 className="mb-4 text-sm font-bold tracking-wider uppercase text-slate-900">Resources</h2>
+            <h2 className="mb-4 text-sm font-bold tracking-wider uppercase text-slate-900">
+              Resources
+            </h2>
             <label
               htmlFor="file-upload"
               className="flex flex-col items-center justify-center p-8 mb-4 text-center border-2 border-dashed border-slate-300 rounded-lg cursor-pointer transition-all hover:border-blue-400 hover:bg-blue-50 group"
             >
               <Upload className="w-10 h-10 mx-auto mb-3 text-slate-400 transition-colors group-hover:text-blue-500" />
-              <p className="text-sm font-medium text-slate-700 transition-colors group-hover:text-blue-700">Drop files to upload</p>
-              <input type="file" multiple onChange={handleFileUpload} className="hidden" id="file-upload" accept=".pdf,.docx,.zip,.mp4" />
+              <p className="text-sm font-medium text-slate-700 transition-colors group-hover:text-blue-700">
+                Drop files to upload
+              </p>
+              <input
+                type="file"
+                multiple
+                onChange={handleFileUpload}
+                className="hidden"
+                id="file-upload"
+                accept=".pdf,.docx,.zip,.mp4"
+              />
             </label>
             {uploadedFiles.length > 0 && (
               <div className="space-y-2">
                 {uploadedFiles.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 border border-slate-200 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors"
+                  >
                     <div className="flex items-center flex-1 min-w-0 gap-3">
-                      {file.type.includes("pdf") ? <FileText className="w-5 h-5 text-red-500 shrink-0" />
-                        : file.type.includes("video") ? <Video className="w-5 h-5 text-blue-500 shrink-0" />
-                          : <Package className="w-5 h-5 text-slate-500 shrink-0" />}
-                      <span className="text-sm font-medium truncate text-slate-900">{file.name}</span>
+                      {file.type.includes("pdf") ? (
+                        <FileText className="w-5 h-5 text-red-500 shrink-0" />
+                      ) : file.type.includes("video") ? (
+                        <Video className="w-5 h-5 text-blue-500 shrink-0" />
+                      ) : (
+                        <Package className="w-5 h-5 text-slate-500 shrink-0" />
+                      )}
+                      <span className="text-sm font-medium truncate text-slate-900">
+                        {file.name}
+                      </span>
                     </div>
-                    <button type="button" onClick={() => handleRemoveFile(index)} className="flex-shrink-0 p-1 ml-2 text-slate-400 hover:text-red-600 transition-colors">
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveFile(index)}
+                      className="flex-shrink-0 p-1 ml-2 text-slate-400 hover:text-red-600 transition-colors"
+                    >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
@@ -502,15 +631,29 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between pt-6 border-t border-slate-200">
-          <button type="button" onClick={handlePreview} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900">
+          <button
+            type="button"
+            onClick={handlePreview}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
+          >
             <Eye className="w-4 h-4" />
             Preview
           </button>
           <div className="flex gap-3">
-            <button type="button" onClick={handleReset} disabled={isSaving} className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg transition-colors hover:bg-slate-50 disabled:opacity-50">
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={isSaving}
+              className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg transition-colors hover:bg-slate-50 disabled:opacity-50"
+            >
               Reset
             </button>
-            <button type="button" onClick={handleCancel} disabled={isSaving} className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg transition-colors hover:bg-slate-50 disabled:opacity-50">
+            <button
+              type="button"
+              onClick={handleCancel}
+              disabled={isSaving}
+              className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg transition-colors hover:bg-slate-50 disabled:opacity-50"
+            >
               Cancel
             </button>
             <button
@@ -541,8 +684,20 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
         icon={<AlertTriangle className="w-6 h-6 text-yellow-600" />}
         iconBgColor="bg-yellow-100"
         buttons={[
-          { label: "Keep Creating", onClick: () => setCancelDialogOpen(false), variant: "secondary" },
-          { label: "Discard", onClick: () => { setCancelDialogOpen(false); localStorage.removeItem(draftKey); onBack(); }, variant: "danger" },
+          {
+            label: "Keep Creating",
+            onClick: () => setCancelDialogOpen(false),
+            variant: "secondary",
+          },
+          {
+            label: "Discard",
+            onClick: () => {
+              setCancelDialogOpen(false);
+              localStorage.removeItem(draftKey);
+              onBack();
+            },
+            variant: "danger",
+          },
         ]}
       />
 
@@ -555,7 +710,11 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
         icon={<AlertTriangle className="w-6 h-6 text-orange-600" />}
         iconBgColor="bg-orange-100"
         buttons={[
-          { label: "Keep Editing", onClick: () => setResetDialogOpen(false), variant: "secondary" },
+          {
+            label: "Keep Editing",
+            onClick: () => setResetDialogOpen(false),
+            variant: "secondary",
+          },
           {
             label: "Clear Fields",
             onClick: () => {
