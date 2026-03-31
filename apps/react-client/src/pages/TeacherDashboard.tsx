@@ -60,7 +60,7 @@ export default function TeacherDashboard() {
 
             // Teacher Grades Tab - Grade management and analytics
             case "grades":
-                return <TeacherGradesTab />;
+                return <TeacherGradesTab classId={classId} />;
 
             default:
                 return <TeacherGeneralTab classId={classId} />;

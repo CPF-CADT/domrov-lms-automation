@@ -79,6 +79,14 @@ export async function getClassMembers(classId: number): Promise<ClassMembersDto[
 }
 
 /**
+ * Get all students in a class
+ */
+export async function getClassStudents(classId: number): Promise<any[]> {
+    const response = (await axiosInstance.get(`/class/${classId}/students`)).data;
+    return response.data || response;
+}
+
+/**
  * Invite members to class
  */
 export async function inviteMembers(classId: number, data: InviteMembersDto): Promise<MessageResponse> {
@@ -119,6 +127,7 @@ const classService = {
     joinClassByCode,
     joinClassByToken,
     getClassMembers,
+    getClassStudents,
     inviteMembers,
     removeMember,
     transferOwnership,

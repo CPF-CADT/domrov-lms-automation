@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft, Upload, Link2, X, Eye, FileText, Video, Package, AlertTriangle, Loader2 } from "lucide-react";
 import Dialog from "@/components/Dialog";
+import { RubricEditor, type RubricItem } from "./RubricEditor";
 import assessmentService from "@/services/assessmentService";
 import { SubmissionType, SubmissionMethod } from "@/types/enums";
 import type { AssessmentDetailDto, UpdateAssessmentDto } from "@/types/assessment";
@@ -21,6 +22,7 @@ interface FormData {
   allowedSubmissionMethod: "GITHUB" | "ZIP" | "ANY";
   allowLateSubmissions: boolean;
   aiEvaluationEnabled: boolean;
+  rubrics: RubricItem[];
 }
 
 function toLocalDatetime(raw: string | Date | undefined): string {
@@ -35,6 +37,7 @@ function toLocalDatetime(raw: string | Date | undefined): string {
 function mapDtoToForm(dto: AssessmentDetailDto): FormData {
   const method = String(dto.allowedSubmissionMethod ?? "GITHUB").toUpperCase();
   const type = String(dto.submissionType ?? "INDIVIDUAL").toLowerCase();
+  const rubrics = dto.rubrics && dto.rubrics.length > 0 ? dto.rubrics : [{ definition: "Overall Score", totalScore: dto.maxScore ?? 100 }];
   return {
     title: dto.title ?? "",
     session: String(dto.session ?? "1"),
@@ -47,6 +50,7 @@ function mapDtoToForm(dto: AssessmentDetailDto): FormData {
       method === "ZIP" ? "ZIP" : method === "ANY" ? "ANY" : "GITHUB",
     allowLateSubmissions: dto.allowLate ?? false,
     aiEvaluationEnabled: dto.aiEvaluationEnable ?? false,
+    rubrics,
   };
 }
 
@@ -64,10 +68,9 @@ function mapFormToDto(data: FormData): UpdateAssessmentDto {
     aiEvaluationEnable: data.aiEvaluationEnabled,
     allowedSubmissionMethod:
       data.allowedSubmissionMethod === "ZIP" ? SubmissionMethod.ZIP
-      : data.allowedSubmissionMethod === "ANY" ? SubmissionMethod.ANY
-      : SubmissionMethod.GITHUB,
-    // Keep rubric in sync with maxScore
-    rubrics: [{ definition: "Overall Score", totalScore: data.maxScore }],
+        : data.allowedSubmissionMethod === "ANY" ? SubmissionMethod.ANY
+          : SubmissionMethod.GITHUB,
+    rubrics: data.rubrics.length > 0 ? data.rubrics : [{ definition: "Overall Score", totalScore: data.maxScore }],
   };
 }
 
@@ -114,6 +117,26 @@ export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssig
     if (!formData || !originalData) return;
     setHasChanges(JSON.stringify(formData) !== JSON.stringify(originalData));
   }, [formData, originalData]);
+
+  // Auto-sync rubric totalScore when maxScore changes
+  useEffect(() => {
+    if (!formData) return;
+    setFormData((prev) => {
+      if (!prev) return prev;
+      // Only auto-sync if there's a single "Overall Score" rubric
+      if (
+        prev.rubrics.length === 1 &&
+        prev.rubrics[0].definition === "Overall Score" &&
+        prev.rubrics[0].totalScore !== prev.maxScore
+      ) {
+        return {
+          ...prev,
+          rubrics: [{ definition: "Overall Score", totalScore: prev.maxScore }],
+        };
+      }
+      return prev;
+    });
+  }, [formData?.maxScore]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
@@ -402,7 +425,7 @@ export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssig
                     <div className="flex items-center flex-1 min-w-0 gap-3">
                       {file.type.includes("pdf") ? <FileText className="w-5 h-5 text-red-500 shrink-0" />
                         : file.type.includes("video") ? <Video className="w-5 h-5 text-blue-500 shrink-0" />
-                        : <Package className="w-5 h-5 text-slate-500 shrink-0" />}
+                          : <Package className="w-5 h-5 text-slate-500 shrink-0" />}
                       <span className="text-sm font-medium truncate text-slate-900">{file.name}</span>
                     </div>
                     <button type="button" onClick={() => handleRemoveFile(index)} className="flex-shrink-0 p-1 ml-2 transition-colors text-slate-400 hover:text-red-600">
@@ -414,6 +437,17 @@ export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssig
             )}
           </div>
         </div>
+
+        {/* Rubrics Section */}
+        {formData && (
+          <div className="p-6 bg-white text-black border rounded-lg border-slate-200">
+            <RubricEditor
+              rubrics={formData.rubrics}
+              maxScore={formData.maxScore}
+              onRubricsChange={(rubrics) => setFormData({ ...formData, rubrics })}
+            />
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between pt-6 border-t border-slate-200">
