@@ -1,6 +1,7 @@
 "use client";
 
 import { Sparkles, Calendar, AlertCircle, MessageSquare, CheckCircle2, BarChart3 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import type { SubmissionViewerResponseDto } from "@/types/submission";
 
 interface StudentEvaluationFeedbackProps {
@@ -24,9 +25,23 @@ export default function StudentEvaluationFeedback({
     const hasPenalty = evaluation.penaltyScore && evaluation.penaltyScore > 0;
     const hasLineComments = evaluation.feedbacks && evaluation.feedbacks.length > 0;
 
+
+
     return (
         <div className="space-y-6">
             {/* Feedback Header */}
+            {/* AI Output Section */}
+            {evaluation.aiOutput && (
+                <div className="bg-white rounded-2xl border border-purple-200 p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Sparkles className="w-5 h-5 text-purple-600" />
+                        <h3 className="text-lg font-semibold text-purple-900">AI Output</h3>
+                    </div>
+                    <div className="bg-purple-50 rounded-lg p-4 text-purple-800 text-sm leading-relaxed">
+                        <ReactMarkdown>{evaluation.aiOutput}</ReactMarkdown>
+                    </div>
+                </div>
+            )}
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 p-8">
                 <div className="flex items-start justify-between mb-6">
                     <div>
