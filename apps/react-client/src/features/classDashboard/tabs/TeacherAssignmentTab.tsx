@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Edit2, Eye, Trash2, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Plus, Edit2, Eye, Trash2, Loader2, AlertTriangle } from "lucide-react";
 import AnimatedPage from "@/components/AnimatedPage";
 import ViewAssignmentDetail from "@/features/assignment/components/ViewAssignmentDetail";
-import EditAssignmentDetail from "@/features/assignment/components/EditAssignmentDetail";
-import CreateAssignmentDetail from "@/features/assignment/components/CreateAssignmentDetail";
 import assessmentService from "@/services/assessmentService";
 import type { AssessmentListItemDto } from "@/types/assessment";
 
@@ -35,6 +34,7 @@ function formatDueTime(raw: string | Date): string {
 }
 
 export default function TeacherAssignmentTab({ classId }: { classId: string }) {
+  const navigate = useNavigate();
   const [assignments, setAssignments] = useState<AssessmentListItemDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,8 +45,13 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
   const [activeFilter, setActiveFilter] = useState<"all" | "published" | "drafts">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(null);
-  const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
+  const [creatingDraft, setCreatingDraft] = useState(false);
+
+  // Session dialog state
+  const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
+  const [sessionMode, setSessionMode] = useState<"existing" | "new">("existing");
+  const [selectedSession, setSelectedSession] = useState("1");
+
   const itemsPerPage = 4;
 
   const load = useCallback(async () => {
@@ -125,6 +130,54 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
     }
   };
 
+  // Create new assignment draft and navigate to create page
+  const handleCreateAssignment = async () => {
+    setCreatingDraft(true);
+    try {
+      const sessionToUse = Number(selectedSession);
+      console.log("📝 Creating draft with session:", sessionToUse);
+
+      // Create draft with selected session
+      const draftRes = await assessmentService.createAssessmentDraft(
+        Number(classId),
+        sessionToUse
+      );
+
+      const draftId = draftRes?.assessmentId;
+      console.log("✅ Draft created, ID:", draftId);
+
+      if (!draftId) throw new Error("No assessmentId returned");
+
+      // Close dialog and reset state
+      setSessionDialogOpen(false);
+      setSessionMode("existing");
+      setSelectedSession("1");
+
+      // Navigate to create page with the new assignment ID
+      navigate(`/class/${classId}/assignment/${draftId}/create`);
+    } catch (err: any) {
+      console.error("Failed to create draft:", err);
+      alert(err?.message ?? "Failed to create assignment draft");
+    } finally {
+      setCreatingDraft(false);
+    }
+  };
+
+  // Open session selection dialog
+  const handleOpenSessionDialog = () => {
+    // Get existing sessions
+    const existingSessions = [...new Set(assignments.map(a => a.session || 1))].sort((a, b) => a - b);
+
+    if (existingSessions.length > 0) {
+      setSelectedSession(String(existingSessions[0]));
+    } else {
+      setSelectedSession("1");
+    }
+
+    setSessionMode("existing");
+    setSessionDialogOpen(true);
+  };
+
   const filteredAssignments = assignments.filter((a) => {
     if (activeFilter === "published") return a.isPublic === true;
     if (activeFilter === "drafts") return a.isPublic === false;
@@ -136,32 +189,6 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
   const paginatedAssignments = filteredAssignments.slice(startIndex, startIndex + itemsPerPage);
 
   // ─── Sub-views ───────────────────────────────────────────────────────────────
-
-  if (isCreating) {
-    return (
-      <div className="p-8 mx-auto max-w-7xl">
-        <AnimatedPage>
-          <CreateAssignmentDetail
-            classId={classId}
-            onBack={() => { setIsCreating(false); load(); }}
-          />
-        </AnimatedPage>
-      </div>
-    );
-  }
-
-  if (editingAssignmentId !== null) {
-    return (
-      <div className="p-8 mx-auto max-w-7xl">
-        <AnimatedPage>
-          <EditAssignmentDetail
-            assignmentId={editingAssignmentId}
-            onBack={() => { setEditingAssignmentId(null); load(); }}
-          />
-        </AnimatedPage>
-      </div>
-    );
-  }
 
   if (selectedAssignmentId !== null) {
     return (
@@ -186,10 +213,11 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
           <p className="mt-2 text-slate-600">Create, monitor, and grade your student assignments in one place.</p>
         </div>
         <button
-          onClick={() => { setIsCreating(true); setSelectedAssignmentId(null); setEditingAssignmentId(null); }}
-          className="flex items-center gap-2 px-4 py-2 font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+          onClick={handleOpenSessionDialog}
+          disabled={creatingDraft}
+          className="flex items-center gap-2 px-4 py-2 font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
         >
-          <Plus className="w-5 h-5" />
+          {creatingDraft ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
           Create New Assignment
         </button>
       </div>
@@ -294,14 +322,14 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
                             </button>
                           )}
                           <button
-                            onClick={() => { setEditingAssignmentId(assignment.id); setSelectedAssignmentId(null); setIsCreating(false); }}
+                            onClick={() => navigate(`/class/${classId}/assignment/${assignment.id}/edit`)}
                             className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors"
                             title="Edit"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => { setSelectedAssignmentId(assignment.id); setEditingAssignmentId(null); setIsCreating(false); }}
+                            onClick={() => { setSelectedAssignmentId(assignment.id); }}
                             className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors"
                             title="View"
                           >
@@ -344,6 +372,102 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
                 className="px-3 py-1 border rounded-lg border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
               >
                 Next
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Session Selection Dialog */}
+      {sessionDialogOpen && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-blue-600" />
+              </div>
+              <h2 className="text-lg font-bold text-slate-900">Create Assignment</h2>
+            </div>
+
+            <p className="text-sm text-slate-600 mb-6">
+              Which session do you want to create this assignment for?
+            </p>
+
+            <div className="space-y-4 mb-6">
+              {/* Existing Session Option */}
+              <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer transition-colors"
+                style={{ borderColor: sessionMode === "existing" ? "#2563eb" : "#e2e8f0", backgroundColor: sessionMode === "existing" ? "#eff6ff" : "transparent" }}>
+                <input
+                  type="radio"
+                  name="session-mode"
+                  value="existing"
+                  checked={sessionMode === "existing"}
+                  onChange={() => setSessionMode("existing")}
+                  className="mr-3"
+                />
+                <div>
+                  <p className="font-semibold text-slate-900">Existing Session</p>
+                  <p className="text-xs text-slate-500">Add to an existing session</p>
+                </div>
+              </label>
+
+              {sessionMode === "existing" && (
+                <div className="ml-7 mb-4">
+                  <select
+                    value={selectedSession}
+                    onChange={(e) => setSelectedSession(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {[...new Set(assignments.map(a => a.session || 1))].sort((a, b) => a - b).map((session) => (
+                      <option key={session} value={session}>
+                        Session {session}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* New Session Option */}
+              <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer transition-colors"
+                style={{ borderColor: sessionMode === "new" ? "#2563eb" : "#e2e8f0", backgroundColor: sessionMode === "new" ? "#eff6ff" : "transparent" }}>
+                <input
+                  type="radio"
+                  name="session-mode"
+                  value="new"
+                  checked={sessionMode === "new"}
+                  onChange={() => {
+                    setSessionMode("new");
+                    const maxSession = assignments.length > 0
+                      ? Math.max(...assignments.map(a => a.session || 1))
+                      : 0;
+                    setSelectedSession(String(maxSession + 1));
+                  }}
+                  className="mr-3"
+                />
+                <div>
+                  <p className="font-semibold text-slate-900">New Session</p>
+                  <p className="text-xs text-slate-500">
+                    Create a new session {assignments.length > 0 ? `(Session ${Math.max(...assignments.map(a => a.session || 1)) + 1})` : "(Session 1)"}
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setSessionDialogOpen(false)}
+                className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateAssignment}
+                disabled={creatingDraft}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                {creatingDraft ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Create
               </button>
             </div>
           </div>

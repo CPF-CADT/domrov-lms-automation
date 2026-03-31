@@ -62,6 +62,7 @@ const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
+      <Route path="/class/:id/assignment/:assignmentId/create" element={<ProtectedRoute><EditAssignmentPage /></ProtectedRoute>} />
       <Route path="/class/:id/assignment/:assignmentId/edit" element={<ProtectedRoute><EditAssignmentPage /></ProtectedRoute>} />
       <Route path="/assignment/:id" element={<ProtectedRoute><AssignmentDetail /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><UserProfilePage /></ProtectedRoute>} />

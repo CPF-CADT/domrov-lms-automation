@@ -1,13 +1,27 @@
-import { useState, useEffect } from "react";
-import { ArrowLeft, Upload, Link2, X, Eye, FileText, Video, Package, AlertTriangle, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { ArrowLeft, Upload, Link2, FileText, Eye, AlertTriangle, Sparkles, ChevronDown, Info, Trash } from "lucide-react";
 import Dialog from "@/components/Dialog";
+import ConfirmationDialog from "@/components/ConfirmationDialog";
 import { RubricEditor, type RubricItem } from "./RubricEditor";
 import assessmentService from "@/services/assessmentService";
+import fileUploadService from "@/services/fileUploadService";
 import { SubmissionType, SubmissionMethod } from "@/types/enums";
-import type { AssessmentDetailDto, UpdateAssessmentDto } from "@/types/assessment";
+import type { UpdateAssessmentDto } from "@/types/assessment";
+
+interface UploadedFile {
+  id?: string;
+  name: string;
+  size: string;
+  uploadedAt: string;
+  path?: string;
+  type?: 'file' | 'link';
+  url?: string;
+  resourceId?: number;
+}
 
 interface EditAssignmentDetailProps {
-  assignmentId: number | string;
+  assignmentId?: number | string;
+  classId?: string;
   onBack: () => void;
 }
 
@@ -19,42 +33,47 @@ interface FormData {
   startDate: string;
   dueDate: string;
   maxScore: number;
-  allowedSubmissionMethod: "GITHUB" | "ZIP" | "ANY";
+  allowedSubmissionMethod: "GITHUB" | "UPLOAD" | "LINK";
   allowLateSubmissions: boolean;
   aiEvaluationEnabled: boolean;
   rubrics: RubricItem[];
 }
 
-function toLocalDatetime(raw: string | Date | undefined): string {
-  if (!raw) return "";
-  const d = new Date(raw);
-  if (isNaN(d.getTime())) return "";
-  // Format as YYYY-MM-DDTHH:MM for datetime-local input
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
+const DEFAULT_FORM: FormData = {
+  title: "",
+  session: "1",
+  submissionType: "individual",
+  instructions: "",
+  startDate: "",
+  dueDate: "",
+  maxScore: 100,
+  allowedSubmissionMethod: "GITHUB",
+  allowLateSubmissions: false,
+  aiEvaluationEnabled: false,
+  rubrics: [{ definition: "Overall Score", totalScore: 100 }],
+};
 
-function mapDtoToForm(dto: AssessmentDetailDto): FormData {
-  const method = String(dto.allowedSubmissionMethod ?? "GITHUB").toUpperCase();
-  const type = String(dto.submissionType ?? "INDIVIDUAL").toLowerCase();
+function mapDtoToFormWithMethods(dto: any): FormData {
   const rubrics = dto.rubrics && dto.rubrics.length > 0 ? dto.rubrics : [{ definition: "Overall Score", totalScore: dto.maxScore ?? 100 }];
   return {
     title: dto.title ?? "",
     session: String(dto.session ?? "1"),
-    submissionType: type === "team" ? "team" : "individual",
+    submissionType: dto.submissionType?.toLowerCase() === "team" ? "team" : "individual",
     instructions: dto.instruction ?? "",
-    startDate: toLocalDatetime(dto.startDate),
-    dueDate: toLocalDatetime(dto.dueDate),
+    startDate: dto.startDate ? new Date(dto.startDate).toISOString().slice(0, 16) : "",
+    dueDate: dto.dueDate ? new Date(dto.dueDate).toISOString().slice(0, 16) : "",
     maxScore: Math.min(100, dto.maxScore ?? 100),
     allowedSubmissionMethod:
-      method === "ZIP" ? "ZIP" : method === "ANY" ? "ANY" : "GITHUB",
+      dto.allowedSubmissionMethod === SubmissionMethod.ZIP ? "UPLOAD"
+        : dto.allowedSubmissionMethod === SubmissionMethod.GITHUB ? "LINK"
+          : "GITHUB",
     allowLateSubmissions: dto.allowLate ?? false,
     aiEvaluationEnabled: dto.aiEvaluationEnable ?? false,
     rubrics,
   };
 }
 
-function mapFormToDto(data: FormData): UpdateAssessmentDto {
+function mapToDto(data: FormData, uploadedFiles: UploadedFile[]): UpdateAssessmentDto {
   return {
     title: data.title,
     instruction: data.instructions,
@@ -63,43 +82,87 @@ function mapFormToDto(data: FormData): UpdateAssessmentDto {
     maxScore: data.maxScore,
     session: Number(data.session),
     allowLate: data.allowLateSubmissions,
-    submissionType:
-      data.submissionType === "team" ? SubmissionType.TEAM : SubmissionType.INDIVIDUAL,
+    submissionType: data.submissionType === "team"
+      ? SubmissionType.TEAM
+      : SubmissionType.INDIVIDUAL,
     aiEvaluationEnable: data.aiEvaluationEnabled,
     allowedSubmissionMethod:
-      data.allowedSubmissionMethod === "ZIP" ? SubmissionMethod.ZIP
-        : data.allowedSubmissionMethod === "ANY" ? SubmissionMethod.ANY
+      data.allowedSubmissionMethod === "UPLOAD" ? SubmissionMethod.ZIP
+        : data.allowedSubmissionMethod === "LINK" ? SubmissionMethod.GITHUB
           : SubmissionMethod.GITHUB,
-    rubrics: data.rubrics.length > 0 ? data.rubrics : [{ definition: "Overall Score", totalScore: data.maxScore }],
+    rubrics: data.rubrics.length > 0 ? data.rubrics : [
+      { definition: "Overall Score", totalScore: data.maxScore }
+    ],
+    resources: uploadedFiles
+      .filter(file => file.resourceId)
+      .map(file => ({ resourceId: file.resourceId! })),
   };
 }
 
-export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssignmentDetailProps) {
-  const id = Number(assignmentId);
+export default function EditAssignmentDetail({ assignmentId, classId, onBack }: EditAssignmentDetailProps) {
+  const id = assignmentId ? Number(assignmentId) : 0;
+  const isNewDraft = !assignmentId || id === 0 || isNaN(id);
+  const draftKey = classId ? `draft_assignment_detail_${classId}` : "draft_assignment_detail";
 
-  const [formData, setFormData] = useState<FormData | null>(null);
-  const [uploadedFiles, setUploadedFiles] = useState<{ name: string; type: string }[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [formData, setFormData] = useState<FormData>(() => {
+    if (!isNewDraft) return DEFAULT_FORM;
+    try {
+      const saved = localStorage.getItem(draftKey);
+      return saved ? { ...DEFAULT_FORM, ...JSON.parse(saved) } : DEFAULT_FORM;
+    } catch {
+      return DEFAULT_FORM;
+    }
+  });
+
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [loading, setLoading] = useState(!isNewDraft);
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
-  const [originalData, setOriginalData] = useState<FormData | null>(null);
-
-  // ─── Fetch assignment details ─────────────────────────────────────────────
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [aiExpanded, setAiExpanded] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<{ index: number; file: UploadedFile } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [linkInput, setLinkInput] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    localStorage.setItem(draftKey, JSON.stringify(formData));
+  }, [formData, draftKey]);
+
+  useEffect(() => {
+    if (isNewDraft) return;
+
     let cancelled = false;
-    async function load() {
+    async function loadAssignment() {
       setLoading(true);
       setError(null);
       try {
         const dto = await assessmentService.getAssessmentDetails(id);
         console.log("✅ Assignment details loaded:", dto);
-        const mapped = mapDtoToForm(dto);
+        const mapped = mapDtoToFormWithMethods(dto);
         if (!cancelled) {
           setFormData(mapped);
-          setOriginalData(mapped);
+
+          // Load resources from the assignment
+          if (dto.resources && Array.isArray(dto.resources)) {
+            const files: UploadedFile[] = dto.resources.map((res: any) => ({
+              id: String(res.id),
+              name: res.resource?.title || "Untitled",
+              size: "N/A",
+              uploadedAt: res.created_at ? new Date(res.created_at).toLocaleString() : "Unknown",
+              path: res.resource?.url || "",
+              type: 'file' as const,
+              url: res.resource?.url || "",
+              resourceId: res.resource?.id,
+            }));
+            setUploadedFiles(files);
+            console.log("✅ Resources loaded:", files);
+          }
         }
       } catch (err: any) {
         console.error("❌ Failed to load assignment:", err);
@@ -108,22 +171,12 @@ export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssig
         if (!cancelled) setLoading(false);
       }
     }
-    load();
+    loadAssignment();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, isNewDraft]);
 
-  // Track changes
   useEffect(() => {
-    if (!formData || !originalData) return;
-    setHasChanges(JSON.stringify(formData) !== JSON.stringify(originalData));
-  }, [formData, originalData]);
-
-  // Auto-sync rubric totalScore when maxScore changes
-  useEffect(() => {
-    if (!formData) return;
     setFormData((prev) => {
-      if (!prev) return prev;
-      // Only auto-sync if there's a single "Overall Score" rubric
       if (
         prev.rubrics.length === 1 &&
         prev.rubrics[0].definition === "Overall Score" &&
@@ -136,74 +189,226 @@ export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssig
       }
       return prev;
     });
-  }, [formData?.maxScore]);
-
-  // ─── Handlers ─────────────────────────────────────────────────────────────
+  }, [formData.maxScore]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    if (!formData) return;
-    const { name, type } = e.currentTarget;
-    const value =
-      type === "checkbox"
-        ? (e.currentTarget as HTMLInputElement).checked
-        : e.currentTarget.value;
+    const { name, value, type } = e.currentTarget;
+    const isCheckbox = type === "checkbox";
+    const checkedValue = isCheckbox ? (e.currentTarget as HTMLInputElement).checked : false;
 
     setFormData((prev) => ({
-      ...prev!,
+      ...prev,
       [name]:
-        name === "maxScore" ? Math.min(100, Math.max(1, Number(value))) : value,
+        isCheckbox
+          ? checkedValue
+          : name === "maxScore"
+            ? Math.min(100, Math.max(1, Number(value)))
+            : value,
     }));
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    setUploadedFiles((prev) => [
-      ...prev,
-      ...files.map((f) => ({ name: f.name, type: f.type })),
-    ]);
-  };
-
-  const handleRemoveFile = (index: number) => {
-    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  // ─── Save ─────────────────────────────────────────────────────────────────
-
-  const handleSave = async (e: React.FormEvent) => {
+  const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
-    if (!formData) return;
-    setIsSaving(true);
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files);
+    handleFiles(files);
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      handleFiles(files);
+    }
+  };
+
+  const handleFiles = async (files: File[]) => {
+    setIsUploading(true);
     setError(null);
+    setSuccessMessage(null);
     try {
-      const dto = mapFormToDto(formData);
-      console.log("📤 Updating assignment:", id, dto);
-      await assessmentService.updateAssessment(id, dto);
-      console.log("✅ Assignment updated");
-      setTimeout(() => onBack(), 300);
+      // Determine resourceType and resourceId based on mode
+      const resourceType = isNewDraft ? 'class' : 'assessment';
+      const resourceId = isNewDraft ? parseInt(classId || '0') : id;
+
+      const uploadedFilesList: UploadedFile[] = [];
+
+      for (const file of files) {
+        const uploadResponse = await fileUploadService.uploadFileFlow(
+          file,
+          resourceType,
+          resourceId,
+          (progress) => {
+            console.log(`Upload progress for ${file.name}: ${progress}%`);
+          }
+        );
+
+        uploadedFilesList.push({
+          name: file.name,
+          size: formatFileSize(file.size),
+          uploadedAt: 'Just now',
+          path: uploadResponse.key,
+          type: 'file',
+          url: uploadResponse.key,
+          resourceId: uploadResponse.resourceId,
+        });
+      }
+
+      setUploadedFiles((prev) => [...prev, ...uploadedFilesList]);
+      setSuccessMessage(`Successfully uploaded ${uploadedFilesList.length} file(s).`);
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      setError(error.message || 'Upload failed. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleAddLink = async () => {
+    if (!linkInput.trim()) return;
+
+    setIsUploading(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const notifyResponse = await fileUploadService.notifyBackendOfUpload({
+        key: linkInput,
+        filename: linkInput,
+      });
+
+      const newLink: UploadedFile = {
+        name: linkInput,
+        size: 'Link',
+        uploadedAt: 'Just now',
+        type: 'link',
+        url: linkInput,
+        resourceId: notifyResponse.resourceId,
+      };
+
+      setUploadedFiles((prev) => [...prev, newLink]);
+      setLinkInput('');
+      setSuccessMessage('Link added successfully.');
+    } catch (error: any) {
+      console.error('Link addition error:', error);
+      setError(error.message || 'Failed to add link. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeleteFile = (index: number, file: UploadedFile) => {
+    setFileToDelete({ index, file });
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!fileToDelete) return;
+
+    setIsDeleting(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      setUploadedFiles((prev) => prev.filter((_, idx) => idx !== fileToDelete.index));
+      setSuccessMessage(`"${fileToDelete.file.name}" has been deleted successfully.`);
+      setDeleteDialogOpen(false);
+      setFileToDelete(null);
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      setError(error.message || 'Failed to delete file. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const handleBrowseFiles = () => {
+    fileInputRef.current?.click();
+  }
+
+  async function updateAssignmentData(): Promise<number> {
+    const dto = mapToDto(formData, uploadedFiles);
+    console.log("📤 Updating assignment:", id, dto);
+    await assessmentService.updateAssessment(id, dto);
+    console.log("✅ Assignment updated");
+    return id;
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.dueDate) {
+      setError("Please set a due date before publishing.");
+      return;
+    }
+    setError(null);
+    setIsSaving(true);
+    try {
+      await assessmentService.publishAssessment(id);
+      console.log("✅ Published:", id);
+      setTimeout(() => onBack(), 500);
     } catch (err: any) {
-      console.error("❌ Update failed:", err);
+      console.error("❌ Publish error:", err);
+      setError(err?.message ?? "Failed to publish assignment. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (!formData.title.trim()) {
+      setError("Please enter a title before saving.");
+      return;
+    }
+    setError(null);
+    setIsSaving(true);
+    try {
+      await updateAssignmentData();
+      console.log("✅ Changes saved");
+      if (isNewDraft) localStorage.removeItem(draftKey);
+      setTimeout(() => onBack(), 500);
+    } catch (err: any) {
+      console.error("❌ Save error:", err);
       setError(err?.message ?? "Failed to save changes. Please try again.");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleCancel = () => {
-    if (hasChanges) {
-      setCancelDialogOpen(true);
-    } else {
-      onBack();
-    }
-  };
-
-  // ─── Loading ──────────────────────────────────────────────────────────────
+  const handleReset = () => setResetDialogOpen(true);
+  const handleCancel = () => setCancelDialogOpen(true);
+  const handlePreview = () => console.log("Preview:", formData);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+        <div className="animate-spin inline-block">
+          <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+        </div>
         <span className="ml-2 text-sm text-slate-500">Loading assignment...</span>
       </div>
     );
@@ -220,10 +425,6 @@ export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssig
     );
   }
 
-  if (!formData) return null;
-
-  // ─── Render ───────────────────────────────────────────────────────────────
-
   return (
     <div>
       {/* Header */}
@@ -235,8 +436,8 @@ export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssig
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Edit Assignment</h1>
-          <p className="mt-2 text-slate-600">Update assignment details and settings</p>
+          <h1 className="text-3xl font-bold text-slate-900">{isNewDraft ? "Create Assignment" : "Edit Assignment"}</h1>
+          <p className="mt-2 text-slate-600">{isNewDraft ? "Set up a new assignment with instructions, resources, and grading rules." : "Update assignment details and settings"}</p>
         </div>
       </div>
 
@@ -248,15 +449,15 @@ export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssig
         </div>
       )}
 
-      <form onSubmit={handleSave} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
         {/* Top Grid */}
         <div className="grid grid-cols-3 gap-6">
 
           {/* General Information */}
-          <div className="p-6 bg-white border rounded-lg border-slate-200">
+          <div className="bg-white border border-slate-200 rounded-lg p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-sm font-bold tracking-wider uppercase text-slate-900">General Information</h2>
-              <span className="px-3 py-1 text-xs font-semibold text-blue-600 rounded-full bg-blue-50">REQUIRED</span>
+              <span className="px-3 py-1 text-xs font-semibold text-blue-600 bg-blue-50 rounded-full">REQUIRED</span>
             </div>
             <div className="space-y-5">
               <div>
@@ -268,6 +469,7 @@ export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssig
                   name="title"
                   value={formData.title}
                   onChange={handleInputChange}
+                  placeholder="Advanced Database Systems Project"
                   className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg placeholder-slate-400 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   required
                 />
@@ -282,9 +484,11 @@ export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssig
                     name="session"
                     value={formData.session}
                     onChange={handleInputChange}
+                    placeholder="1"
                     min="1"
-                    className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg placeholder-slate-400 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   />
+                  <p className="mt-1 text-xs text-slate-400">Session number e.g. 1, 2, 3</p>
                 </div>
                 <div>
                   <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">Type</label>
@@ -303,16 +507,16 @@ export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssig
           </div>
 
           {/* Scheduling */}
-          <div className="p-6 bg-white border rounded-lg border-slate-200">
+          <div className="bg-white border border-slate-200 rounded-lg p-6">
             <h2 className="mb-6 text-sm font-bold tracking-wider uppercase text-slate-900">Scheduling</h2>
             <div className="space-y-5">
               <div>
                 <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">Start Date</label>
                 <input
                   type="datetime-local"
+                  className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   value={formData.startDate}
                   onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 />
               </div>
               <div>
@@ -321,16 +525,16 @@ export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssig
                 </label>
                 <input
                   type="datetime-local"
+                  className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   value={formData.dueDate}
                   onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                  className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 />
               </div>
             </div>
           </div>
 
           {/* Grading & Rules */}
-          <div className="p-6 bg-white border rounded-lg border-slate-200">
+          <div className="bg-white border border-slate-200 rounded-lg p-6">
             <h2 className="mb-6 text-sm font-bold tracking-wider uppercase text-slate-900">Grading & Rules</h2>
             <div className="space-y-5">
               <div className="grid grid-cols-2 gap-3">
@@ -348,6 +552,9 @@ export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssig
                     max="100"
                     className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   />
+                  {formData.maxScore > 100 && (
+                    <p className="mt-1 text-xs text-red-500">Maximum score is 100</p>
+                  )}
                 </div>
                 <div>
                   <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">Method</label>
@@ -358,8 +565,8 @@ export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssig
                     className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg appearance-none cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   >
                     <option value="GITHUB">GitHub</option>
-                    <option value="ZIP">ZIP Upload</option>
-                    <option value="ANY">Any Method</option>
+                    <option value="UPLOAD">File Upload</option>
+                    <option value="LINK">Link</option>
                   </select>
                 </div>
               </div>
@@ -373,7 +580,19 @@ export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssig
               <div className="flex items-center justify-between pt-2">
                 <p className="text-sm font-medium text-slate-900">AI Evaluation</p>
                 <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" name="aiEvaluationEnabled" checked={formData.aiEvaluationEnabled} onChange={handleInputChange} className="sr-only peer" />
+                  <input
+                    type="checkbox"
+                    name="aiEvaluationEnabled"
+                    checked={formData.aiEvaluationEnabled}
+                    onChange={(e) => {
+                      const isChecked = (e.target as HTMLInputElement).checked;
+                      handleInputChange(e);
+                      if (isChecked) {
+                        setAiExpanded(true);
+                      }
+                    }}
+                    className="sr-only peer"
+                  />
                   <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600" />
                 </label>
               </div>
@@ -381,90 +600,270 @@ export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssig
           </div>
         </div>
 
+        {/* AI Evaluation Info Section */}
+        {formData.aiEvaluationEnabled && (
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4 cursor-pointer" onClick={() => setAiExpanded(!aiExpanded)}>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Sparkles className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold tracking-wider uppercase text-slate-900">AI Evaluation Enabled</h3>
+                  <p className="text-xs text-slate-600 mt-0.5">Automated grading with AI</p>
+                </div>
+              </div>
+              <ChevronDown className={`w-5 h-5 text-slate-600 transition-transform ${aiExpanded ? 'rotate-180' : ''}`} />
+            </div>
+
+            {aiExpanded && (
+              <div className="space-y-4 pt-4 border-t border-blue-200">
+                <div className="flex gap-3 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                  <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                  <div className="text-sm text-blue-900">
+                    <p className="font-semibold mb-1">How AI Evaluation Works:</p>
+                    <ul className="space-y-1 list-disc list-inside text-blue-800">
+                      <li>Students submit code or assignments</li>
+                      <li>AI automatically analyzes and grades submissions</li>
+                      <li>You review and adjust AI feedback & scores</li>
+                      <li>Approved grades become visible to students</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-white rounded-lg border border-blue-100">
+                    <p className="text-xs font-semibold text-slate-600 uppercase mb-2">Status</p>
+                    <p className="text-sm font-semibold text-green-600 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                      Enabled
+                    </p>
+                  </div>
+                  <div className="p-4 bg-white rounded-lg border border-blue-100">
+                    <p className="text-xs font-semibold text-slate-600 uppercase mb-2">Max Score</p>
+                    <p className="text-sm font-semibold text-slate-900">{formData.maxScore} points</p>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-amber-100 text-amber-900 rounded-lg border border-amber-200 text-xs">
+                  <strong>⚠️ Before Publishing:</strong> Make sure you've configured an AI provider in Dashboard → AI Evaluation settings.
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Bottom Grid */}
         <div className="grid grid-cols-2 gap-6">
 
           {/* Instructions */}
-          <div className="p-6 bg-white border rounded-lg border-slate-200">
+          <div className="bg-white border border-slate-200 rounded-lg p-6">
             <h2 className="mb-4 text-sm font-bold tracking-wider uppercase text-slate-900">
               Instructions <span className="text-red-500">*</span>
             </h2>
-            <div className="overflow-hidden border rounded-lg border-slate-200">
+            <div className="overflow-hidden border border-slate-200 rounded-lg">
               <div className="flex items-center gap-2 p-3 border-b border-slate-200 bg-slate-50">
-                <button type="button" className="p-1 text-sm font-bold transition-colors rounded text-slate-700 hover:bg-slate-200">B</button>
-                <button type="button" className="p-1 text-sm italic transition-colors rounded text-slate-700 hover:bg-slate-200">I</button>
-                <button type="button" className="p-1 transition-colors rounded text-slate-700 hover:bg-slate-200">≡</button>
-                <button type="button" className="p-1 transition-colors rounded text-slate-700 hover:bg-slate-200"><Link2 className="w-4 h-4" /></button>
+                <button type="button" className="p-1 text-sm font-bold text-slate-700 rounded hover:bg-slate-200 transition-colors">B</button>
+                <button type="button" className="p-1 text-sm italic text-slate-700 rounded hover:bg-slate-200 transition-colors">I</button>
+                <button type="button" className="p-1 text-slate-700 rounded hover:bg-slate-200 transition-colors">≡</button>
+                <button type="button" className="p-1 text-slate-700 rounded hover:bg-slate-200 transition-colors"><Link2 className="w-4 h-4" /></button>
               </div>
               <textarea
                 name="instructions"
                 value={formData.instructions}
                 onChange={handleInputChange}
                 placeholder="Outline expectations and deliverables..."
-                className="w-full h-40 px-4 py-3 text-sm bg-white resize-none text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full h-40 px-4 py-3 text-sm bg-white text-slate-900 resize-none placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               />
             </div>
           </div>
 
           {/* Resources */}
-          <div className="p-6 bg-white border rounded-lg border-slate-200">
+          <div className="bg-white border border-slate-200 rounded-lg p-6">
             <h2 className="mb-4 text-sm font-bold tracking-wider uppercase text-slate-900">Resources</h2>
-            <label
-              htmlFor="edit-file-upload"
-              className="flex flex-col items-center justify-center p-8 mb-4 text-center transition-all border-2 border-dashed rounded-lg cursor-pointer border-slate-300 hover:border-blue-400 hover:bg-blue-50 group"
+
+            {/* Error Message Display */}
+            {error && (
+              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-4 flex items-start gap-3">
+                <div className="flex-1">
+                  <h4 className="text-sm font-bold text-red-900 mb-1">Error</h4>
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
+                <button
+                  onClick={() => setError(null)}
+                  className="shrink-0 text-red-600 hover:text-red-800 font-bold"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+
+            {/* Success Message Display */}
+            {successMessage && (
+              <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 mb-4 flex items-start gap-3">
+                <div className="flex-1">
+                  <h4 className="text-sm font-bold text-green-900 mb-1">Success</h4>
+                  <p className="text-sm text-green-800">{successMessage}</p>
+                </div>
+                <button
+                  onClick={() => setSuccessMessage(null)}
+                  className="shrink-0 text-green-600 hover:text-green-800 font-bold"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+
+            {/* File Upload Area */}
+            <div
+              onDragEnter={handleDragEnter}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`
+                relative border-2 border-dashed rounded-2xl p-8 text-center transition-all mb-6
+                ${isDragging ? 'border-blue-500 bg-blue-50 cursor-pointer' : ''}
+                ${!isDragging ? 'border-slate-300 hover:border-blue-400 hover:bg-slate-50 cursor-pointer' : ''}
+              `}
+              onClick={handleBrowseFiles}
             >
-              <Upload className="w-10 h-10 mx-auto mb-3 transition-colors text-slate-400 group-hover:text-blue-500" />
-              <p className="text-sm font-medium transition-colors text-slate-700 group-hover:text-blue-700">Drop files to upload</p>
-              <input type="file" multiple onChange={handleFileUpload} className="hidden" id="edit-file-upload" accept=".pdf,.docx,.zip,.mp4" />
-            </label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleFileInput}
+                className="hidden"
+                accept=".pdf,.docx,.zip,.mp4,.ppt,.pptx"
+              />
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl flex items-center justify-center">
+                  <Upload className="w-8 h-8 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900 mb-1">Drag and drop resources here</p>
+                  <p className="text-xs text-slate-500">or <span className="text-blue-600 font-medium underline">browse from computer</span></p>
+                </div>
+                <p className="text-xs text-slate-400 mt-2">SUPPORTED: .PDF, .DOCX, .ZIP, .MP4, .PPT</p>
+                {isUploading && (
+                  <p className="text-sm text-blue-600 font-medium mt-2">Uploading...</p>
+                )}
+              </div>
+            </div>
+
+            {/* Link Input Area */}
+            <div className="border-2 border-slate-300 rounded-2xl p-6 mb-6">
+              <div className="flex flex-col gap-3">
+                <label className="text-sm font-semibold text-slate-700">
+                  Or Add a Link to External Resources
+                </label>
+                <input
+                  type="url"
+                  value={linkInput}
+                  onChange={(e) => setLinkInput(e.target.value)}
+                  placeholder="https://example.com or https://drive.google.com/..."
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isUploading}
+                />
+                <button
+                  onClick={handleAddLink}
+                  disabled={!linkInput.trim() || isUploading}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all"
+                >
+                  {isUploading ? 'Adding...' : 'Add Link'}
+                </button>
+                <p className="text-xs text-slate-500">
+                  Add relevant links to help students: textbooks, documentation, tutorials, repositories, etc.
+                </p>
+              </div>
+            </div>
+
+            {/* Uploaded Files List */}
             {uploadedFiles.length > 0 && (
-              <div className="space-y-2">
-                {uploadedFiles.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 transition-colors border rounded-lg border-slate-200 bg-slate-50 hover:bg-slate-100">
-                    <div className="flex items-center flex-1 min-w-0 gap-3">
-                      {file.type.includes("pdf") ? <FileText className="w-5 h-5 text-red-500 shrink-0" />
-                        : file.type.includes("video") ? <Video className="w-5 h-5 text-blue-500 shrink-0" />
-                          : <Package className="w-5 h-5 text-slate-500 shrink-0" />}
-                      <span className="text-sm font-medium truncate text-slate-900">{file.name}</span>
+              <div>
+                <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">
+                  Added Resources
+                </h4>
+                <div className="space-y-2">
+                  {uploadedFiles.map((file, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl hover:border-slate-300 transition-all group"
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${file.type === 'link' ? 'bg-green-100' : 'bg-blue-100'}`}>
+                          {file.type === 'link' ? (
+                            <span className="text-lg">🔗</span>
+                          ) : (
+                            <FileText className="w-5 h-5 text-blue-600" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-900 truncate">
+                            {file.type === 'link' ? (
+                              <a href={file.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                {file.name}
+                              </a>
+                            ) : (
+                              file.name
+                            )}
+                          </p>
+                          <p className="text-xs text-slate-500">{file.size} • Added {file.uploadedAt}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteFile(index, file);
+                        }}
+                        className="p-2 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash className="w-4 h-4 text-red-600" />
+                      </button>
                     </div>
-                    <button type="button" onClick={() => handleRemoveFile(index)} className="flex-shrink-0 p-1 ml-2 transition-colors text-slate-400 hover:text-red-600">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </div>
         </div>
 
         {/* Rubrics Section */}
-        {formData && (
-          <div className="p-6 bg-white text-black border rounded-lg border-slate-200">
-            <RubricEditor
-              rubrics={formData.rubrics}
-              maxScore={formData.maxScore}
-              onRubricsChange={(rubrics) => setFormData({ ...formData, rubrics })}
-            />
-          </div>
-        )}
+        <div className="bg-white text-black border border-slate-200 rounded-lg p-6">
+          <RubricEditor
+            rubrics={formData.rubrics}
+            maxScore={formData.maxScore}
+            onRubricsChange={(rubrics) => setFormData({ ...formData, rubrics })}
+          />
+        </div>
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between pt-6 border-t border-slate-200">
-          <button type="button" onClick={() => console.log("Preview:", formData)} className="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors text-slate-600 hover:text-slate-900">
+          <button type="button" onClick={handlePreview} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900">
             <Eye className="w-4 h-4" />
             Preview
           </button>
           <div className="flex gap-3">
-            <button type="button" onClick={handleCancel} disabled={isSaving} className="px-4 py-2 text-sm font-medium transition-colors border rounded-lg text-slate-700 border-slate-300 hover:bg-slate-50 disabled:opacity-50">
+            <button type="button" onClick={handleReset} disabled={isSaving} className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg transition-colors hover:bg-slate-50 disabled:opacity-50">
+              Reset
+            </button>
+            <button type="button" onClick={handleCancel} disabled={isSaving} className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg transition-colors hover:bg-slate-50 disabled:opacity-50">
               Cancel
             </button>
             <button
-              type="submit"
-              disabled={isSaving || !hasChanges}
-              className="px-6 py-2 text-sm font-medium text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
+              type="button"
+              onClick={handleSaveDraft}
+              disabled={isSaving || !formData.title}
+              className="px-6 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg transition-colors hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSaving ? "Saving..." : "Save Changes"}
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving || !formData.title || formData.maxScore > 100}
+              className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg transition-colors hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
+            >
+              {isSaving ? "Publishing..." : "Publish"}
             </button>
           </div>
         </div>
@@ -479,9 +878,48 @@ export default function EditAssignmentDetail({ assignmentId, onBack }: EditAssig
         icon={<AlertTriangle className="w-6 h-6 text-yellow-600" />}
         iconBgColor="bg-yellow-100"
         buttons={[
-          { label: "Keep Editing", onClick: () => setCancelDialogOpen(false), variant: "secondary" },
-          { label: "Discard Changes", onClick: () => { setCancelDialogOpen(false); onBack(); }, variant: "danger" },
+          { label: isNewDraft ? "Keep Creating" : "Keep Editing", onClick: () => setCancelDialogOpen(false), variant: "secondary" },
+          { label: "Discard", onClick: () => { setCancelDialogOpen(false); if (isNewDraft) localStorage.removeItem(draftKey); onBack(); }, variant: "danger" },
         ]}
+      />
+
+      {/* Reset Dialog */}
+      <Dialog
+        isOpen={resetDialogOpen}
+        onClose={() => setResetDialogOpen(false)}
+        title="Clear All Fields"
+        description="Are you sure you want to clear all fields? This action cannot be undone."
+        icon={<AlertTriangle className="w-6 h-6 text-orange-600" />}
+        iconBgColor="bg-orange-100"
+        buttons={[
+          { label: "Keep Editing", onClick: () => setResetDialogOpen(false), variant: "secondary" },
+          {
+            label: "Clear Fields",
+            onClick: () => {
+              setFormData(DEFAULT_FORM);
+              setUploadedFiles([]);
+              if (isNewDraft) localStorage.removeItem(draftKey);
+              setResetDialogOpen(false);
+            },
+            variant: "danger",
+          },
+        ]}
+      />
+
+      {/* Delete File Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={deleteDialogOpen}
+        title="Delete Resource"
+        message={`Are you sure you want to delete "${fileToDelete?.file.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        isDangerous={true}
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setDeleteDialogOpen(false);
+          setFileToDelete(null);
+        }}
       />
     </div>
   );

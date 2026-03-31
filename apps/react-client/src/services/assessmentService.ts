@@ -58,7 +58,7 @@ export async function updateAssessment(assessmentId: number, data: UpdateAssessm
  * Publish an assessment
  */
 export async function publishAssessment(assessmentId: number): Promise<PublishAssessmentResponseDto> {
-  const response = (await axiosInstance.patch(`/assessments/${assessmentId}/publish`)).data;
+  const response = (await axiosInstance.patch(`/assessments/${assessmentId}/publish`, {})).data;
   return response.data;
 }
 
