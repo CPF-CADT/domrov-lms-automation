@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft, Upload, Link2, FileText, Video, Package, X, Eye, AlertTriangle, Sparkles, ChevronDown, Info } from "lucide-react";
 import Dialog from "@/components/Dialog";
+import { RubricEditor, type RubricItem } from "./RubricEditor";
 import assessmentService from "@/services/assessmentService";
 import { SubmissionType, SubmissionMethod } from "@/types/enums";
 import type { UpdateAssessmentDto } from "@/types/assessment";
@@ -21,6 +22,7 @@ interface FormData {
   allowedSubmissionMethod: "GITHUB" | "UPLOAD" | "LINK";
   allowLateSubmissions: boolean;
   aiEvaluationEnabled: boolean;
+  rubrics: RubricItem[];
 }
 
 const DEFAULT_FORM: FormData = {
@@ -34,6 +36,7 @@ const DEFAULT_FORM: FormData = {
   allowedSubmissionMethod: "GITHUB",
   allowLateSubmissions: false,
   aiEvaluationEnabled: false,
+  rubrics: [{ definition: "Overall Score", totalScore: 100 }],
 };
 
 function mapToDto(data: FormData): UpdateAssessmentDto {
@@ -53,7 +56,7 @@ function mapToDto(data: FormData): UpdateAssessmentDto {
       data.allowedSubmissionMethod === "UPLOAD" ? SubmissionMethod.ZIP
         : data.allowedSubmissionMethod === "LINK" ? SubmissionMethod.GITHUB
           : SubmissionMethod.ANY,
-    rubrics: [
+    rubrics: data.rubrics.length > 0 ? data.rubrics : [
       { definition: "Overall Score", totalScore: data.maxScore }
     ],
   };
@@ -81,6 +84,24 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
   useEffect(() => {
     localStorage.setItem(draftKey, JSON.stringify(formData));
   }, [formData, draftKey]);
+
+  // Auto-sync rubric totalScore when maxScore changes
+  useEffect(() => {
+    setFormData((prev) => {
+      // Only auto-sync if there's a single "Overall Score" rubric
+      if (
+        prev.rubrics.length === 1 &&
+        prev.rubrics[0].definition === "Overall Score" &&
+        prev.rubrics[0].totalScore !== prev.maxScore
+      ) {
+        return {
+          ...prev,
+          rubrics: [{ definition: "Overall Score", totalScore: prev.maxScore }],
+        };
+      }
+      return prev;
+    });
+  }, [formData.maxScore]);
 
   // ─── Input handlers ──────────────────────────────────────────────────────
 
@@ -468,6 +489,15 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
               </div>
             )}
           </div>
+        </div>
+
+        {/* Rubrics Section */}
+        <div className="bg-white text-black border border-slate-200 rounded-lg p-6">
+          <RubricEditor
+            rubrics={formData.rubrics}
+            maxScore={formData.maxScore}
+            onRubricsChange={(rubrics) => setFormData({ ...formData, rubrics })}
+          />
         </div>
 
         {/* Action Buttons */}
