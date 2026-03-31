@@ -21,7 +21,7 @@ async function bootstrap() {
   app.useGlobalInterceptors(new PerformanceSentryInterceptor());
 
   // CORS configuration with proper origin handling for credentials
-  const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:3000,https://domrov.app').split(',');
+  const allowedOrigins = ('http://localhost:5173,http://localhost:3000,https://domrov.app').split(',');
   app.enableCors({
     origin: (origin, callback) => {
       // Allow requests with no origin (mobile apps, curl requests)
