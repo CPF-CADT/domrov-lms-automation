@@ -22,7 +22,6 @@ interface GradingSectionProps {
 export default function GradingSection({
     evaluation,
     maxScore,
-    submissionStatus,
 }: GradingSectionProps) {
     if (!evaluation) {
         return null;
