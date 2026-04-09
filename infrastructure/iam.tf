@@ -75,6 +75,45 @@ resource "aws_iam_role_policy_attachment" "ssm_managed_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
+# CloudWatch permissions for metrics and logs
+resource "aws_iam_role_policy" "ec2_cloudwatch_policy" {
+  name_prefix = "domrov-ec2-cloudwatch-policy-"
+  role        = aws_iam_role.ec2_instance_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:PutMetricData"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogStreams"
+        ]
+        Resource = "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/domrov/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeVolumes",
+          "ec2:DescribeTags",
+          "ec2:DescribeInstances",
+          "ec2:DescribeInstanceAttribute"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # Data sources
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}

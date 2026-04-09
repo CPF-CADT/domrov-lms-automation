@@ -27,3 +27,30 @@ output "nat_gateway_ip" {
   description = "Public IP of NAT Gateway"
   value       = aws_eip.nat.public_ip
 }
+
+output "cloudwatch_dashboard_url" {
+  description = "URL to CloudWatch Dashboard"
+  value       = "https://console.aws.amazon.com/cloudwatch/home?region=ap-southeast-1#dashboards:name=${aws_cloudwatch_dashboard.main.dashboard_name}"
+}
+
+output "rds_endpoint" {
+  description = "RDS database endpoint"
+  value       = aws_db_instance.default.endpoint
+  sensitive   = true
+}
+
+output "rds_address" {
+  description = "RDS database hostname"
+  value       = aws_db_instance.default.address
+  sensitive   = true
+}
+
+output "rds_database_name" {
+  description = "RDS database name"
+  value       = "domrov"
+}
+
+output "rds_database_user" {
+  description = "RDS database username"
+  value       = "domrovadmin"
+}

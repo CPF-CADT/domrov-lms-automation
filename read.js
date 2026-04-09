@@ -15,7 +15,11 @@ async function readAndCombine() {
     'infrastructure/security.tf',
     'infrastructure/user_data.sh',
     'infrastructure/variables.tf',
-    'infrastructure/vpc.tf'
+    'infrastructure/vpc.tf',
+    'infrastructure/database.tf',
+        'infrastructure/monitoring.tf',
+    'infrastructure/scaling.tf',
+
     ];
     
     let combinedContent = '';

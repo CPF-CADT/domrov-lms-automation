@@ -1,3 +1,9 @@
+variable "aws_region" {
+  description = "AWS region for resource deployment"
+  type        = string
+  default     = "ap-southeast-1"
+}
+
 variable "ssh_cidr" {
   description = "Your IP address in CIDR notation for SSH access"
   type        = string
@@ -32,6 +38,8 @@ variable "ssm_parameter_names" {
   type        = list(string)
   default = [
     "/domrov/backend/POSTGRES_URL",
+    "/domrov/backend/POSTGRES_HOST",
+    "/domrov/backend/POSTGRES_PORT",
     "/domrov/backend/JWT_SECRET",
     "/domrov/backend/JWT_ACCESS_TOKEN_EXPIRE",
     "/domrov/backend/JWT_REFRESH_TOKEN_EXPIRE",
@@ -95,5 +103,18 @@ variable "environment" {
   description = "Environment name"
   type        = string
   default     = "production"
+}
+
+variable "cloudflare_zone_name" {
+  description = "Cloudflare zone name for DNS management"
+  type        = string
+  default     = "domrov.app"
+}
+
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token for DNS management. Set via environment variable: export CLOUDFLARE_API_TOKEN='your-token'"
+  type        = string
+  sensitive   = true
+  default     = ""
 }
 

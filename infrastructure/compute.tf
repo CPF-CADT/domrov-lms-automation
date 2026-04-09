@@ -9,6 +9,11 @@ resource "aws_launch_template" "app_launch_template" {
     arn = aws_iam_instance_profile.ec2_instance_profile.arn
   }
 
+  # Enable detailed CloudWatch monitoring
+  monitoring {
+    enabled = true
+  }
+
   vpc_security_group_ids = [aws_security_group.app_sg.id]
 
   # Enhanced user data with better error handling and logging

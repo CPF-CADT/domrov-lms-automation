@@ -35,18 +35,101 @@ systemctl start docker
 systemctl enable docker
 usermod -aG docker ubuntu
 
+# 4.5 Install CloudWatch Agent for application logging
+echo "Installing CloudWatch Agent..."
+wget -q https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
+dpkg -i -E ./amazon-cloudwatch-agent.deb
+
+# Create CloudWatch Agent configuration
+cat > /opt/aws/amazon-cloudwatch-agent/etc/config.json << 'EOF'
+{
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/docker/*.log",
+            "log_group_name": "/domrov/app",
+            "log_stream_name": "docker-{instance_id}",
+            "retention_in_days": 7
+          },
+          {
+            "file_path": "/var/log/syslog",
+            "log_group_name": "/domrov/app",
+            "log_stream_name": "syslog-{instance_id}",
+            "retention_in_days": 7
+          }
+        ]
+      }
+    }
+  },
+  "metrics": {
+    "namespace": "DomrovApp",
+    "metrics_collected": {
+      "cpu": {
+        "measurement": [
+          {
+            "name": "cpu_usage_idle",
+            "rename": "CPU_IDLE",
+            "unit": "Percent"
+          },
+          "cpu_usage_iowait"
+        ],
+        "metrics_collection_interval": 60
+      },
+      "disk": {
+        "measurement": [
+          {
+            "name": "used_percent",
+            "rename": "DISK_USED",
+            "unit": "Percent"
+          }
+        ],
+        "metrics_collection_interval": 60,
+        "resources": [
+          "/"
+        ]
+      },
+      "mem": {
+        "measurement": [
+          {
+            "name": "mem_used_percent",
+            "rename": "MEM_USED",
+            "unit": "Percent"
+          }
+        ],
+        "metrics_collection_interval": 60
+      }
+    }
+  }
+}
+EOF
+
+# Start CloudWatch Agent
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+    -a fetch-config \
+    -m ec2 \
+    -c file:/opt/aws/amazon-cloudwatch-agent/etc/config.json \
+    -s
+
+echo "CloudWatch Agent started"
+rm ./amazon-cloudwatch-agent.deb
+
 # 5. Fetch SSM Secrets (Manual Method)
 echo "Fetching secrets from SSM prefix /domrov/backend..."
-ENV_PATH="/home/ubuntu/.env"
+ENV_PATH="~/.env"
 PARAM_PREFIX="/domrov/backend"
 
 # This one-liner pulls everything and formats it to KEY=VALUE
 aws ssm get-parameters-by-path \
-  --path "$PARAM_PREFIX" \
+  --path /domrov/backend \
   --recursive \
   --with-decryption \
+  --region ap-southeast-1 \
   --query "Parameters[*].{Name:Name,Value:Value}" \
-  --output json | jq -r ".[] | \"\(.Name | split(\"/\") | last)=\(.Value)\"" > $ENV_PATH
+  --output json | \
+  jq -r '.[] | "\(.Name | split("/") | .[-1])=\(.Value)"' > ~/.env
+
 
 chown ubuntu:ubuntu $ENV_PATH
 chmod 600 $ENV_PATH
