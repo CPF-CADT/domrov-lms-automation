@@ -79,3 +79,9 @@ variable "ssm_parameter_names" {
     "/domrov/backend/OPENROUTER_API_KEY"
   ]
 }
+
+variable "app_image" {
+  description = "Docker image for the application"
+  type        = string
+  default     = "your-docker-image:latest"
+}
