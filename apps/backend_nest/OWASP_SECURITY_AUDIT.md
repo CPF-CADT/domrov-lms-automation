@@ -470,7 +470,6 @@ No user-controlled URLs are used in server-side requests.
 // API URL is from environment, not user input
 this.apiUrl = this.config.get<string>('BAKONG_API') || '';
 ```
-
 ---
 
 ## Summary Table

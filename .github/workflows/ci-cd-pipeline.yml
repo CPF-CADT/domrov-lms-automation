@@ -6,6 +6,9 @@ on:
   workflow_dispatch:
 
 jobs:
+############################################################
+# DETECT CHANGES
+############################################################
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
@@ -34,9 +37,8 @@ jobs:
               - 'apps/react-client/**'
 
 ############################################################
-# NESTJS TEST
+# TEST NESTJS
 ############################################################
-
   test-nestjs:
     needs: detect-changes
     if: needs.detect-changes.outputs.nestjs == 'true'
@@ -59,12 +61,10 @@ jobs:
         run: npm run test:ci
 
 ############################################################
-# NESTJS BUILD + DEPLOY
+# BUILD & PUSH DOCKER IMAGES
 ############################################################
-
-  deploy-nestjs:
+  build-and-push:
     needs: [detect-changes, test-nestjs]
-    if: needs.detect-changes.outputs.nestjs == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -77,98 +77,61 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build & Push Docker
+      # Backend
+      - name: Build & Push Backend
+        if: needs.detect-changes.outputs.nestjs == 'true'
         uses: docker/build-push-action@v5
         with:
           context: ./apps/backend_nest
           push: true
-          no-cache: true
-          pull: true
           tags: |
             phyvathanak/nestjs-backend:latest
             phyvathanak/nestjs-backend:${{ github.sha }}
 
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST_NEST_JS }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY_NEST_JS }}
-          script: |
-            set -e
-            IMAGE=phyvathanak/nestjs-backend:${{ github.sha }}
-
-            docker stop nestjs-backend || true
-            docker rm nestjs-backend || true
-            docker image prune -af || true
-
-            docker pull $IMAGE
-
-            docker run -d \
-              --name nestjs-backend \
-              --restart unless-stopped \
-              --env-file /home/ubuntu/.env \
-              -p 3000:3000 \
-              -p 50052:50052 \
-              $IMAGE
-
-############################################################
-# PYTHON SERVICE BUILD + DEPLOY
-############################################################
-
-  deploy-python:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.python == 'true'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - uses: docker/setup-buildx-action@v2
-
-      - uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build & Push Python Docker
+      # Python
+      - name: Build & Push Code Eval
+        if: needs.detect-changes.outputs.python == 'true'
         uses: docker/build-push-action@v5
         with:
           context: ./apps/code_eval
           push: true
-          no-cache: true
-          pull: true
           tags: |
             phyvathanak/code_eval:latest
             phyvathanak/code_eval:${{ github.sha }}
 
-      - name: Deploy Python to EC2
+############################################################
+# DEPLOY VIA DOCKER COMPOSE (ONE EC2)
+############################################################
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2 (Compose)
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.EC2_HOST_CODE_EVAL }}
+          host: ${{ secrets.EC2_HOST }}
           username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY_CODE_EVAL }}
+          key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             set -e
-            IMAGE=phyvathanak/code_eval:${{ github.sha }}
 
-            docker stop code_eval || true
-            docker rm code_eval || true
-            docker image prune -af || true
+            cd /home/ubuntu
 
-            docker pull $IMAGE
+            # Pull latest images
+            docker pull phyvathanak/nestjs-backend:latest
+            docker pull phyvathanak/code_eval:latest
 
-            docker run -d \
-              --name code_eval \
-              --restart unless-stopped \
-              --env-file /home/ubuntu/.env \
-              -p 50051:50051 \
-              $IMAGE
+            # Restart services
+            docker compose down
+            docker compose up -d
+
+            # Cleanup
+            docker image prune -af
 
 ############################################################
-# ADMIN FRONTEND DEPLOY
+# ADMIN FRONTEND 
 ############################################################
-
   deploy-admin:
     needs: detect-changes
     if: needs.detect-changes.outputs.admin == 'true'
@@ -177,23 +140,19 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Setup Node
-        uses: actions/setup-node@v3
+      - uses: actions/setup-node@v3
         with:
           node-version: 20
 
-      - name: Install Dependencies
+      - run: npm ci
         working-directory: ./apps/admin
-        run: npm ci
 
-      - name: Build Admin
+      - run: npm run build
         working-directory: ./apps/admin
-        run: npm run build
         env:
           VITE_API_URL: https://api.domrov.app
 
-      - name: Upload to S3
-        uses: jakejarvis/s3-sync-action@v0.5.1
+      - uses: jakejarvis/s3-sync-action@v0.5.1
         with:
           args: --delete
         env:
@@ -203,19 +162,9 @@ jobs:
           AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET_ADMIN }}
           SOURCE_DIR: ./apps/admin/dist
 
-      - name: Invalidate CloudFront
-        uses: chetan/invalidate-cloudfront-action@v2
-        env:
-          DISTRIBUTION: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_ADMIN }}
-          PATHS: "/*"
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-
 ############################################################
-# CLIENT FRONTEND DEPLOY
+# CLIENT FRONTEND 
 ############################################################
-
   deploy-client:
     needs: detect-changes
     if: needs.detect-changes.outputs.client == 'true'
@@ -224,23 +173,19 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Setup Node
-        uses: actions/setup-node@v3
+      - uses: actions/setup-node@v3
         with:
           node-version: 20
 
-      - name: Install Dependencies
+      - run: npm ci
         working-directory: ./apps/react-client
-        run: npm ci
 
-      - name: Build Client
+      - run: npm run build
         working-directory: ./apps/react-client
-        run: npm run build
         env:
           VITE_API_URL: https://api.domrov.app
 
-      - name: Upload to S3
-        uses: jakejarvis/s3-sync-action@v0.5.1
+      - uses: jakejarvis/s3-sync-action@v0.5.1
         with:
           args: --delete
         env:
@@ -249,12 +194,3 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET_CLIENT }}
           SOURCE_DIR: ./apps/react-client/dist
-
-      - name: Invalidate CloudFront
-        uses: chetan/invalidate-cloudfront-action@v2
-        env:
-          DISTRIBUTION: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_CLIENT }}
-          PATHS: "/*"
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}

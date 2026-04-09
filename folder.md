@@ -5,51 +5,6 @@
   workflows/
     ci-ai-code-review.yml
 apps/
-  api/
-    axios.ts
-    admin-wallet/
-      admin-wallet.api.ts
-      dto.ts
-    assessment/
-      assessment.api.ts
-      dto.ts
-    auth/
-      auth.api.ts
-      dto.ts
-    class/
-      class.api.ts
-      dto.ts
-    enums/
-      AIModelSelectionMode.ts
-      Assessment.ts
-      ClassStatus.ts
-      Currency.ts
-      ResourceType.ts
-      SubmissionMethod.ts
-      SubmissionStatus.ts
-      SubmissionType.ts
-      UserRole.ts
-    evaluation/
-      dto.ts
-      evaluation.api.ts
-    payment-flow/
-      dto.ts
-      payment-flow.api.ts
-    submission/
-      dto.ts
-      submission.api.ts
-    team/
-      dto.ts
-      team.api.ts
-    user/
-      dto.ts
-      user.api.ts
-    user-ai/
-      dto.ts
-      user-ai.api.ts
-    wallet/
-      dto.ts
-      wallet.api.ts
   backend_nest/
     Dockerfile
     Dockerfile.dev
@@ -96,25 +51,6 @@ apps/
   test/
     feedback.ts
     test-ui/
-files_cache_data/
-  1/
-    main.bat
-    main.cpp
-    README.md
-    models/
-    utils/
-  2/
-    main.bat
-    main.cpp
-    README.md
-    models/
-    utils/
-  3/
-    main.bat
-    main.cpp
-    README.md
-    models/
-    utils/
 result/
 docker-compose.yml
 domrov-lms-automation.code-workspace

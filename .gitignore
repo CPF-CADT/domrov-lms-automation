@@ -24,3 +24,50 @@ lerna-debug.log*
 # temp directory
 .temp
 .tmp
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.tfvars
+*.tfvars.json
+
+# AWS provider binaries
+*.exe
+
+# Docker
+**/docker-compose.override.yml
+**/docker-compose.override.yml.* 
+**/docker-compose.override.yml.bak
+**/docker-compose.override.yml.local
+**/docker-compose.override.yml.tmp
+**/docker-compose.override.override.yml
+
+# Python / Scripts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.swp
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+
+# Images / diagrams
+*.png
+*.jpg
+*.jpeg
+*.svg
+
+# Secrets / env
+*.env
+secrets.json
+upload_secrets.sh
