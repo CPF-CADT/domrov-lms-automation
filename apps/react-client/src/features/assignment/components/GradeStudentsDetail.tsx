@@ -527,25 +527,6 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
 
                             {/* Right: Evaluation Summary & Actions */}
                             <div>
-                                {/* AI Score Card */}
-                                {hasEvaluation && (
-                                    <div className="bg-white rounded-lg border border-slate-200 p-6 mb-6">
-                                        <div className="flex items-center gap-2 mb-4">
-                                            <Sparkles className="w-5 h-5 text-amber-500" />
-                                            <h3 className="font-semibold text-slate-900">AI Score</h3>
-                                        </div>
-                                        <div className="mb-4">
-                                            <div className="text-4xl font-bold text-slate-900">{submissionDetail.evaluation?.score}</div>
-                                            <p className="text-sm text-slate-600">out of {assignment.maxScore} points</p>
-                                        </div>
-                                        {submissionDetail.evaluation?.penaltyScore && submissionDetail.evaluation.penaltyScore > 0 && (
-                                            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                                                <p className="text-xs font-semibold text-red-700">Penalty: -{submissionDetail.evaluation.penaltyScore}</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
                                 {/* Status Card */}
                                 <div className="bg-white rounded-lg border border-slate-200 p-6 mb-6">
                                     <h3 className="font-semibold text-slate-900 mb-3 text-sm uppercase tracking-wider">Manual Grading</h3>
@@ -610,7 +591,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                                     )}
                                     {isApproved && (
                                         <div className="w-full px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-center">
-                                            <p className="text-sm font-semibold text-green-700">✓ Posted to Student</p>
+                                            <p className="text-sm font-semibold text-green-700"> Posted to Student</p>
                                         </div>
                                     )}
                                 </div>
