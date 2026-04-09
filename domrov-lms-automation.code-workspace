@@ -47,7 +47,7 @@
 			"*.java": "java"
 		},
 		"json.schemas": [],
-		"workbench.colorTheme": "Default Light+",
+		"workbench.colorTheme": "Light+",
 		"workbench.iconTheme": "material-icon-theme",
 		"workbench.editor.enablePreview": false,
 		"workbench.secondarySideBar.defaultVisibility": "hidden",
