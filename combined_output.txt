@@ -1,0 +1,1332 @@
+
+
+========== infrastructure/autoscaling.tf ==========
+
+resource "aws_autoscaling_group" "app_asg" {
+  name                      = "domrov-app-asg"
+  desired_capacity          = 1
+  max_size                  = 3
+  min_size                  = 1
+  vpc_zone_identifier       = [aws_subnet.private_a.id, aws_subnet.private_b.id]
+  target_group_arns         = [aws_lb_target_group.app_tg.arn]
+  health_check_type         = "ELB"
+  health_check_grace_period = 300
+
+  launch_template {
+    id      = aws_launch_template.app_launch_template.id
+    version = "$Latest"
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "domrov-app-instance"
+    propagate_at_launch = true
+  }
+}
+
+resource "aws_autoscaling_lifecycle_hook" "instance_launching" {
+  name                   = "instance-launching-hook"
+  autoscaling_group_name = aws_autoscaling_group.app_asg.name
+  default_result         = "CONTINUE"
+  heartbeat_timeout      = 300
+  lifecycle_transition   = "autoscaling:EC2_INSTANCE_LAUNCHING"
+}
+
+
+========== infrastructure/compute.tf ==========
+
+
+resource "aws_launch_template" "app_launch_template" {
+  name_prefix   = "domrov-app-"
+  image_id      = var.ami_id
+  instance_type = var.instance_type
+  key_name      = var.key_name
+
+  iam_instance_profile {
+    arn = aws_iam_instance_profile.ec2_instance_profile.arn
+  }
+
+  # Enable detailed CloudWatch monitoring
+  monitoring {
+    enabled = true
+  }
+
+  vpc_security_group_ids = [aws_security_group.app_sg.id]
+
+  # Enhanced user data with better error handling and logging
+  user_data = base64encode(file("${path.module}/user_data.sh"))
+
+  # Block device mapping for additional storage if needed
+  block_device_mappings {
+    device_name = "/dev/sda1"
+    ebs {
+      volume_size           = 20
+      volume_type           = "gp3"
+      encrypted             = true
+      delete_on_termination = true
+    }
+  }
+
+  # Metadata options for enhanced security
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "optional"
+    http_put_response_hop_limit = 1
+    instance_metadata_tags      = "enabled"
+  }
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      Name        = "domrov-app-instance"
+      Environment = var.environment
+      Project     = "domrov"
+    }
+  }
+
+  tag_specifications {
+    resource_type = "volume"
+    tags = {
+      Name        = "domrov-app-volume"
+      Environment = var.environment
+      Project     = "domrov"
+    }
+  }
+}
+
+
+
+
+========== infrastructure/endpoints.tf ==========
+
+resource "aws_vpc_endpoint" "ssm" {
+  vpc_id              = aws_vpc.my_vpc.id
+  service_name        = "com.amazonaws.ap-southeast-1.ssm"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+
+  subnet_ids = [
+    aws_subnet.private_a.id,
+    aws_subnet.private_b.id
+  ]
+
+  security_group_ids = [
+    aws_security_group.app_sg.id
+  ]
+}
+
+resource "aws_vpc_endpoint" "ssmmessages" {
+  vpc_id              = aws_vpc.my_vpc.id
+  service_name        = "com.amazonaws.ap-southeast-1.ssmmessages"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+
+  subnet_ids = [
+    aws_subnet.private_a.id,
+    aws_subnet.private_b.id
+  ]
+
+  security_group_ids = [
+    aws_security_group.app_sg.id
+  ]
+}
+
+resource "aws_vpc_endpoint" "ec2" {
+  vpc_id              = aws_vpc.my_vpc.id
+  service_name        = "com.amazonaws.ap-southeast-1.ec2"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+
+  subnet_ids = [
+    aws_subnet.private_a.id,
+    aws_subnet.private_b.id
+  ]
+
+  security_group_ids = [
+    aws_security_group.app_sg.id
+  ]
+}
+
+resource "aws_vpc_endpoint" "ec2messages" {
+  vpc_id              = aws_vpc.my_vpc.id
+  service_name        = "com.amazonaws.ap-southeast-1.ec2messages"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+
+  subnet_ids = [
+    aws_subnet.private_a.id,
+    aws_subnet.private_b.id
+  ]
+
+  security_group_ids = [
+    aws_security_group.app_sg.id
+  ]
+}
+
+resource "aws_vpc_endpoint" "secretsmanager" {
+  vpc_id              = aws_vpc.my_vpc.id
+  service_name        = "com.amazonaws.ap-southeast-1.secretsmanager"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+
+  subnet_ids = [
+    aws_subnet.private_a.id,
+    aws_subnet.private_b.id
+  ]
+
+  security_group_ids = [
+    aws_security_group.app_sg.id
+  ]
+}
+
+# CloudWatch Monitoring Endpoint (for metrics)
+resource "aws_vpc_endpoint" "monitoring" {
+  vpc_id              = aws_vpc.my_vpc.id
+  service_name        = "com.amazonaws.ap-southeast-1.monitoring"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+
+  subnet_ids = [
+    aws_subnet.private_a.id,
+    aws_subnet.private_b.id
+  ]
+
+  security_group_ids = [
+    aws_security_group.app_sg.id
+  ]
+}
+
+# CloudWatch Logs Endpoint (for application logs)
+resource "aws_vpc_endpoint" "logs" {
+  vpc_id              = aws_vpc.my_vpc.id
+  service_name        = "com.amazonaws.ap-southeast-1.logs"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+
+  subnet_ids = [
+    aws_subnet.private_a.id,
+    aws_subnet.private_b.id
+  ]
+
+  security_group_ids = [
+    aws_security_group.app_sg.id
+  ]
+}
+
+
+========== infrastructure/iam.tf ==========
+
+# Enhanced IAM role for EC2 instances
+resource "aws_iam_role" "ec2_instance_role" {
+  name_prefix = "domrov-ec2-role-"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name = "domrov-ec2-role"
+  }
+}
+
+resource "aws_iam_role_policy" "ec2_ssm_policy" {
+  name_prefix = "domrov-ec2-ssm-policy-"
+  role        = aws_iam_role.ec2_instance_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters"
+        ]
+        Resource = [
+          for param_name in var.ssm_parameter_names :
+          "arn:aws:ssm:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:parameter${param_name}"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParametersByPath"
+        ]
+        Resource = "arn:aws:ssm:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:parameter/domrov/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt"
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "ssm.${data.aws_region.current.id}.amazonaws.com"
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_instance_profile" "ec2_instance_profile" {
+  name_prefix = "domrov-ec2-instance-profile-"
+  role        = aws_iam_role.ec2_instance_role.name
+
+  tags = {
+    Name = "domrov-ec2-instance-profile"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "ssm_managed_policy" {
+  role       = aws_iam_role.ec2_instance_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+# CloudWatch permissions for metrics and logs
+resource "aws_iam_role_policy" "ec2_cloudwatch_policy" {
+  name_prefix = "domrov-ec2-cloudwatch-policy-"
+  role        = aws_iam_role.ec2_instance_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:PutMetricData"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogStreams"
+        ]
+        Resource = "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/domrov/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeVolumes",
+          "ec2:DescribeTags",
+          "ec2:DescribeInstances",
+          "ec2:DescribeInstanceAttribute"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Data sources
+data "aws_region" "current" {}
+data "aws_caller_identity" "current" {}
+
+
+========== infrastructure/load_balancer.tf ==========
+
+resource "aws_lb" "app_lb" {
+  name               = "domrov-app-lb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.lb_sg.id]
+  subnets            = [aws_subnet.public_a.id, aws_subnet.public_b.id]
+
+  tags = {
+    Name = "domrov-app-lb"
+  }
+}
+
+resource "aws_lb_target_group" "app_tg" {
+  name                 = "domrov-app-tg"
+  port                 = var.app_port
+  protocol             = "HTTP"
+  protocol_version     = "HTTP1"
+  target_type          = "instance"
+  vpc_id               = aws_vpc.my_vpc.id
+  deregistration_delay = 30
+
+  health_check {
+    path                = "/health"
+    interval            = 30 # 30s checks for visible demo feedback
+    timeout             = 5  # 5s timeout
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    matcher             = "200"
+  }
+
+  tags = {
+    Name = "domrov-app-tg"
+  }
+}
+
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.app_lb.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type = "redirect"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}
+
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.app_lb.arn
+  port              = "443"
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2016-08" # Standard AWS policy
+  certificate_arn   = aws_acm_certificate_validation.api.certificate_arn
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app_tg.arn
+  }
+
+  depends_on = [aws_acm_certificate_validation.api]
+}
+
+
+========== infrastructure/network.tf ==========
+
+
+
+
+
+========== infrastructure/outputs.tf ==========
+
+output "security_group_id" {
+  description = "ID of the app security group"
+  value       = aws_security_group.app_sg.id
+}
+
+output "launch_template_id" {
+  description = "ID of the domrov app launch template"
+  value       = aws_launch_template.app_launch_template.id
+}
+
+output "launch_template_latest_version" {
+  description = "Latest version of the launch template"
+  value       = aws_launch_template.app_launch_template.latest_version
+}
+
+output "alb_dns_name" {
+  description = "DNS name of the Application Load Balancer"
+  value       = aws_lb.app_lb.dns_name
+}
+
+output "alb_url" {
+  description = "Full URL to access the application"
+  value       = "http://${aws_lb.app_lb.dns_name}"
+}
+
+output "nat_gateway_ip" {
+  description = "Public IP of NAT Gateway"
+  value       = aws_eip.nat.public_ip
+}
+
+output "cloudwatch_dashboard_url" {
+  description = "URL to CloudWatch Dashboard"
+  value       = "https://console.aws.amazon.com/cloudwatch/home?region=ap-southeast-1#dashboards:name=${aws_cloudwatch_dashboard.main.dashboard_name}"
+}
+
+output "rds_endpoint" {
+  description = "RDS database endpoint"
+  value       = aws_db_instance.default.endpoint
+  sensitive   = true
+}
+
+output "rds_address" {
+  description = "RDS database hostname"
+  value       = aws_db_instance.default.address
+  sensitive   = true
+}
+
+output "rds_database_name" {
+  description = "RDS database name"
+  value       = "domrov"
+}
+
+output "rds_database_user" {
+  description = "RDS database username"
+  value       = "domrovadmin"
+}
+
+
+========== infrastructure/secret_manager_policy.tf ==========
+
+
+resource "aws_iam_policy" "secrets_manager_policy" {
+  name        = "SecretsManagerReadAccess"
+  description = "Allows read-only access to specific secrets in AWS Secrets Manager"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect   = "Allow",
+        Action   = "secretsmanager:GetSecretValue",
+        Resource = "arn:aws:secretsmanager:ap-southeast-1:458889634459:secret:/domrov/*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_instance_secrets_manager_policy" {
+  role       = aws_iam_role.ec2_instance_role.name
+  policy_arn = aws_iam_policy.secrets_manager_policy.arn
+}
+
+
+========== infrastructure/security.tf ==========
+
+resource "aws_security_group" "app_sg" {
+  name_prefix = "domrov-app-sg-"
+  vpc_id      = aws_vpc.my_vpc.id
+
+  ingress {
+    description = "SSH from your IP only"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.ssh_cidr] # Change default to your IP
+  }
+
+  ingress {
+    description     = "Application Port from ALB only"
+    from_port       = var.app_port
+    to_port         = var.app_port
+    protocol        = "tcp"
+    security_groups = [aws_security_group.lb_sg.id] # Only from ALB
+  }
+
+  ingress {
+    description = "gRPC between instances"
+    from_port   = 50051
+    to_port     = 50051
+    protocol    = "tcp"
+    self        = true # Allow instances to talk to each other
+  }
+
+  ingress {
+    description = "HTTPS for VPC Endpoints"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    self        = true
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "domrov-app-sg"
+    Environment = var.environment
+  }
+}
+
+resource "aws_security_group" "lb_sg" {
+  name        = "domrov-lb-sg"
+  description = "Allow HTTP and HTTPS traffic to LB"
+  vpc_id      = aws_vpc.my_vpc.id
+
+  ingress {
+    description = "HTTP"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "HTTPS"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "domrov-lb-sg"
+  }
+}
+
+
+========== infrastructure/user_data.sh ==========
+
+#!/bin/bash
+
+# 1. Logging and Safety
+exec > >(tee /var/log/manual-test.log) 2>&1
+echo "=== Start Manual Test Deployment: $(date) ==="
+
+export DEBIAN_FRONTEND=noninteractive
+export AWS_DEFAULT_REGION=ap-southeast-1
+
+# 2. Wait for system locks (Ensures apt is ready)
+echo "Checking for apt locks..."
+while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+  echo "Waiting for other apt processes to finish..."
+  sleep 5
+done
+
+# 3. Install Docker & Dependencies
+echo "Installing Dependencies..."
+apt-get update -y
+apt-get install -y docker.io jq curl unzip -y
+
+# 4. Install AWS CLI v2 (The reliable way)
+if ! command -v aws &> /dev/null; then
+    echo "Installing AWS CLI v2..."
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    unzip -q awscliv2.zip
+    sudo ./aws/install --update
+    rm -rf awscliv2.zip ./aws
+fi
+
+# Refresh path
+export PATH=$PATH:/usr/local/bin
+
+systemctl start docker
+systemctl enable docker
+usermod -aG docker ubuntu
+
+# 4.5 Install CloudWatch Agent for application logging
+echo "Installing CloudWatch Agent..."
+wget -q https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
+dpkg -i -E ./amazon-cloudwatch-agent.deb
+
+# Create CloudWatch Agent configuration (logs only)
+# EC2 detailed monitoring (enabled in compute.tf) provides native CPU/disk metrics
+cat > /opt/aws/amazon-cloudwatch-agent/etc/config.json << 'EOF'
+{
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/docker/*.log",
+            "log_group_name": "/domrov/app",
+            "log_stream_name": "docker-{instance_id}",
+            "retention_in_days": 7
+          },
+          {
+            "file_path": "/var/log/syslog",
+            "log_group_name": "/domrov/app",
+            "log_stream_name": "syslog-{instance_id}",
+            "retention_in_days": 7
+          }
+        ]
+      }
+    }
+  }
+}
+EOF
+
+# Start CloudWatch Agent
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+    -a fetch-config \
+    -m ec2 \
+    -c file:/opt/aws/amazon-cloudwatch-agent/etc/config.json \
+    -s
+
+echo "CloudWatch Agent started"
+rm ./amazon-cloudwatch-agent.deb
+
+# 5. Fetch SSM Secrets
+echo "Fetching secrets from SSM prefix /domrov/backend..."
+ENV_FILE="/root/.env"  # ✅ FIXED: Absolute path
+
+# This one-liner pulls everything and formats it to KEY=VALUE
+aws ssm get-parameters-by-path \
+  --path /domrov/backend \
+  --recursive \
+  --with-decryption \
+  --region ap-southeast-1 \
+  --query "Parameters[*].{Name:Name,Value:Value}" \
+  --output json | \
+  jq -r '.[] | "\(.Name | split("/") | .[-1])=\(.Value)"' > "$ENV_FILE"
+
+# Verify file was created
+if [ ! -f "$ENV_FILE" ]; then
+    echo "ERROR: Failed to create .env file"
+    exit 1
+fi
+
+chmod 600 "$ENV_FILE"
+echo ".env file created with $(wc -l < "$ENV_FILE") variables"
+
+# 6. Hardcoded Image Variables
+APP_IMAGE="phyvathanak/nestjs-backend:latest"
+CODE_EVAL_IMAGE="phyvathanak/code_eval:latest"
+APP_PORT="3000"
+
+# 7. Create Network and Run
+docker network create domrov-network || true
+
+echo "Starting domrov-code-eval..."
+docker pull $CODE_EVAL_IMAGE
+docker run -d \
+  --name domrov-code-eval \
+  --network domrov-network \
+  --restart unless-stopped \
+  --env-file "$ENV_FILE" \
+  $CODE_EVAL_IMAGE
+
+# Wait for code-eval to be ready
+sleep 5
+
+echo "Starting domrov-app..."
+docker pull $APP_IMAGE
+docker run -d \
+  --name domrov-app \
+  --network domrov-network \
+  --restart unless-stopped \
+  -p ${APP_PORT}:${APP_PORT} \
+  --env-file "$ENV_FILE" \
+  -e CODE_EVAL_GRPC_CLIENT_HOST=domrov-code-eval \
+  -e CODE_EVAL_GRPC_CLIENT_PORT=50051 \
+  $APP_IMAGE
+
+# Wait for containers to start
+sleep 10
+
+echo "=== Final Status ==="
+docker ps
+docker logs domrov-code-eval --tail 20
+docker logs domrov-app --tail 20
+echo "=== Manual Test Complete: $(date) ==="
+
+
+========== infrastructure/variables.tf ==========
+
+variable "aws_region" {
+  description = "AWS region for resource deployment"
+  type        = string
+  default     = "ap-southeast-1"
+}
+
+variable "ssh_cidr" {
+  description = "Your IP address in CIDR notation for SSH access"
+  type        = string
+  default     = "0.0.0.0/0"
+}
+
+variable "app_port" {
+  description = "Port the application listens on"
+  type        = number
+  default     = 3000
+}
+
+variable "instance_type" {
+  description = "EC2 instance type"
+  type        = string
+  default     = "t3.small"
+}
+
+variable "key_name" {
+  description = "Name of the EC2 key pair for SSH access"
+  type        = string
+  default     = "domrov"
+}
+
+variable "ami_id" {
+  description = "AMI ID for EC2 instances"
+  type        = string
+  default     = "ami-0e7ff22101b84bcff"
+}
+variable "ssm_parameter_names" {
+  description = "A list of SSM parameter names to fetch for the application environment"
+  type        = list(string)
+  default = [
+    "/domrov/backend/POSTGRES_URL",
+    "/domrov/backend/POSTGRES_HOST",
+    "/domrov/backend/POSTGRES_PORT",
+    "/domrov/backend/JWT_SECRET",
+    "/domrov/backend/JWT_ACCESS_TOKEN_EXPIRE",
+    "/domrov/backend/JWT_REFRESH_TOKEN_EXPIRE",
+    "/domrov/backend/JWT_REFRESH_TOKEN_SECRET",
+    "/domrov/backend/SMTP_HOST",
+    "/domrov/backend/SMTP_PORT",
+    "/domrov/backend/SMTP_SECURE",
+    "/domrov/backend/SMTP_USER",
+    "/domrov/backend/SMTP_PASS",
+    "/domrov/backend/SMTP_FROM",
+    "/domrov/backend/GOOGLE_CLIENT_ID",
+    "/domrov/backend/GOOGLE_CLIENT_SECRET",
+    "/domrov/backend/GOOGLE_CALLBACK_URL",
+    "/domrov/backend/GIT_HUB_CLIENT_ID",
+    "/domrov/backend/GIT_HUB_CLIENT_SECRET",
+    "/domrov/backend/GIT_HUB_CALLBACK_URL",
+    "/domrov/backend/BASE_URL",
+    "/domrov/backend/JWT_INVITE_SECRET",
+    "/domrov/backend/BAKONG_TOKEN",
+    "/domrov/backend/BAKONG_API",
+    "/domrov/backend/BAKONG_BANK_ACCOUNT",
+    "/domrov/backend/MERCHANT_NAME",
+    "/domrov/backend/MERCHANT_CITY",
+    "/domrov/backend/PHONE_NUMBER",
+    "/domrov/backend/CODE_EVAL_GRPC_CLIENT_HOST",
+    "/domrov/backend/CODE_EVAL_GRPC_CLIENT_PORT",
+    "/domrov/backend/REDIS_URL",
+    "/domrov/backend/R2_ACCOUNT_ID",
+    "/domrov/backend/R2_TOKEN",
+    "/domrov/backend/R2_SECRET_KEY",
+    "/domrov/backend/R2_BUCKET",
+    "/domrov/backend/AI_KEY_MASTER_SECRET",
+    "/domrov/backend/CACHE_TYPE",
+    "/domrov/backend/SENTRY_DSN",
+    "/domrov/backend/CLOUDINARY_CLOUD_NAME",
+    "/domrov/backend/CLOUDINARY_API_KEY",
+    "/domrov/backend/CLOUDINARY_API_SECRET",
+    "/domrov/backend/DOMROV_SECRET_KEY",
+    "/domrov/backend/FRONTEND_URL",
+    "/domrov/backend/GEMINI_KEY",
+    "/domrov/backend/OLLAMA_API_KEY",
+    "/domrov/backend/GPT_KEY",
+    "/domrov/backend/DEEPSEEK_API_KEY",
+    "/domrov/backend/OPENROUTER_API_KEY"
+  ]
+}
+
+variable "app_image" {
+  description = "Docker image for the application"
+  type        = string
+  default     = "phyvathanak/nestjs-backend:latest"
+}
+
+variable "code_eval_image" {
+  description = "Docker image for the code evaluation service"
+  type        = string
+  default     = "phyvathanak/code_eval:latest"
+}
+
+variable "environment" {
+  description = "Environment name"
+  type        = string
+  default     = "production"
+}
+
+variable "cloudflare_zone_name" {
+  description = "Cloudflare zone name for DNS management"
+  type        = string
+  default     = "domrov.app"
+}
+
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token for DNS management. Set via environment variable: export CLOUDFLARE_API_TOKEN='your-token'"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+
+
+========== infrastructure/vpc.tf ==========
+
+# 1. Create VPC
+resource "aws_vpc" "my_vpc" {
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_support   = true
+  enable_dns_hostnames = true
+  tags                 = { Name = "domrov-vpc" }
+}
+
+# 2. Public Subnets (For the ALB)
+resource "aws_subnet" "public_a" {
+  vpc_id                  = aws_vpc.my_vpc.id
+  cidr_block              = "10.0.1.0/24"
+  availability_zone       = "ap-southeast-1a"
+  map_public_ip_on_launch = true # Essential for public subnets
+  tags                    = { Name = "public-subnet-a" }
+}
+
+resource "aws_subnet" "public_b" {
+  vpc_id                  = aws_vpc.my_vpc.id
+  cidr_block              = "10.0.2.0/24"
+  availability_zone       = "ap-southeast-1b"
+  map_public_ip_on_launch = true # Essential for public subnets
+  tags                    = { Name = "public-subnet-b" }
+}
+
+# 3. Private Subnets (For App Nodes, RDS, and Redis)
+resource "aws_subnet" "private_a" {
+  vpc_id            = aws_vpc.my_vpc.id
+  cidr_block        = "10.0.9.0/24"
+  availability_zone = "ap-southeast-1a"
+  tags              = { Name = "private-subnet-a" }
+}
+
+resource "aws_subnet" "private_b" {
+  vpc_id            = aws_vpc.my_vpc.id
+  cidr_block        = "10.0.10.0/24"
+  availability_zone = "ap-southeast-1b"
+  tags              = { Name = "private-subnet-b" }
+}
+
+
+# 4. Internet Gateway
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.my_vpc.id
+  tags   = { Name = "main-igw" }
+}
+
+# 4.5 Elastic IP for NAT Gateway
+resource "aws_eip" "nat" {
+  domain     = "vpc"
+  tags       = { Name = "domrov-nat-eip" }
+  depends_on = [aws_internet_gateway.igw]
+}
+
+# 4.6 NAT Gateway in Public Subnet
+resource "aws_nat_gateway" "nat" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.public_a.id
+  tags          = { Name = "domrov-nat-gw" }
+  depends_on    = [aws_internet_gateway.igw]
+}
+
+# 5. Public Route Table (Connects Public Subnets to Internet)
+resource "aws_route_table" "public_rt" {
+  vpc_id = aws_vpc.my_vpc.id
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.igw.id
+  }
+}
+
+resource "aws_route_table_association" "public_a_assoc" {
+  subnet_id      = aws_subnet.public_a.id
+  route_table_id = aws_route_table.public_rt.id
+}
+
+resource "aws_route_table_association" "public_b_assoc" {
+  subnet_id      = aws_subnet.public_b.id
+  route_table_id = aws_route_table.public_rt.id
+}
+
+
+# 6. Private Route Table (Routes through NAT Gateway)
+resource "aws_route_table" "private_rt" {
+  vpc_id = aws_vpc.my_vpc.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat.id
+  }
+
+  tags = { Name = "private-rt" }
+}
+
+resource "aws_route_table_association" "private_a_assoc" {
+  subnet_id      = aws_subnet.private_a.id
+  route_table_id = aws_route_table.private_rt.id
+}
+
+resource "aws_route_table_association" "private_b_assoc" {
+  subnet_id      = aws_subnet.private_b.id
+  route_table_id = aws_route_table.private_rt.id
+}
+
+
+
+
+
+
+========== infrastructure/database.tf ==========
+
+# 0. KMS Key for encrypting secrets
+resource "aws_kms_key" "domrov" {
+  description             = "KMS key for Domrov LMS encryption"
+  deletion_window_in_days = 10
+  enable_key_rotation     = true
+
+  tags = {
+    Name = "domrov-kms-key"
+  }
+}
+
+resource "aws_kms_alias" "domrov" {
+  name          = "alias/domrov-lms"
+  target_key_id = aws_kms_key.domrov.key_id
+}
+
+# 1. Generate a random password or read from local file
+resource "random_password" "db_password" {
+  length           = 16
+  special          = true
+  override_special = "_%" # RDS doesn't allow / @ " or space
+}
+
+# 2. Local file to store the password (persistent storage)
+resource "local_file" "db_password_file" {
+  content  = random_password.db_password.result
+  filename = "${path.module}/.db_password"
+
+  # Ensure this file is created before anything else uses the password
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+# 3. Read the password from file (if it exists)
+data "local_file" "db_password_read" {
+  filename = "${path.module}/.db_password"
+
+  depends_on = [local_file.db_password_file]
+}
+
+# 3b. Generate unique suffix for secret name (avoid deletion conflicts)
+resource "random_id" "secret_suffix" {
+  byte_length = 4
+}
+
+# 4. Store the password in AWS Secrets Manager with KMS encryption
+resource "aws_secretsmanager_secret" "db_password_secret" {
+  name        = "domrov-db-password-${random_id.secret_suffix.hex}"
+  description = "RDS database password for domrov-db"
+  kms_key_id  = aws_kms_key.domrov.id
+
+  tags = {
+    Name = "domrov-db-password"
+  }
+}
+
+resource "aws_secretsmanager_secret_version" "db_password_secret_version" {
+  secret_id     = aws_secretsmanager_secret.db_password_secret.id
+  secret_string = data.local_file.db_password_read.content
+}
+
+# 3. DB Subnet Group
+resource "aws_db_subnet_group" "db_subnet_group" {
+  name       = "domrov-db-subnet-group"
+  subnet_ids = [aws_subnet.private_a.id, aws_subnet.private_b.id]
+
+  tags = {
+    Name = "domrov-db-subnet-group"
+  }
+}
+
+# 4. RDS Instance
+resource "aws_db_instance" "default" {
+  identifier             = "domrov-db"
+  engine                 = "postgres"
+  engine_version         = "16"
+  instance_class         = "db.t3.micro"
+  allocated_storage      = 20
+  storage_type           = "gp2"
+  username               = "domrovadmin"
+  password               = data.local_file.db_password_read.content
+  db_subnet_group_name   = aws_db_subnet_group.db_subnet_group.name
+  vpc_security_group_ids = [aws_security_group.db_sg.id]
+  skip_final_snapshot    = true
+  publicly_accessible    = false
+
+  # High Availability
+  multi_az = true
+
+  # Backup Configuration (1 day for free tier)
+  backup_retention_period = 1
+  backup_window           = "03:00-04:00"
+  maintenance_window      = "mon:04:00-mon:05:00"
+
+  # Storage Encryption with KMS
+  storage_encrypted = true
+  kms_key_id        = aws_kms_key.domrov.arn
+
+  # Enable CloudWatch Logs for database activity
+  enabled_cloudwatch_logs_exports = ["postgresql"]
+
+  tags = {
+    Name = "domrov-database"
+  }
+}
+
+# 5. Database Security Group
+resource "aws_security_group" "db_sg" {
+  name_prefix = "domrov-db-sg-"
+  vpc_id      = aws_vpc.my_vpc.id
+
+  ingress {
+    description     = "PostgreSQL from App SG"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app_sg.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "domrov-db-sg"
+  }
+}
+
+# 6. Store RDS Endpoint in SSM Parameter Store for EC2 to access (ENCRYPTED)
+resource "aws_ssm_parameter" "rds_endpoint" {
+  name      = "/domrov/backend/POSTGRES_URL"
+  type      = "SecureString" # Encrypted with KMS
+  value     = "postgresql://domrovadmin:${data.local_file.db_password_read.content}@${aws_db_instance.default.endpoint}/domrov?sslmode=require"
+  key_id    = aws_kms_key.domrov.id
+  overwrite = true
+
+  tags = {
+    Name = "domrov-rds-endpoint"
+  }
+
+  depends_on = [aws_db_instance.default]
+}
+
+# 7. Store RDS Hostname for reference
+resource "aws_ssm_parameter" "rds_hostname" {
+  name      = "/domrov/backend/POSTGRES_HOST"
+  type      = "String"
+  value     = aws_db_instance.default.address
+  overwrite = true
+
+  tags = {
+    Name = "domrov-rds-hostname"
+  }
+
+  depends_on = [aws_db_instance.default]
+}
+
+# 8. Store RDS Port for reference
+resource "aws_ssm_parameter" "rds_port" {
+  name      = "/domrov/backend/POSTGRES_PORT"
+  type      = "String"
+  value     = "5432"
+  overwrite = true
+
+  tags = {
+    Name = "domrov-rds-port"
+  }
+}
+
+
+========== infrastructure/monitoring.tf ==========
+
+# CloudWatch Log Group
+resource "aws_cloudwatch_log_group" "app_logs" {
+  name              = "/domrov/app"
+  retention_in_days = 7
+
+  tags = {
+    Name = "domrov-app-log-group"
+  }
+}
+
+# SNS Topic for alarms
+resource "aws_sns_topic" "alarms" {
+  name = "domrov-alarms"
+}
+
+# CloudWatch Dashboard
+resource "aws_cloudwatch_dashboard" "main" {
+  dashboard_name = "domrov-dashboard"
+
+  dashboard_body = jsonencode({
+    widgets = [
+      {
+        type = "metric"
+        properties = {
+          metrics = [
+            ["AWS/EC2", "CPUUtilization", { stat = "Average", label = "CPU Usage" }]
+          ]
+          period = 300
+          stat   = "Average"
+          region = "ap-southeast-1"
+          title  = "EC2 CPU Utilization"
+          yAxis = {
+            left = {
+              min = 0
+              max = 100
+            }
+          }
+        }
+      },
+      {
+        type = "metric"
+        properties = {
+          metrics = [
+            ["AWS/ApplicationELB", "TargetResponseTime", { stat = "Average" }],
+            [".", "RequestCount", { stat = "Sum" }]
+          ]
+          period = 300
+          region = "ap-southeast-1"
+          title  = "Load Balancer Metrics"
+        }
+      },
+      {
+        type = "metric"
+        properties = {
+          metrics = [
+            ["AWS/RDS", "CPUUtilization", { stat = "Average" }],
+            [".", "DatabaseConnections", { stat = "Average" }]
+          ]
+          period = 300
+          region = "ap-southeast-1"
+          title  = "RDS Performance"
+        }
+      },
+      {
+        type = "metric"
+        properties = {
+          metrics = [
+            ["AWS/AutoScaling", "GroupDesiredCapacity", { stat = "Average" }],
+            [".", "GroupInServiceInstances", { stat = "Average" }]
+          ]
+          period = 300
+          region = "ap-southeast-1"
+          title  = "Auto Scaling Group"
+        }
+      }
+    ]
+  })
+}
+
+# CloudWatch Alarm for high CPU
+resource "aws_cloudwatch_metric_alarm" "high_cpu" {
+  alarm_name          = "domrov-high-cpu"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = "120"
+  statistic           = "Average"
+  threshold           = "80"
+  alarm_description   = "This metric monitors ec2 cpu utilization"
+  alarm_actions       = [aws_sns_topic.alarms.arn]
+
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.app_asg.name
+  }
+}
+
+# CloudWatch Alarm for low CPU
+resource "aws_cloudwatch_metric_alarm" "low_cpu" {
+  alarm_name          = "domrov-low-cpu"
+  comparison_operator = "LessThanOrEqualToThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = "120"
+  statistic           = "Average"
+  threshold           = "20"
+  alarm_description   = "This metric monitors ec2 cpu utilization"
+  alarm_actions       = [aws_sns_topic.alarms.arn]
+
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.app_asg.name
+  }
+}
+
+# CloudWatch Alarm for unhealthy targets
+resource "aws_cloudwatch_metric_alarm" "unhealthy_targets" {
+  alarm_name          = "domrov-unhealthy-targets"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "UnHealthyHostCount"
+  namespace           = "AWS/ApplicationELB"
+  period              = "60"
+  statistic           = "Average"
+  threshold           = "0"
+  alarm_description   = "Alert when targets are unhealthy"
+  alarm_actions       = [aws_sns_topic.alarms.arn]
+
+  dimensions = {
+    TargetGroup  = aws_lb_target_group.app_tg.arn_suffix
+    LoadBalancer = aws_lb.app_lb.arn_suffix
+  }
+}
+
+# CloudWatch Alarm for RDS CPU
+resource "aws_cloudwatch_metric_alarm" "rds_high_cpu" {
+  alarm_name          = "domrov-rds-high-cpu"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/RDS"
+  period              = "300"
+  statistic           = "Average"
+  threshold           = "80"
+  alarm_description   = "RDS CPU utilization is too high"
+  alarm_actions       = [aws_sns_topic.alarms.arn]
+
+  dimensions = {
+    DBInstanceIdentifier = aws_db_instance.default.id
+  }
+}
+
+# CloudWatch Alarm for scaling activity
+resource "aws_cloudwatch_metric_alarm" "scaling_activity" {
+  alarm_name          = "domrov-scaling-activity"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = "60"
+  statistic           = "Average"
+  threshold           = "50"
+  alarm_description   = "Trigger when CPU > 50%"
+
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.app_asg.name
+  }
+}
+
+
+========== infrastructure/scaling.tf ==========
+
+# Auto Scaling Policy
+# NOTE: Only one target tracking policy allowed per metric per ASG
+# Can be added back after ASG is created and stable
+# To add scaling: Create policy via AWS Console or uncomment below when no conflicts exist
+
+resource "aws_autoscaling_policy" "app_scaling" {
+  name                      = "domrov-app-cpu-scaling"
+  autoscaling_group_name    = aws_autoscaling_group.app_asg.name
+  policy_type               = "TargetTrackingScaling"
+  estimated_instance_warmup = 300 # 5 minutes instead of 90s
+
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ASGAverageCPUUtilization"
+    }
+    target_value = 50.0 # Target 50% CPU - easier to trigger during demo
+  }
+}

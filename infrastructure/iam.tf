@@ -98,7 +98,7 @@ resource "aws_iam_role_policy" "ec2_cloudwatch_policy" {
           "logs:PutLogEvents",
           "logs:DescribeLogStreams"
         ]
-        Resource = "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/domrov/*"
+        Resource = "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/domrov/*"
       },
       {
         Effect = "Allow"

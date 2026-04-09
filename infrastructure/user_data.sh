@@ -40,7 +40,8 @@ echo "Installing CloudWatch Agent..."
 wget -q https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
 dpkg -i -E ./amazon-cloudwatch-agent.deb
 
-# Create CloudWatch Agent configuration
+# Create CloudWatch Agent configuration (logs only)
+# EC2 detailed monitoring (enabled in compute.tf) provides native CPU/disk metrics
 cat > /opt/aws/amazon-cloudwatch-agent/etc/config.json << 'EOF'
 {
   "logs": {
@@ -62,45 +63,6 @@ cat > /opt/aws/amazon-cloudwatch-agent/etc/config.json << 'EOF'
         ]
       }
     }
-  },
-  "metrics": {
-    "namespace": "DomrovApp",
-    "metrics_collected": {
-      "cpu": {
-        "measurement": [
-          {
-            "name": "cpu_usage_idle",
-            "rename": "CPU_IDLE",
-            "unit": "Percent"
-          },
-          "cpu_usage_iowait"
-        ],
-        "metrics_collection_interval": 60
-      },
-      "disk": {
-        "measurement": [
-          {
-            "name": "used_percent",
-            "rename": "DISK_USED",
-            "unit": "Percent"
-          }
-        ],
-        "metrics_collection_interval": 60,
-        "resources": [
-          "/"
-        ]
-      },
-      "mem": {
-        "measurement": [
-          {
-            "name": "mem_used_percent",
-            "rename": "MEM_USED",
-            "unit": "Percent"
-          }
-        ],
-        "metrics_collection_interval": 60
-      }
-    }
   }
 }
 EOF
@@ -115,10 +77,9 @@ EOF
 echo "CloudWatch Agent started"
 rm ./amazon-cloudwatch-agent.deb
 
-# 5. Fetch SSM Secrets (Manual Method)
+# 5. Fetch SSM Secrets
 echo "Fetching secrets from SSM prefix /domrov/backend..."
-ENV_PATH="~/.env"
-PARAM_PREFIX="/domrov/backend"
+ENV_FILE="/root/.env"  # ✅ FIXED: Absolute path
 
 # This one-liner pulls everything and formats it to KEY=VALUE
 aws ssm get-parameters-by-path \
@@ -128,12 +89,16 @@ aws ssm get-parameters-by-path \
   --region ap-southeast-1 \
   --query "Parameters[*].{Name:Name,Value:Value}" \
   --output json | \
-  jq -r '.[] | "\(.Name | split("/") | .[-1])=\(.Value)"' > ~/.env
+  jq -r '.[] | "\(.Name | split("/") | .[-1])=\(.Value)"' > "$ENV_FILE"
 
+# Verify file was created
+if [ ! -f "$ENV_FILE" ]; then
+    echo "ERROR: Failed to create .env file"
+    exit 1
+fi
 
-chown ubuntu:ubuntu $ENV_PATH
-chmod 600 $ENV_PATH
-echo " .env file created with $(wc -l < $ENV_PATH) variables"
+chmod 600 "$ENV_FILE"
+echo ".env file created with $(wc -l < "$ENV_FILE") variables"
 
 # 6. Hardcoded Image Variables
 APP_IMAGE="phyvathanak/nestjs-backend:latest"
@@ -149,8 +114,11 @@ docker run -d \
   --name domrov-code-eval \
   --network domrov-network \
   --restart unless-stopped \
-  --env-file $ENV_PATH \
+  --env-file "$ENV_FILE" \
   $CODE_EVAL_IMAGE
+
+# Wait for code-eval to be ready
+sleep 5
 
 echo "Starting domrov-app..."
 docker pull $APP_IMAGE
@@ -159,11 +127,16 @@ docker run -d \
   --network domrov-network \
   --restart unless-stopped \
   -p ${APP_PORT}:${APP_PORT} \
-  --env-file $ENV_PATH \
+  --env-file "$ENV_FILE" \
   -e CODE_EVAL_GRPC_CLIENT_HOST=domrov-code-eval \
   -e CODE_EVAL_GRPC_CLIENT_PORT=50051 \
   $APP_IMAGE
 
+# Wait for containers to start
+sleep 10
+
 echo "=== Final Status ==="
 docker ps
+docker logs domrov-code-eval --tail 20
+docker logs domrov-app --tail 20
 echo "=== Manual Test Complete: $(date) ==="

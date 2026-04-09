@@ -7,7 +7,7 @@ resource "aws_autoscaling_policy" "app_scaling" {
   name                      = "domrov-app-cpu-scaling"
   autoscaling_group_name    = aws_autoscaling_group.app_asg.name
   policy_type               = "TargetTrackingScaling"
-  estimated_instance_warmup = 90 # 90s for Docker startup in demo
+  estimated_instance_warmup = 300 # 5 minutes instead of 90s
 
   target_tracking_configuration {
     predefined_metric_specification {

@@ -35,5 +35,5 @@ provider "aws" {
 # Cloudflare Provider
 # Set via environment variable: export TF_VAR_cloudflare_api_token="your-token"
 provider "cloudflare" {
-  api_token = "cfut_gGNQ62IweB4A8vezA9wK5gpGQSVPEVudf4R3dDZDcd172772"
+  api_token = "cfut_5xFwDf9uHjoE77mMY1OQWTOZQO5tAAn1U5MjD7F6584bedee"
 }

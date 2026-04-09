@@ -17,7 +17,7 @@ async function readAndCombine() {
     'infrastructure/variables.tf',
     'infrastructure/vpc.tf',
     'infrastructure/database.tf',
-        'infrastructure/monitoring.tf',
+    'infrastructure/monitoring.tf',
     'infrastructure/scaling.tf',
 
     ];

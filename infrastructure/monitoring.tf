@@ -149,3 +149,20 @@ resource "aws_cloudwatch_metric_alarm" "rds_high_cpu" {
     DBInstanceIdentifier = aws_db_instance.default.id
   }
 }
+
+# CloudWatch Alarm for scaling activity
+resource "aws_cloudwatch_metric_alarm" "scaling_activity" {
+  alarm_name          = "domrov-scaling-activity"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = "60"
+  statistic           = "Average"
+  threshold           = "50"
+  alarm_description   = "Trigger when CPU > 50%"
+
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.app_asg.name
+  }
+}
