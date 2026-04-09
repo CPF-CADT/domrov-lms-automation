@@ -36,6 +36,9 @@ export const dataSourceOptions: DataSourceOptions = {
   url: process.env.POSTGRES_URL,
   synchronize: true,
   logging: false,
+  ssl: {
+    rejectUnauthorized: false, // Accept self-signed RDS certificate
+  },
   entities: [
     User,
     OAuthAccount,

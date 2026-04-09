@@ -23,7 +23,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric"
         properties = {
           metrics = [
-            ["AWS/EC2", "CPUUtilization", { stat = "Average", label = "CPU Usage" }]
+            ["AWS/EC2", "CPUUtilization", "AutoScalingGroupName", aws_autoscaling_group.app_asg.name]
           ]
           period = 300
           stat   = "Average"
@@ -41,8 +41,8 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric"
         properties = {
           metrics = [
-            ["AWS/ApplicationELB", "TargetResponseTime", { stat = "Average" }],
-            [".", "RequestCount", { stat = "Sum" }]
+            ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", aws_lb.app_lb.arn_suffix, "TargetGroup", aws_lb_target_group.app_tg.arn_suffix],
+            [".", "RequestCount", "LoadBalancer", aws_lb.app_lb.arn_suffix, "TargetGroup", aws_lb_target_group.app_tg.arn_suffix]
           ]
           period = 300
           region = "ap-southeast-1"
@@ -53,8 +53,8 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric"
         properties = {
           metrics = [
-            ["AWS/RDS", "CPUUtilization", { stat = "Average" }],
-            [".", "DatabaseConnections", { stat = "Average" }]
+            ["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", aws_db_instance.default.id],
+            [".", "DatabaseConnections", "DBInstanceIdentifier", aws_db_instance.default.id]
           ]
           period = 300
           region = "ap-southeast-1"
@@ -65,8 +65,8 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric"
         properties = {
           metrics = [
-            ["AWS/AutoScaling", "GroupDesiredCapacity", { stat = "Average" }],
-            [".", "GroupInServiceInstances", { stat = "Average" }]
+            ["AWS/AutoScaling", "GroupDesiredCapacity", "AutoScalingGroupName", aws_autoscaling_group.app_asg.name],
+            [".", "GroupInServiceInstances", "AutoScalingGroupName", aws_autoscaling_group.app_asg.name]
           ]
           period = 300
           region = "ap-southeast-1"
