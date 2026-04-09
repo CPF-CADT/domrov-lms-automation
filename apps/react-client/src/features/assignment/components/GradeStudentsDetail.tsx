@@ -472,18 +472,27 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                                                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm resize-none"
                                             />
                                         </div>
+                                    </div>
+                                    <button
+                                        onClick={handleSaveGrade}
+                                        disabled={isApproving}
+                                        className="w-full px-4 py-3 bg-amber-600 text-white rounded-lg font-semibold hover:bg-amber-700 disabled:opacity-50 transition-colors"
+                                    >
+                                        {isApproving ? 'Saving...' : 'Save Score Changes'}
+                                    </button>
+                                </div>
 
                                 {/* Action Buttons */}
                                 <div className="space-y-3">
                                     {!hasEvaluation && selectedItem?.status !== "NOT_SUBMITTED" && (
                                         <button
-                                            onClick={handleTriggerEvaluation}
+                                            onClick={setRefreshCurrent}
                                             disabled={isApproving}
                                             type="button"
                                             className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
                                         >
                                             <Sparkles className="w-4 h-4" />
-                                            {isApproving ? 'Approving...' : 'Approve'}
+                                            {isApproving ? 'Refreshing...' : 'Refresh Evaluation'}
                                         </button>
                                     )}
                                     {hasEvaluation && !isApproved && (
