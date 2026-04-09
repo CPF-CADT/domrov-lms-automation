@@ -20,9 +20,9 @@ resource "aws_lb_target_group" "app_tg" {
   deregistration_delay = 30
 
   health_check {
-    path                = "/health" # Changed from "/"
-    interval            = 30
-    timeout             = 5
+    path                = "/health"
+    interval            = 30 # 30s checks for visible demo feedback
+    timeout             = 5  # 5s timeout
     healthy_threshold   = 2
     unhealthy_threshold = 2
     matcher             = "200"
