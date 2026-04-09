@@ -10,12 +10,6 @@ variable "app_port" {
   default     = 3000
 }
 
-variable "ami_id" {
-  description = "AMI ID for the launch template (Ubuntu 22.04 LTS)"
-  type        = string
-  default     = "ami-0e7ff22101b84bcff"
-}
-
 variable "instance_type" {
   description = "EC2 instance type"
   type        = string
@@ -28,6 +22,11 @@ variable "key_name" {
   default     = "domrov"
 }
 
+variable "ami_id" {
+  description = "AMI ID for EC2 instances"
+  type        = string
+  default     = "ami-0e7ff22101b84bcff"
+}
 variable "ssm_parameter_names" {
   description = "A list of SSM parameter names to fetch for the application environment"
   type        = list(string)
@@ -83,5 +82,18 @@ variable "ssm_parameter_names" {
 variable "app_image" {
   description = "Docker image for the application"
   type        = string
-  default     = "your-docker-image:latest"
+  default     = "phyvathanak/nestjs-backend:latest"
 }
+
+variable "code_eval_image" {
+  description = "Docker image for the code evaluation service"
+  type        = string
+  default     = "phyvathanak/code_eval:latest"
+}
+
+variable "environment" {
+  description = "Environment name"
+  type        = string
+  default     = "production"
+}
+

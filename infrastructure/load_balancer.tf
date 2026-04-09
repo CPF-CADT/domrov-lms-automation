@@ -3,7 +3,7 @@ resource "aws_lb" "app_lb" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.lb_sg.id]
-  subnets            = data.aws_subnets.public.ids
+  subnets            = [aws_subnet.public_a.id, aws_subnet.public_b.id]
 
   tags = {
     Name = "domrov-app-lb"
@@ -11,13 +11,21 @@ resource "aws_lb" "app_lb" {
 }
 
 resource "aws_lb_target_group" "app_tg" {
-  name     = "domrov-app-tg"
-  port     = var.app_port
-  protocol = "HTTP"
-  vpc_id   = data.aws_vpc.selected.id
+  name                 = "domrov-app-tg"
+  port                 = var.app_port
+  protocol             = "HTTP"
+  protocol_version     = "HTTP1"
+  target_type          = "instance"
+  vpc_id               = aws_vpc.my_vpc.id
+  deregistration_delay = 30
 
   health_check {
-    path = "/"
+    path                = "/health" # Changed from "/"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    matcher             = "200"
   }
 
   tags = {

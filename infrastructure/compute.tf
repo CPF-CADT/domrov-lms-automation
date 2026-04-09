@@ -1,99 +1,55 @@
-resource "aws_launch_template" "domrov_app" {
+
+resource "aws_launch_template" "app_launch_template" {
   name_prefix   = "domrov-app-"
   image_id      = var.ami_id
   instance_type = var.instance_type
   key_name      = var.key_name
 
-  network_interfaces {
-    associate_public_ip_address = true
-    security_groups             = [aws_security_group.app_sg.id]
+  iam_instance_profile {
+    arn = aws_iam_instance_profile.ec2_instance_profile.arn
   }
 
-  user_data = base64encode(<<-EOF
-#!/bin/bash
-# Update & install Docker
-apt-get update -y
-apt-get install -y docker.io curl unzip jq
-systemctl start docker
-systemctl enable docker
+  vpc_security_group_ids = [aws_security_group.app_sg.id]
 
-# Install Docker Compose CLI plugin (v2)
-mkdir -p /usr/local/lib/docker/cli-plugins/
-curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
-  -o /usr/local/lib/docker/cli-plugins/docker-compose
-chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+  # Enhanced user data with better error handling and logging
+  user_data = base64encode(file("${path.module}/user_data.sh"))
 
-# Add 2GB swap
-fallocate -l 2G /swapfile
-chmod 600 /swapfile
-mkswap /swapfile
-swapon /swapfile
-echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  # Block device mapping for additional storage if needed
+  block_device_mappings {
+    device_name = "/dev/sda1"
+    ebs {
+      volume_size           = 20
+      volume_type           = "gp3"
+      encrypted             = true
+      delete_on_termination = true
+    }
+  }
 
-# Set timezone
-timedatectl set-timezone Asia/Phnom_Penh
-
-# Pull all env variables from SSM
-ENV_FILE=/home/ubuntu/.env
-> $$ENV_FILE
-
-for PARAM in ${join(" ", var.ssm_parameter_names)}; do
-  KEY=$(basename $PARAM)
-  VALUE=$(aws ssm get-parameter --name "$PARAM" --with-decryption --query Parameter.Value --output text)
-  echo "$KEY=$VALUE" >> $ENV_FILE
-done
-
-# Add NODE_ENV and TZ
-echo "NODE_ENV=production" >> $ENV_FILE
-echo "TZ=Asia/Phnom_Penh" >> $ENV_FILE
-
-# Create docker-compose.yml
-cat > /home/ubuntu/docker-compose.yml << 'EOL'
-version: "3.9"
-
-services:
-  backend:
-    image: phyvathanak/nestjs-backend:latest
-    container_name: domrov_backend
-    restart: always
-    ports:
-      - "3000:3000"
-    env_file:
-      - .env
-
-  code_eval:
-    image: phyvathanak/code_eval:latest
-    container_name: domrov_code_eval
-    restart: always
-    env_file:
-      - .env
-
-networks:
-  default:
-    name: domrov_network
-EOL
-
-# Start Docker Compose
-cd /home/ubuntu
-docker compose --env-file .env -f docker-compose.yml up -d
-EOF
-  )
+  # Metadata options for enhanced security
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "optional"
+    http_put_response_hop_limit = 1
+    instance_metadata_tags      = "enabled"
+  }
 
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name = "Domrov-App"
+      Name        = "domrov-app-instance"
+      Environment = var.environment
+      Project     = "domrov"
+    }
+  }
+
+  tag_specifications {
+    resource_type = "volume"
+    tags = {
+      Name        = "domrov-app-volume"
+      Environment = var.environment
+      Project     = "domrov"
     }
   }
 }
 
-resource "aws_instance" "domrov_app_instance" {
-  launch_template {
-    id      = aws_launch_template.domrov_app.id
-    version = aws_launch_template.domrov_app.latest_version
-  }
 
-  tags = {
-    Name = "Domrov-App-Instance"
-  }
-}

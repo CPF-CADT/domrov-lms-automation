@@ -1,22 +1,37 @@
 resource "aws_security_group" "app_sg" {
-  name        = "domrov-app-sg"
-  description = "Allow SSH and App traffic"
-  vpc_id      = data.aws_vpc.selected.id
+  name_prefix = "domrov-app-sg-"
+  vpc_id      = aws_vpc.my_vpc.id
 
   ingress {
     description = "SSH from your IP only"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.ssh_cidr]
+    cidr_blocks = [var.ssh_cidr] # Change default to your IP
   }
 
   ingress {
-    description = "App traffic"
-    from_port   = var.app_port
-    to_port     = var.app_port
+    description     = "Application Port from ALB only"
+    from_port       = var.app_port
+    to_port         = var.app_port
+    protocol        = "tcp"
+    security_groups = [aws_security_group.lb_sg.id] # Only from ALB
+  }
+
+  ingress {
+    description = "gRPC between instances"
+    from_port   = 50051
+    to_port     = 50051
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    self        = true # Allow instances to talk to each other
+  }
+
+  ingress {
+    description = "HTTPS for VPC Endpoints"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    self        = true
   }
 
   egress {
@@ -27,14 +42,15 @@ resource "aws_security_group" "app_sg" {
   }
 
   tags = {
-    Name = "domrov-app-sg"
+    Name        = "domrov-app-sg"
+    Environment = var.environment
   }
 }
 
 resource "aws_security_group" "lb_sg" {
   name        = "domrov-lb-sg"
   description = "Allow HTTP traffic to LB"
-  vpc_id      = data.aws_vpc.selected.id
+  vpc_id      = aws_vpc.my_vpc.id
 
   ingress {
     description = "HTTP"
