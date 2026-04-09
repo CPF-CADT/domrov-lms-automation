@@ -427,7 +427,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                             {/* Right: Evaluation Summary & Actions */}
                             <div>
                                 {/* AI Score Card */}
-                                {hasEvaluation && !isApproved && (
+                                {hasEvaluation && (
                                     <div className="bg-white rounded-lg border border-slate-200 p-6 mb-6">
                                         <div className="flex items-center gap-2 mb-4">
                                             <Sparkles className="w-5 h-5 text-amber-500" />
@@ -473,42 +473,34 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                                             />
                                         </div>
 
-                                        {/* Action Buttons */}
-                                        <div className="space-y-3">
-                                            {!submissionDetail?.evaluation?.isApproved && (
-                                                <>
-                                                    <button
-                                                        onClick={handleSaveGrade}
-                                                        disabled={isApproving}
-                                                        className="w-full px-4 py-3 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                                                    >
-                                                        {isApproving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Override Score"}
-                                                    </button>
-                                                    <button
-                                                        onClick={handleApproveSubmission}
-                                                        disabled={isApproving}
-                                                        className="w-full px-4 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                                                    >
-                                                        <CheckCircle2 className="w-4 h-4" />
-                                                        {isApproving ? 'Posting...' : 'Approve & Post to Student'}
-                                                    </button>
-                                                </>
-                                            )}
-                                            {submissionDetail?.evaluation?.isApproved && (
-                                                <div className="w-full px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-center">
-                                                    <p className="text-sm font-semibold text-green-700">✓ Posted to Student</p>
-                                                </div>
-                                            )}
-                                            <button
-                                                onClick={() => setRefreshCurrent()}
-                                                disabled={isApproving}
-                                                className="w-full px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                                            >
-                                                <RefreshCw className="w-4 h-4" />
-                                                Refresh
-                                            </button>
+                                {/* Action Buttons */}
+                                <div className="space-y-3">
+                                    {!hasEvaluation && selectedItem?.status !== "NOT_SUBMITTED" && (
+                                        <button
+                                            onClick={handleTriggerEvaluation}
+                                            disabled={isApproving}
+                                            type="button"
+                                            className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                                        >
+                                            <Sparkles className="w-4 h-4" />
+                                            {isApproving ? 'Approving...' : 'Approve'}
+                                        </button>
+                                    )}
+                                    {hasEvaluation && !isApproved && (
+                                        <button
+                                            onClick={handleApproveSubmission}
+                                            disabled={isApproving}
+                                            className="w-full px-4 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                                        >
+                                            <CheckCircle2 className="w-4 h-4" />
+                                            {isApproving ? 'Posting...' : 'Approve & Post to Student'}
+                                        </button>
+                                    )}
+                                    {isApproved && (
+                                        <div className="w-full px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-center">
+                                            <p className="text-sm font-semibold text-green-700">✓ Posted to Student</p>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
