@@ -1,0 +1,16 @@
+aws_region              = "ap-southeast-1"
+environment             = "production"
+instance_type           = "t3.small"
+key_name                = "domrov"
+ami_id                  = "ami-0e7ff22101b84bcff"
+ssh_cidr                = "0.0.0.0/0"
+app_port                = 3000
+cloudflare_zone_name    = "domrov.app"
+cloudflare_api_token    = ""
+api_domain_name         = "apii.domrov.app"
+db_name                 = "domrov"
+db_username             = "domrovadmin"
+db_instance_class       = "db.t3.micro"
+db_allocated_storage    = 20
+db_multi_az             = true
+user_data_path          = "../user_data.sh"

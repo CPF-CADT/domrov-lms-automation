@@ -1,0 +1,8 @@
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.*
+*.tfplan
+*.tfvars
+!.tfvars.example
+.db_password
