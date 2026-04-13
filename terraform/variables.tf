@@ -1,41 +1,90 @@
 variable "aws_region" {
-  description = "AWS region for resource deployment"
   type        = string
+  description = "AWS region"
   default     = "ap-southeast-1"
 }
 
-variable "ssh_cidr" {
-  description = "Your IP address in CIDR notation for SSH access"
+variable "environment" {
   type        = string
+  description = "Environment name"
+  default     = "production"
+}
+
+variable "vpc_cidr" {
+  type        = string
+  description = "VPC CIDR"
+  default     = "10.0.0.0/16"
+}
+
+variable "public_subnet_a_cidr" {
+  type        = string
+  description = "Public subnet A CIDR"
+  default     = "10.0.1.0/24"
+}
+
+variable "public_subnet_b_cidr" {
+  type        = string
+  description = "Public subnet B CIDR"
+  default     = "10.0.2.0/24"
+}
+
+variable "private_subnet_a_cidr" {
+  type        = string
+  description = "Private subnet A CIDR"
+  default     = "10.0.9.0/24"
+}
+
+variable "private_subnet_b_cidr" {
+  type        = string
+  description = "Private subnet B CIDR"
+  default     = "10.0.10.0/24"
+}
+
+variable "az_a" {
+  type        = string
+  description = "Availability zone A"
+  default     = "ap-southeast-1a"
+}
+
+variable "az_b" {
+  type        = string
+  description = "Availability zone B"
+  default     = "ap-southeast-1b"
+}
+
+variable "ssh_cidr" {
+  type        = string
+  description = "SSH source CIDR"
   default     = "0.0.0.0/0"
 }
 
 variable "app_port" {
-  description = "Port the application listens on"
   type        = number
+  description = "Application port"
   default     = 3000
 }
 
 variable "instance_type" {
-  description = "EC2 instance type"
   type        = string
+  description = "EC2 instance type"
   default     = "t3.small"
 }
 
 variable "key_name" {
-  description = "Name of the EC2 key pair for SSH access"
   type        = string
+  description = "EC2 key pair name"
   default     = "domrov"
 }
 
 variable "ami_id" {
-  description = "AMI ID for EC2 instances"
   type        = string
+  description = "EC2 AMI ID"
   default     = "ami-0e7ff22101b84bcff"
 }
+
 variable "ssm_parameter_names" {
-  description = "A list of SSM parameter names to fetch for the application environment"
   type        = list(string)
+  description = "SSM parameters for app"
   default = [
     "/domrov/backend/POSTGRES_URL",
     "/domrov/backend/POSTGRES_HOST",
@@ -87,34 +136,57 @@ variable "ssm_parameter_names" {
   ]
 }
 
-variable "app_image" {
-  description = "Docker image for the application"
-  type        = string
-  default     = "phyvathanak/nestjs-backend:latest"
-}
-
-variable "code_eval_image" {
-  description = "Docker image for the code evaluation service"
-  type        = string
-  default     = "phyvathanak/code_eval:latest"
-}
-
-variable "environment" {
-  description = "Environment name"
-  type        = string
-  default     = "production"
-}
-
 variable "cloudflare_zone_name" {
-  description = "Cloudflare zone name for DNS management"
   type        = string
+  description = "Cloudflare zone"
   default     = "domrov.app"
 }
 
 variable "cloudflare_api_token" {
-  description = "Cloudflare API token for DNS management. Set via environment variable: export CLOUDFLARE_API_TOKEN='your-token'"
   type        = string
+  description = "Cloudflare API token"
   sensitive   = true
   default     = ""
 }
 
+variable "api_domain_name" {
+  type        = string
+  description = "API domain for certificate"
+  default     = "apii.domrov.app"
+}
+
+variable "db_name" {
+  type        = string
+  description = "Database name"
+  default     = "domrov"
+}
+
+variable "db_username" {
+  type        = string
+  description = "Database username"
+  default     = "domrovadmin"
+}
+
+variable "db_instance_class" {
+  type        = string
+  description = "RDS instance class"
+  default     = "db.t3.micro"
+}
+
+variable "db_allocated_storage" {
+  type        = number
+  description = "RDS allocated storage"
+  default     = 20
+}
+
+variable "db_multi_az" {
+  type        = bool
+  description = "RDS multi AZ"
+  default     = true
+}
+
+variable "user_data_path" {
+  type        = string
+  description = "Path to startup script"
+  default     = "../user_data.sh"
+}

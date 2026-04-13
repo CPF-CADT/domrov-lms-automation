@@ -1,350 +1,335 @@
-# Domrov LMS - Infrastructure Deployment Guide
+Domrov LMS Terraform
 
-## Overview
+Overview
+This Terraform project deploys the backend AWS infrastructure for Domrov LMS using a modular architecture.
+The root module in this folder wires all submodules together through inputs and outputs.
 
-This directory contains the Terraform Infrastructure as Code (IaC) for deploying the Domrov LMS application on AWS with production-grade security, scalability, and monitoring.
+The infrastructure is designed around:
 
-## Architecture
+- Private application compute in an Auto Scaling Group
+- Public entry through an Application Load Balancer
+- Private PostgreSQL database on RDS
+- IAM-controlled runtime access to SSM, logs, and secrets
+- CloudWatch-based monitoring and alerting
 
-The infrastructure includes:
+Architecture summary
 
-- **VPC**: Custom virtual private cloud with public/private subnets across 2 availability zones
-- **Compute**: Auto-scaling EC2 instances behind an Application Load Balancer
-- **Database**: Multi-AZ RDS PostgreSQL with automated backups and encryption
-- **Frontend**: S3 buckets with CloudFront CDN for main and admin applications
-- **Security**: IAM roles, security groups, and SSL/TLS certificates via ACM
-- **Monitoring**: CloudWatch logs, metrics, alarms, and SNS notifications
-- **DNS**: Cloudflare for domain management and DDoS protection
+- Users connect to the Application Load Balancer on ports 80 and 443.
+- HTTP traffic is redirected to HTTPS.
+- The Load Balancer forwards requests to EC2 instances in private subnets.
+- EC2 instances use IAM role permissions to read SSM parameters and write logs/metrics.
+- The application connects to PostgreSQL in private subnets.
+- VPC interface endpoints allow private AWS service access without public internet paths for specific services.
 
-## Prerequisites
+Root files
 
-1. **AWS Account**: Active AWS account with appropriate permissions
-2. **Terraform**: Version 1.0 or higher
-3. **AWS CLI v2**: Configured with credentials
-4. **Cloudflare Account**: With domain `domrov.app` managed
-5. **Local Environment Variables**:
-   ```bash
-   export AWS_REGION=ap-southeast-1
-   export CLOUDFLARE_API_TOKEN="your-cloudflare-api-token"
-   ```
+- providers.tf: Terraform version and provider constraints.
+- variables.tf: Global input variables with defaults.
+- main.tf: Module composition and dependency wiring.
+- outputs.tf: Root-level outputs returned after apply.
+- user_data.sh: Instance bootstrap script loaded by the compute module.
 
-## File Structure
+Module guide
 
-```
-infrastructure/
-├── providers.tf           # Terraform providers configuration
-├── variables.tf           # Variable definitions
-├── terraform.tfvars       # Variable values (DO NOT COMMIT SENSITIVE DATA)
-├── vpc.tf                 # VPC, subnets, routing
-├── security.tf            # Security groups
-├── iam.tf                 # IAM roles and policies
-├── compute.tf             # EC2 launch templates
-├── autoscaling.tf         # Auto Scaling Group
-├── scaling.tf             # Scaling policies
-├── load_balancer.tf       # ALB and listeners
-├── database.tf            # RDS PostgreSQL
-├── storage.tf             # S3 buckets for app storage
-├── frontend.tf            # S3 + CloudFront for frontends
-├── acm.tf                 # SSL/TLS certificates
-├── monitoring.tf          # CloudWatch logs, alarms, dashboard
-├── endpoints.tf           # VPC endpoints
-├── outputs.tf             # Output values
-├── user_data.sh           # EC2 instance initialization script
-├── scripts/               # Deployment and utility scripts
-│   ├── deploy.sh          # Deploy infrastructure
-│   ├── destroy.sh         # Destroy infrastructure
-│   ├── plan.sh            # Plan changes
-│   ├── verify.sh          # Verify deployment
-│   └── init-database.sql  # Database initialization
-└── resource/
-    └── doc.md             # Detailed architecture documentation
-```
+1. modules/network
+   Purpose
 
-## Deployment Instructions
+- Creates the base network topology.
 
-### 1. Initialize Terraform
+What it creates
 
-```bash
-cd infrastructure
-terraform init -upgrade
-```
+- VPC
+- Two public subnets
+- Two private subnets
+- Internet Gateway and attachment
+- NAT Gateway with Elastic IP
+- Public and private route tables and associations
 
-This downloads all required providers and initializes the backend.
+Inputs
 
-### 2. Set Environment Variables
+- vpc_cidr
+- public_subnet_a_cidr
+- public_subnet_b_cidr
+- private_subnet_a_cidr
+- private_subnet_b_cidr
+- az_a
+- az_b
+- environment
 
-```bash
-# Set Cloudflare API token
-export CLOUDFLARE_API_TOKEN="your-actual-cloudflare-api-token"
+Outputs used by other modules
 
-# Verify AWS credentials are configured
-aws sts get-caller-identity
-```
+- vpc_id
+- public_subnet_ids
+- private_subnet_ids
+- nat_gateway_ip
 
-### 3. Review Configuration
+2. modules/security
+   Purpose
 
-Edit `terraform.tfvars` to customize:
+- Defines network access boundaries for ALB and EC2 workloads.
 
-- AWS region (default: ap-southeast-1)
-- Instance type (default: t3.small)
-- SSH access CIDR (change from 0.0.0.0/0 for security)
-- Domain names
+What it creates
 
-### 4. Plan Deployment
+- Application security group
+- Load balancer security group
 
-```bash
-terraform plan -out=tfplan
-```
+Access model
 
-Review the planned changes carefully. This shows all resources that will be created.
+- ALB allows inbound 80/443 from internet.
+- App instances allow app_port only from ALB security group.
+- SSH access is controlled by ssh_cidr.
 
-### 5. Deploy Infrastructure (Database First)
+Inputs
 
-**First apply (database only):**
+- vpc_id
+- app_port
+- ssh_cidr
+- environment
 
-```bash
-terraform apply -target=aws_db_instance.default
-```
+Outputs
 
-This creates:
+- app_security_group_id
+- lb_security_group_id
 
-- RDS PostgreSQL database
-- Database password stored locally in `.db_password`
-- Secrets Manager secret with the password
+3. modules/iam
+   Purpose
 
-**Then apply remaining resources:**
+- Provides EC2 runtime identity and permissions.
 
-```bash
-terraform apply tfplan
-```
+What it creates
 
-Or if not using a saved plan:
+- IAM role for EC2
+- IAM policies for SSM read, CloudWatch logs/metrics, and Secrets Manager read
+- Instance profile bound to the EC2 role
 
-```bash
-terraform apply
-```
+Inputs
 
-### 6. Verify Deployment
+- aws_region
+- ssm_parameter_names
 
-```bash
-# List all created resources
-terraform state list
+Outputs
 
-# Show outputs
-terraform output
+- instance_profile_arn
 
-# Check EC2 status
-terraform output alb_dns_name
+4. modules/compute
+   Purpose
 
-# Access CloudWatch Dashboard
-terraform output cloudwatch_dashboard_url
-```
+- Defines the EC2 Launch Template used by Auto Scaling.
 
-## Important Notes
+What it creates
 
-### Database Password
+- Launch template with AMI, instance type, key pair, IAM profile, security group, root EBS volume, and user_data.
 
-- **First run**: Password is auto-generated and saved to `infrastructure/.db_password`
-- **Subsequent runs**: Same password is reused from the file
-- **Security**: This file is in `.gitignore` and never committed to Git
-- **Access**: Retrieved from AWS Secrets Manager at runtime by EC2 instances
+Inputs
 
-### Cloudflare DNS Setup
+- ami_id
+- instance_type
+- key_name
+- app_security_group
+- instance_profile_arn
+- user_data_path
+- environment
 
-Terraform automatically manages your DNS records:
+Outputs
 
-1. Creates CNAME records pointing to CloudFront distributions
-2. Validates SSL/TLS certificates via DNS
-3. No manual DNS configuration needed
+- launch_template_id
+- launch_template_latest_version
 
-**Important**: Ensure your `domrov.app` domain is managed by Cloudflare for this to work.
+5. modules/acm
+   Purpose
 
-### SSL/TLS Certificates
+- Manages ACM certificate resources for the API domain.
 
-Three certificates are created:
+What it creates
 
-1. **api.domrov.app** - Backend API (auto-validated via Cloudflare)
-2. **domrov.app + www.domrov.app** - Main frontend (auto-validated)
-3. **admin.domrov.app** - Admin dashboard (auto-validated)
+- ACM certificate
+- ACM certificate validation resource
 
-All validation happens automatically through Cloudflare DNS records.
+Input
 
-### Auto Scaling
+- api_domain_name
 
-The Auto Scaling Group automatically scales based on CPU:
+Output
 
-- **Scale Up**: When avg CPU > 75% for 2 minutes
-- **Scale Down**: When avg CPU < 50% for 2 minutes
-- **Min instances**: 1
-- **Max instances**: 4
+- certificate_arn
 
-### CloudWatch Alarms
+6. modules/load_balancer
+   Purpose
 
-Alarms are configured to notify via SNS topic `domrov-alarms`:
+- Exposes the application through an ALB and routes traffic to compute.
 
-- High EC2 CPU (>80%)
-- Low EC2 CPU (<20%)
-- Unhealthy ALB targets
-- High RDS CPU (>80%)
+What it creates
 
-**Action Required**: Subscribe your email to the SNS topic to receive alerts.
+- Application Load Balancer
+- Target group for EC2 instances
+- HTTP listener with redirect to HTTPS
+- HTTPS listener with certificate
 
-## Useful Commands
+Inputs
 
-```bash
-# Validate configuration syntax
-terraform validate
+- vpc_id
+- public_subnet_ids
+- lb_security_group
+- app_port
+- certificate_arn
 
-# Format Terraform files
+Outputs
+
+- alb_dns_name
+- alb_arn_suffix
+- target_group_arn
+- target_group_arn_suffix
+
+7. modules/autoscaling
+   Purpose
+
+- Manages instance count and scaling behavior.
+
+What it creates
+
+- Auto Scaling Group
+- Lifecycle hook on instance launch
+- Target tracking scaling policy
+- Step scaling policy and alarm
+
+Inputs
+
+- private_subnet_ids
+- target_group_arn
+- launch_template_id
+
+Output
+
+- autoscaling_group_name
+
+8. modules/database
+   Purpose
+
+- Provisions encrypted PostgreSQL and related secret resources.
+
+What it creates
+
+- KMS key and alias
+- Random password and local password file
+- Secrets Manager secret and version
+- DB subnet group
+- DB security group
+- RDS PostgreSQL instance
+
+Inputs
+
+- vpc_id
+- private_subnet_ids
+- app_security_group
+- db_name
+- db_username
+- db_instance_class
+- db_allocated_store
+- db_multi_az
+
+Outputs
+
+- rds_endpoint
+- rds_address
+- rds_identifier
+
+9. modules/endpoints
+   Purpose
+
+- Creates VPC interface endpoints for private service connectivity.
+
+What it creates
+
+- Endpoints for ssm, ssmmessages, ec2, ec2messages, secretsmanager, monitoring, logs
+
+Inputs
+
+- aws_region
+- vpc_id
+- private_subnet_ids
+- app_security_group
+
+10. modules/monitoring
+    Purpose
+
+- Centralizes observability and alerting.
+
+What it creates
+
+- CloudWatch log group
+- SNS topic for alarms
+- CloudWatch dashboard
+- CPU and health alarms for EC2/ALB/RDS
+
+Inputs
+
+- aws_region
+- autoscaling_group_name
+- load_balancer_suffix
+- target_group_suffix
+- rds_identifier
+
+Output
+
+- dashboard_url
+
+Execution flow in main.tf
+
+1. network module runs first and returns VPC/subnet IDs.
+2. security module uses vpc_id from network.
+3. iam module provides instance profile for EC2.
+4. compute module uses security + iam outputs.
+5. acm module creates certificate ARN.
+6. load_balancer module uses network + security + acm outputs.
+7. autoscaling module uses compute + load_balancer + network outputs.
+8. database module uses network + security outputs.
+9. endpoints module uses network + security outputs.
+10. monitoring module uses autoscaling + load balancer + database outputs.
+
+How to run
+
+1. Open this terraform folder.
+2. Create terraform.tfvars from terraform.tfvars.example if needed.
+3. Provide secrets through environment variables.
+4. Run format and validation.
+5. Run plan and review carefully.
+6. Run apply.
+
+Commands
+terraform init
 terraform fmt -recursive
+terraform validate
+terraform plan
+terraform apply
 
-# Show specific resource
-terraform state show aws_db_instance.default
+Important variables to review before production
 
-# Destroy all infrastructure
-terraform destroy
+- ssh_cidr
+- api_domain_name
+- ami_id
+- instance_type
+- db_instance_class
+- db_multi_az
+- user_data_path
 
-# Destroy specific resource
-terraform destroy -target=aws_instance.example
+Root outputs
 
-# Import existing AWS resource
-terraform import aws_instance.example i-1234567890abcdef0
-```
+- alb_dns_name
+- alb_url
+- autoscaling_group_name
+- launch_template_id
+- nat_gateway_ip
+- rds_endpoint
+- rds_address
+- rds_database_name
+- rds_database_user
+- cloudwatch_dashboard_url
 
-## Cost Optimization Tips
+Operational recommendations
 
-1. **Development**: Change `instance_type` to `t3.micro` and `desired_capacity` to 1
-2. **Savings Plans**: Use AWS pricing calculator for cost estimation
-3. **Cleanup**: Run `terraform destroy` when not in use for development/testing
-4. **Monitoring**: Review CloudWatch metrics for underutilized resources
-
-## Troubleshooting
-
-### Database Connection Issues
-
-```bash
-# Check database endpoint
-terraform output rds_address
-
-# Verify RDS is running
-aws rds describe-db-instances --db-instance-identifier domrov-db
-
-# Check security group rules
-aws ec2 describe-security-groups --group-ids <sg-id>
-```
-
-### Certificate Validation Stuck
-
-```bash
-# Check certificate status
-aws acm describe-certificate --certificate-arn <arn> --region us-east-1
-
-# Check Cloudflare DNS records
-curl -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-  "https://api.cloudflare.com/client/v4/zones/<zone-id>/dns_records"
-```
-
-### CloudWatch Alarms Not Working
-
-1. Verify SNS topic exists: `terraform output | grep sns`
-2. Check email subscription in AWS console
-3. Test SNS: `aws sns publish --topic-arn <topic-arn> --message "test"`
-
-## Security Considerations
-
-1. **SSH Access**: Update `ssh_cidr` to your IP address for production
-2. **Secrets**: Never commit `terraform.tfstate` or `terraform.tfvars` to Git
-3. **Database**: RDS is encrypted and only accessible from EC2 instances
-4. **S3 Buckets**: All public access is blocked; access only through CloudFront
-5. **IAM**: EC2 instances have least-privilege access to AWS services
-6. **VPC Endpoints**: Private subnet instances can access AWS services without internet
-7. **KMS Encryption**: Database and secrets are encrypted with KMS keys
-
-## Monitoring & Logging
-
-### CloudWatch Dashboard
-
-Access via: `terraform output cloudwatch_dashboard_url`
-
-Displays:
-
-- EC2 CPU utilization
-- ALB response time and request count
-- RDS performance metrics
-- Auto Scaling Group activity
-
-### Application Logs
-
-- **Location**: CloudWatch Log Group `/domrov/app`
-- **Retention**: 7 days
-- **Access**: AWS Console or AWS CLI
-
-```bash
-aws logs tail /domrov/app --follow
-```
-
-## Disaster Recovery
-
-### Database Backups
-
-- **Automated daily backups**: 7-day retention
-- **Backup window**: 03:00-04:00 UTC daily
-- **Restore process**:
-  ```bash
-  aws rds restore-db-instance-from-db-snapshot \
-    --db-instance-identifier domrov-db-restored \
-    --db-snapshot-identifier <snapshot-id>
-  ```
-
-### State Recovery
-
-The Auto Scaling Group automatically recovers failed EC2 instances:
-
-1. Instance fails health check
-2. ALB marks it as unhealthy after 2 failures
-3. ASG terminates the instance
-4. ASG launches a replacement instance
-
-**True/False test**: Terminate an instance and observe ASG behavior in 2-3 minutes.
-
-## Next Steps
-
-1. Update `terraform.tfvars` with your specific values
-2. Set environment variables (especially `CLOUDFLARE_API_TOKEN`)
-3. Run `terraform plan` and review changes
-4. Execute `terraform apply`
-5. Configure SNS email subscriptions for alarms
-6. Deploy applications to frontends (S3)
-7. Deploy backend containers (user_data.sh)
-
-## Support & Documentation
-
-- Terraform Documentation: https://www.terraform.io/docs
-- AWS Documentation: https://docs.aws.amazon.com
-- Cloudflare API: https://api.cloudflare.com
-- See `resource/doc.md` for detailed architecture overview
-
-## Cost Estimation
-
-See `COST_ESTIMATION.md` for detailed monthly cost breakdown.
-
-## Version Control
-
-```bash
-# Commit Terraform code (safe)
-git add *.tf
-
-# DO NOT commit
-git rm --cached terraform.tfvars
-git rm --cached terraform.tfstate*
-git rm --cached infrastructure/.db_password
-
-# Add to .gitignore (already done)
-git add .gitignore
-```
-
----
-
-**Last Updated**: April 2026  
-**Terraform Version**: 1.0+  
-**AWS Region**: ap-southeast-1
+- Use a remote backend (S3 + DynamoDB lock) for shared environments.
+- Keep tfstate, tfvars, and generated secrets out of version control.
+- Restrict ssh_cidr to a trusted source range.
+- Review every plan before apply.
+- Use separate workspaces or separate state per environment.
+- Pin provider versions and upgrade in controlled change windows.

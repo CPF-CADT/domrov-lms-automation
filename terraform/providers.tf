@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.6.0"
 
   required_providers {
     aws = {
@@ -21,19 +21,15 @@ terraform {
   }
 }
 
-# AWS Provider
 provider "aws" {
-  region = "ap-southeast-1"
+  region = var.aws_region
 }
 
-# AWS Provider for US East 1 (required for ACM certificates with CloudFront)
 provider "aws" {
   alias  = "us_east_1"
   region = "us-east-1"
 }
 
-# Cloudflare Provider
-# Set via environment variable: export TF_VAR_cloudflare_api_token="your-token"
 provider "cloudflare" {
   api_token = var.cloudflare_api_token
 }
