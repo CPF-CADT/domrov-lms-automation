@@ -1,0 +1,39 @@
+pipeline {
+    agent any
+
+    stages {
+        stage("Checkout") {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage("Install") {
+            steps {
+                dir('apps/backend_nest') {
+                    sh 'npm ci'
+                }
+            }
+        }
+
+        stage("Test") {
+            steps {
+                dir('apps/backend_nest') {
+                    sh 'npm test'
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "========always========"
+        }
+        success {
+            echo "========pipeline executed successfully========"
+        }
+        failure {
+            echo "========pipeline execution failed========"
+        }
+    }
+}
