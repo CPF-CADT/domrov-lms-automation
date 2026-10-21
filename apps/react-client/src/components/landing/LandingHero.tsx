@@ -1,4 +1,4 @@
-import { Badge } from "@/components/data-display";
+import Badge from "@/components/data-display/Badge";
 import InteractiveHeroDemo from "@/components/landing/InteractiveHeroDemo";
 import PrimaryLinkButton from "@/components/primitives/PrimaryLinkButton";
 

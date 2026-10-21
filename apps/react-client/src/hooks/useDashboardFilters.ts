@@ -5,7 +5,7 @@
 
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import type { StatusFilter, ClassCard } from "../types";
+import type { StatusFilter, ClassCard } from "../types/ClassCard";
 
 interface UseDashboardFiltersReturn {
   activeStatus: StatusFilter;

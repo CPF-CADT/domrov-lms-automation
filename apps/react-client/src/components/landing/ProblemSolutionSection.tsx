@@ -1,4 +1,4 @@
-import { SectionHeader } from "@/components/data-display";
+import SectionHeader from "@/components/data-display/SectionHeader";
 import ProblemCard from "@/components/primitives/ProblemCard";
 import SectionWrapper from "@/components/primitives/SectionWrapper";
 import { PROBLEM_SOLUTION, type IconCard } from "@/config/Landing";

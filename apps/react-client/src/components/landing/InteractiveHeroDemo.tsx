@@ -1,7 +1,7 @@
 "use client";
 
-import { Icon } from "@/components/data-display";
-import { useHeroDemo } from "@/hooks";
+import Icon from "@/components/data-display/Icon";
+import { useHeroDemo } from "@/hooks/useHeroDemo";
 
 // --- Types ---
 interface CodeLineProps {

@@ -1,4 +1,4 @@
-import { SectionHeader } from "@/components/data-display";
+import SectionHeader from "@/components/data-display/SectionHeader";
 import FeatureCard from "@/components/primitives/FeatureCard";
 import SectionWrapper from "@/components/primitives/SectionWrapper";
 import { CORE_FEATURES, type IconCard } from "@/config/Landing";

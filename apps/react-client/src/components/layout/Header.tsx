@@ -3,7 +3,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { CTA_LINK, NAV_LINKS, type NavLinkItem } from "@/config/Navigation";
 import { useAuth } from "@/context/AuthContext";
-import { ProfileDropdown } from "@/components/data-display";
+import ProfileDropdown from "@/components/data-display/ProfileDropdown";
 
 // --- Helpers ---
 const isActivePath = (pathname: string, path: string) => pathname === path;

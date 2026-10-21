@@ -1,4 +1,4 @@
-import { Icon } from "../data-display";
+import Icon from "../data-display/Icon";
 
 interface FeatureListProps {
   features: string[];

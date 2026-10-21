@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import fileService from "@/services/FileService";
-import type { CloudinaryUploadResponse } from "@/types";
+import type { CloudinaryUploadResponse } from "@/types/File";
 
 interface ImageUploadProps {
     /** Callback when image is successfully uploaded */
