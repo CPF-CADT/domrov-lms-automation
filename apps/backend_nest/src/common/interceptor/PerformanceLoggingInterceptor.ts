@@ -18,7 +18,9 @@ export class PerformanceSentryInterceptor implements NestInterceptor {
     private readonly consoleLogger = new Logger('PERF'); // use unique context
 
     constructor() {
-        const logDir = '/logs';
+        const logDir = process.env.NODE_ENV === 'production'
+            ? '/logs'
+            : path.join(process.cwd(), 'logs');
 
         if (!fs.existsSync(logDir)) {
             fs.mkdirSync(logDir, { recursive: true });

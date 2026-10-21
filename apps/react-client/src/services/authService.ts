@@ -1,5 +1,6 @@
-import axiosInstance from '@/lib/axiosInstance';
-import type { MessageResponse } from '@/types/api';
+import axiosInstance from '@/lib/AxiosInstance';
+import { STORAGE_KEYS, storage } from '@/lib/Storage';
+import type { MessageResponse } from '@/types/Api';
 import type {
     RegisterUserDTO,
     LoginUserDTO,
@@ -9,7 +10,7 @@ import type {
     LoginResponseDto,
     RefreshTokenResponseDto,
     AuthMessageResponseDto,
-} from '@/types/auth';
+} from '@/types/Auth';
 
 /**
  * Register a new user account
@@ -32,8 +33,8 @@ export async function login(data: LoginUserDTO): Promise<LoginResponseDto> {
  */
 export async function logout(): Promise<AuthMessageResponseDto> {
     const response = (await axiosInstance.post('/auth/logout')).data;
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
+    storage.remove(STORAGE_KEYS.token);
+    storage.remove(STORAGE_KEYS.refreshToken);
     return response.data;
 }
 

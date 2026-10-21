@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { STORAGE_KEYS, storage } from "@/lib/Storage";
 
 const transactions = [
   { id: 19,  amount: 2712.72, reason: "AI Usage",    balanceBefore: 18293.79, balanceAfter: 15581.02, date: "3/8/2026" },
@@ -92,9 +93,10 @@ interface FormState {
 export default function UserProfile() {
   const { user, isLoading: loading, token } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const profile = user as ExtendedUser | null;
 
-  const [activeTab,     setActiveTab]     = useState<string>("overview");
+  const activeTab = searchParams.get("tab") === "transactions" ? "transactions" : "overview";
   const [editOpen,      setEditOpen]      = useState<boolean>(false);
   const [saving,        setSaving]        = useState<boolean>(false);
   const [saveStatus,    setSaveStatus]    = useState<string | null>(null);
@@ -103,6 +105,13 @@ export default function UserProfile() {
   const [avatarFile,    setAvatarFile]    = useState<File | null>(null);
   const [imgError,      setImgError]      = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const setActiveTab = (tab: "overview" | "transactions") => {
+    const next = new URLSearchParams(searchParams);
+    if (tab === "overview") next.delete("tab");
+    else next.set("tab", tab);
+    setSearchParams(next);
+  };
 
   const fullName     = profile ? `${profile.firstName} ${profile.lastName ?? ""}`.trim() : "";
   const initials     = profile ? getInitials(profile.firstName, profile.lastName) : "?";
@@ -145,7 +154,7 @@ export default function UserProfile() {
         body,
       });
       const updated = { ...profile, ...form, profilePictureUrl: avatarPreview ?? profile.profilePictureUrl, updated_at: new Date().toISOString() };
-      localStorage.setItem("user", JSON.stringify(updated));
+      storage.setJson(STORAGE_KEYS.user, updated);
     } catch (_) { /* ignore */ }
     setSaveStatus("success");
     setSaving(false);

@@ -1,5 +1,5 @@
-import axiosInstance from '@/lib/axiosInstance';
-import type { MessageResponse } from '@/types/api';
+import axiosInstance from '@/lib/AxiosInstance';
+import type { MessageResponse } from '@/types/Api';
 import type {
     ClassResponseDto,
     GetMyClassesResponseDto,
@@ -12,7 +12,7 @@ import type {
     InviteMembersDto,
     TransferOwnershipDto,
     LeaderboardItemDto,
-} from '@/types/class';
+} from '@/types/Class';
 
 /**
  * Create a new class

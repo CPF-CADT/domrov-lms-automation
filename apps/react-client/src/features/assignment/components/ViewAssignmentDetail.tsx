@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import assessmentService from "@/services/assessmentService";
-import type { AssessmentDetailDto } from "@/types/assessment";
+import assessmentService from "@/services/AssessmentService";
+import type { AssessmentDetailDto } from "@/types/Assessment";
 
 interface ViewAssignmentDetailProps {
   assignmentId: number | string; // accepts both number and string

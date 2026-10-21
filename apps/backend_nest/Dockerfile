@@ -23,8 +23,10 @@ ENV TZ=Asia/Phnom_Penh
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules ./node_modules
 
-# Create external logs directory
-RUN mkdir -p /logs && chown -R node:node /logs
+# Create the log directories used by the application and make them writable by
+# the unprivileged runtime user.
+RUN mkdir -p /app/logs /logs \
+    && chown -R node:node /app/logs /logs
 
 USER node
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 
 import type { UploadedFile } from "../features/assignment/UploadSection";
-import { extractZipFile, fetchSubmissions } from "../lib/api/submissions";
+import { extractZipFile, fetchSubmissions } from "../lib/api/Submissions";
 
 export function useSubmissions(assignmentId: string, userId: string) {
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);

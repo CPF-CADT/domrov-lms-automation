@@ -1,4 +1,4 @@
-import type { GradingStep } from "@/config/documentation";
+import type { GradingStep } from "@/config/Documentation";
 
 interface TimelineProps {
   steps: GradingStep[];

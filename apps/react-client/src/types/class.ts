@@ -1,4 +1,4 @@
-import type { ClassStatus, UserRole } from './enums';
+import type { ClassStatus, UserRole } from './Enums';
 
 export interface Class {
   class_id: number;

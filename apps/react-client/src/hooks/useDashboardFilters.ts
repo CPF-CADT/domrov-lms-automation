@@ -3,7 +3,8 @@
  * Filters classes by their status (All, Active, End).
  */
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { StatusFilter, ClassCard } from "../types";
 
 interface UseDashboardFiltersReturn {
@@ -15,7 +16,16 @@ interface UseDashboardFiltersReturn {
 export function useDashboardFilters(
   classes: ClassCard[],
 ): UseDashboardFiltersReturn {
-  const [activeStatus, setActiveStatus] = useState<StatusFilter>("All");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const statusParam = searchParams.get("status");
+  const activeStatus: StatusFilter = statusParam === "Active" || statusParam === "End" ? statusParam : "All";
+
+  const setActiveStatus = (status: StatusFilter) => {
+    const next = new URLSearchParams(searchParams);
+    if (status === "All") next.delete("status");
+    else next.set("status", status);
+    setSearchParams(next);
+  };
 
   const filteredClasses = useMemo(() => {
     if (activeStatus === "All") {

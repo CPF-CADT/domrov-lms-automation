@@ -1,7 +1,7 @@
 import { SectionHeader } from "@/components/data-display";
 import SectionWrapper from "@/components/primitives/SectionWrapper";
 import StepCircle from "@/components/primitives/StepCircle";
-import { HOW_IT_WORKS_STEPS, type StepItem } from "@/config/landing";
+import { HOW_IT_WORKS_STEPS, type StepItem } from "@/config/Landing";
 
 /**
  * HowItWorksSection - Displays the 3-step workflow process.

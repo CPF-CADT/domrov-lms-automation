@@ -1,6 +1,6 @@
 import { useCallback, useRef, useEffect, useState } from "react";
-import submissionService from "@/services/submissionService";
-import type { MySubmissionResponseDto } from "@/types/submission";
+import submissionService from "@/services/SubmissionService";
+import type { MySubmissionResponseDto } from "@/types/Submission";
 
 interface DraftSyncState {
     resources: { resourceId?: number }[];

@@ -1,17 +1,16 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Calendar, Clock, FileText, Trash2, Edit, Eye } from "lucide-react";
-import MainNavigation from "@/components/navigation/Navigation";
-import { ClassSidebar } from "@/features/classDashboard";
-import { getAssessmentDetails, deleteAssessment } from "@/services/assessmentService";
-import type { AssessmentDetailDto } from "@/types/assessment";
-
-type TabId = "general" | "assignment" | "posts" | "students" | "teams" | "files" | "grades";
+import MainNavigation from "@/components/navigation/MainNavigation";
+import { ClassSidebar } from "@/features/class-dashboard";
+import { getAssessmentDetails, deleteAssessment } from "@/services/AssessmentService";
+import type { AssessmentDetailDto } from "@/types/Assessment";
+import { routes } from "@/lib/routes";
 
 export default function TeacherAssignmentDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { id, assignmentId } = useParams<{ id?: string; assignmentId?: string }>();
+  const resolvedAssignmentId = assignmentId ?? id;
   const navigate = useNavigate();
-  const [activeTab] = useState<TabId>("assignment");
   const [assignment, setAssignment] = useState<AssessmentDetailDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -19,16 +18,16 @@ export default function TeacherAssignmentDetail() {
   const classId = assignment?.class?.id?.toString() || "flutter";
 
   useEffect(() => {
-    if (id) {
+    if (resolvedAssignmentId) {
       fetchAssignmentDetails();
     }
-  }, [id]);
+  }, [resolvedAssignmentId]);
 
   const fetchAssignmentDetails = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getAssessmentDetails(Number(id));
+      const data = await getAssessmentDetails(Number(resolvedAssignmentId));
       console.log("Assignment data:", data);
       setAssignment(data);
     } catch (err: any) {
@@ -39,19 +38,15 @@ export default function TeacherAssignmentDetail() {
     }
   };
 
-  const handleTabChange = () => {
-    navigate(`/class/${classId}`);
-  };
-
   const handleEditAssignment = () => {
     // Navigate to edit page or open edit modal
-    console.log("Edit assignment:", id);
+    console.log("Edit assignment:", resolvedAssignmentId);
   };
 
   const handleDeleteAssignment = async () => {
     if (confirm("Are you sure you want to delete this assignment?")) {
       try {
-        await deleteAssessment(Number(id));
+        await deleteAssessment(Number(resolvedAssignmentId));
         alert("Assignment deleted successfully");
         navigate(-1);
       } catch (err: any) {
@@ -61,7 +56,7 @@ export default function TeacherAssignmentDetail() {
   };
 
   const handleViewSubmissions = () => {
-    navigate(`/assignment/${id}/submissions`);
+    navigate(routes.assignmentSubmissions(classId, resolvedAssignmentId ?? ""));
   };
 
   if (loading) {
@@ -102,7 +97,7 @@ export default function TeacherAssignmentDetail() {
       <MainNavigation activeId="classes" />
       <div className="flex-1 flex flex-col min-w-0">
         <div className="h-screen bg-white flex overflow-hidden">
-          <ClassSidebar classId={classId} activeTab={activeTab} onTabChange={handleTabChange} />
+          <ClassSidebar classId={classId} />
 
           <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
             {/* Breadcrumb */}

@@ -1,4 +1,4 @@
-import MainNavigation from "@/components/navigation/Navigation";
+import MainNavigation from "@/components/navigation/MainNavigation";
 import { DashboardClient } from "@/features/dashboard";
 
 /**

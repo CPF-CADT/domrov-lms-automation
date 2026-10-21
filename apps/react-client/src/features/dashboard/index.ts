@@ -7,4 +7,4 @@ export { default as DeleteConfirmModal } from './components/DeleteConfirmModal';
 export { default as IconButton } from './components/IconButton';
 export { default as JoinClassModal } from './components/JoinClassModal';
 export { default as Sidebar } from './components/Sidebar';
-export { default as StatusFilters } from './components/TermFilters';
+export { default as StatusFilters } from './components/StatusFilters';

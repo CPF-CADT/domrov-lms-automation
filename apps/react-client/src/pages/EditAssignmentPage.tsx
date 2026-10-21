@@ -3,25 +3,22 @@ import { ChevronLeft } from "lucide-react";
 import EditAssignmentForm from "@/features/assignment/EditAssignmentForm";
 import GradeStudentsDetail from "@/features/assignment/components/GradeStudentsDetail";
 import ViewAssignmentDetail from "@/features/assignment/components/ViewAssignmentDetail";
-import ClassSidebar from "@/features/classDashboard/ClassSidebar";
-import MainNavigation from "@/components/navigation/Navigation";
-import { useState } from "react";
+import ClassSidebar from "@/features/class-dashboard/ClassSidebar";
+import MainNavigation from "@/components/navigation/MainNavigation";
 import { useToast } from "@/components/Toast";
 import { Toast } from "@/components/Toast";
+import { routes } from "@/lib/routes";
 
-type TabId = "general" | "assignment" | "posts" | "students" | "teams" | "files" | "grades";
-
-export default function EditAssignmentPage() {
-  const params = useParams();
+export default function EditAssignmentPage({ mode }: { mode?: "edit" | "grade" | "view" }) {
+  const params = useParams<{ id?: string; classId?: string; assignmentId?: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const classId = params.id as string;
+  const classId = (params.classId ?? params.id) as string;
   const assignmentId = params.assignmentId as string;
-  const [activeTab, setActiveTab] = useState<TabId>("assignment");
   const { toast } = useToast();
 
-  const isGradeRoute = location.pathname.includes("/grade");
-  const isViewRoute = location.pathname.includes("/view");
+  const isGradeRoute = mode === "grade" || (mode === undefined && location.pathname.endsWith("/grade"));
+  const isViewRoute = mode === "view" || (mode === undefined && location.pathname.endsWith("/view"));
 
   if (!classId || !assignmentId) {
     return (
@@ -32,16 +29,15 @@ export default function EditAssignmentPage() {
   }
 
   const handleBack = () => {
-    navigate(`/class/${classId}`, { state: { activeTab: "assignment" } });
+    navigate(routes.classAssignments(classId));
   };
+
 
   return (
     <div className="flex min-h-screen bg-slate-50">
       <MainNavigation activeId="classes" />
       <ClassSidebar 
         classId={classId} 
-        activeTab={activeTab} 
-        onTabChange={setActiveTab}
         allowedTabs={["general", "assignment", "students", "grades"]}
       />
       <div className="flex flex-col flex-1">

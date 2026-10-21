@@ -1,4 +1,5 @@
 import type { AssignmentData } from "@/context/AssignmentContext";
+import { storage } from "@/lib/Storage";
 
 /**
  * AssignmentRepository - Service layer for managing assignment data
@@ -47,10 +48,7 @@ class AssignmentRepository {
    */
   private loadCustomAssignments(): AssignmentData[] {
     try {
-      const stored = localStorage.getItem(this.CUSTOM_ASSIGNMENTS_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
+      return storage.getJson<AssignmentData[]>(this.CUSTOM_ASSIGNMENTS_KEY) ?? [];
     } catch (error) {
       console.warn("Failed to load custom assignments from localStorage:", error);
     }
@@ -66,7 +64,7 @@ class AssignmentRepository {
       const customAssignments = this.assignments.filter(
         (a) => a.id?.startsWith("assignment_")
       );
-      localStorage.setItem(this.CUSTOM_ASSIGNMENTS_KEY, JSON.stringify(customAssignments));
+      storage.setJson(this.CUSTOM_ASSIGNMENTS_KEY, customAssignments);
     } catch (error) {
       console.warn("Failed to save custom assignments to localStorage:", error);
     }

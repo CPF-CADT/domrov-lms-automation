@@ -1,63 +1,42 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { UserRole } from "@/types/enums";
-import MainNavigation from "@/components/navigation/Navigation";
+import { UserRole } from "@/types/Enums";
+import MainNavigation from "@/components/navigation/MainNavigation";
 import StudentDashboard from "./StudentDashboard";
 import TeacherDashboard from "./TeacherDashboard";
-import classService from "@/services/classService";
+import { useMyClasses } from "@/hooks";
 
 /**
  * ClassDashboard - Router component that delegates to StudentDashboard or TeacherDashboard
- * Role is determined exclusively by class context (location.state.role)
+ * Role is determined by the class membership returned from the API.
  * A user can have different roles in different classes
  */
 export default function ClassDashboard() {
-  const params = useParams();
-  const classId = params.id as string;
-  const location = useLocation();
+  const params = useParams<{ id?: string; classId?: string }>();
+  const classId = (params.classId ?? params.id) as string;
   const navigate = useNavigate();
   const { isLoading: authLoading } = useAuth();
+  const { classes, isLoading: classesLoading } = useMyClasses();
   const [role, setRole] = useState<string | undefined>();
 
-  // Role MUST come from class context only (passed from ClassCard)
-  // A user can be a teacher in one class and a student in another
+  // A user can be a teacher in one class and a student in another. Resolve
+  // the role from the server so direct links and refreshes remain valid.
   useEffect(() => {
     if (!classId) {
       navigate("/dashboard");
       return;
     }
 
-    let cancelled = false;
-
-    async function loadRole() {
-      try {
-        const classes = await classService.getMyClasses();
-        const currentClass = classes.find((c) => c.id === Number(classId));
-
-        if (!cancelled) {
-          setRole(currentClass?.role ?? location.state?.role);
-        }
-      } catch (err) {
-        console.error("Failed to load role:", err);
-
-        if (!cancelled) {
-          setRole(location.state?.role);
-        }
-      }
+    if (!classesLoading) {
+      setRole(classes.find((currentClass) => currentClass.id === Number(classId))?.role);
     }
+  }, [classId, classes, classesLoading, navigate]);
 
-    loadRole();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [classId, location.state, navigate]);
-
-  if (authLoading) {
+  if (authLoading || classesLoading) {
     return (
       <div className="flex min-h-screen bg-slate-50">
         <MainNavigation activeId="classes" />

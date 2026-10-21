@@ -1,35 +1,35 @@
 // Enums
-export * from './enums';
+export * from './Enums';
 
 // Common API types
-export * from './api';
+export * from './Api';
 
 // Entity types
-export type { AIUsageLog } from './aiUsageLog';
-export type { Assessment } from './assessment';
-export type { Class } from './class';
-export type { StatusFilter, ClassCard, CreateClassInput } from './classCard';
-export type { Enrollment } from './enrollment';
-export type { Evaluation } from './evaluation';
-export type { Module } from './module';
-export type { OAuthAccount } from './oauthAccount';
-export type { OAuthProvider } from './oauthProvider';
-export type { Payment } from './payment';
-export type { Quiz } from './quiz';
-export type { QuizResult } from './quizResult';
-export type { Resource } from './resource';
-export type { Submission } from './submission';
-export type { SubmissionFile, SubmissionLink, SubmissionCodeFile, SubmissionRecord } from './submissionRecord';
-export type { Team } from './team';
-export type { TelegramChat } from './telegramChat';
-export type { TokenPackage } from './tokenPackage';
-export type { Topic } from './topic';
-export type { User } from './user';
-export type { UserTeam } from './userTeam';
-export type { UserTokenBalance } from './userTokenBalance';
+export type { AIUsageLog } from './AiUsageLog';
+export type { Assessment } from './Assessment';
+export type { Class } from './Class';
+export type { StatusFilter, ClassCard, CreateClassInput } from './ClassCard';
+export type { Enrollment } from './Enrollment';
+export type { Evaluation } from './Evaluation';
+export type { Module } from './Module';
+export type { OAuthAccount } from './OAuthAccount';
+export type { OAuthProvider } from './OAuthProvider';
+export type { Payment } from './Payment';
+export type { Quiz } from './Quiz';
+export type { QuizResult } from './QuizResult';
+export type { Resource } from './Resource';
+export type { Submission } from './Submission';
+export type { SubmissionFile, SubmissionLink, SubmissionCodeFile, SubmissionRecord } from './SubmissionRecord';
+export type { Team } from './Team';
+export type { TelegramChat } from './TelegramChat';
+export type { TokenPackage } from './TokenPackage';
+export type { Topic } from './Topic';
+export type { User } from './User';
+export type { UserTeam } from './UserTeam';
+export type { UserTokenBalance } from './UserTokenBalance';
 
 // Auth DTOs
-export * from './auth';
+export * from './Auth';
 
 // User DTOs
 export type {
@@ -41,7 +41,7 @@ export type {
     UserListItemDto,
     UserBasicInfoDto,
     UserResponseDto,
-} from './user';
+} from './User';
 
 // Class DTOs
 export type {
@@ -64,7 +64,7 @@ export type {
     AssignTAResponseDto,
     CompleteClassResponseDto,
     LeaderboardItemDto,
-} from './class';
+} from './Class';
 
 // Assessment DTOs
 export type {
@@ -89,7 +89,7 @@ export type {
     AssessmentTrackingResponseDto,
     AssessmentStatsResponseDto,
     CompleteAssessmentResponseDto,
-} from './assessment';
+} from './Assessment';
 
 // Team DTOs
 export type {
@@ -102,7 +102,7 @@ export type {
     JoinTeamByTokenDto,
     JoinTeamResponseDto,
     CreateManyTeamsResponseDto,
-} from './team';
+} from './Team';
 
 // Submission DTOs
 export type {
@@ -130,7 +130,7 @@ export type {
     RosterMemberDto,
     TeamRosterItemDto,
     IndividualRosterItemDto,
-} from './submission';
+} from './Submission';
 
 // Evaluation DTOs
 export type {
@@ -140,7 +140,7 @@ export type {
     FolderStructureResponseDto,
     AddToQueueDto,
     AddToQueueResponseDto,
-} from './evaluation';
+} from './Evaluation';
 
 // File DTOs
 export type {
@@ -150,4 +150,4 @@ export type {
     NotifyUploadResponseDto,
     CloudinaryPresignedParams,
     CloudinaryUploadResponse,
-} from './file';
+} from './File';

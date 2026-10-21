@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import DropdownMenu from "@/components/ui/DropdownMenu";
-import type { ClassCard as ClassCardType } from "@/types/classCard";
+import type { ClassCard as ClassCardType } from "@/types/ClassCard";
 import { MoreVertical, Edit2, Users, LogOut, Trash2, Share2 } from "lucide-react";
 
 interface ClassCardProps {

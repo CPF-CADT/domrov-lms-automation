@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/Toast";
-import assessmentService from "@/services/assessmentService";
-import axiosInstance from "@/lib/axiosInstance";
+import assessmentService from "@/services/AssessmentService";
+import axiosInstance from "@/lib/AxiosInstance";
+import { storage } from "@/lib/Storage";
+import { routes } from "@/lib/routes";
 
 interface CreateAssignmentData {
   title: string;
@@ -63,7 +65,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
 
   // Load saved draft on mount
   useEffect(() => {
-    const saved = localStorage.getItem(draftKey);
+    const saved = storage.get(draftKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -78,7 +80,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
   // Auto-save on every change (exclude File objects)
   useEffect(() => {
     const { learningResources: _, ...rest } = formData;
-    localStorage.setItem(draftKey, JSON.stringify(rest));
+    storage.setJson(draftKey, rest);
   }, [formData, draftKey]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
@@ -118,7 +120,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
   const handleReset = () => {
     setFormData(DEFAULT_FORM);
     setUploadedFiles([]);
-    localStorage.removeItem(draftKey);
+    storage.remove(draftKey);
   };
 
   // ─── Save as Draft (calls API) ─────────────────────────────────────────────
@@ -147,11 +149,8 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
       console.log("[Draft] Patch response:", patchRes);
 
       showToast("✅ Draft saved!", "success", 3000);
-      localStorage.removeItem(draftKey);
-      setTimeout(() => {
-        // Optionally, navigate to draft list or refresh
-        window.location.reload();
-      }, 500);
+      storage.remove(draftKey);
+      navigate(routes.assignmentEdit(classId, draftId));
     } catch (err) {
       console.error("Save draft error:", err);
       showToast("❌ Failed to save draft.", "error", 3000);
@@ -190,11 +189,11 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
       console.log("[Publish] Publish response:", publishRes);
 
       showToast("✅ Assignment published!", "success", 3000);
-      localStorage.removeItem(draftKey);
+      storage.remove(draftKey);
 
       // Navigate back to assignments tab
       setTimeout(() => {
-        navigate(`/class/${classId}`, { state: { activeTab: "assignment" } });
+        navigate(routes.classAssignments(classId));
       }, 500);
     } catch (err) {
       console.error("Publish error:", err);

@@ -4,19 +4,19 @@ import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardHeader from "@/features/dashboard/components/DashboardHeader";
 import ClassGrid from "@/features/dashboard/components/ClassGrid";
-import StatusFilters from "@/features/dashboard/components/TermFilters";
+import StatusFilters from "@/features/dashboard/components/StatusFilters";
 import JoinClassModal from "@/features/dashboard/components/JoinClassModal";
 import DeleteConfirmModal from "@/features/dashboard/components/DeleteConfirmModal";
 import { useDashboardFilters } from "@/hooks";
-import classService from "@/services/classService";
-import type { ClassCard } from "@/types/classCard";
+import classService from "@/services/ClassService";
+import type { ClassCard } from "@/types/ClassCard";
+import { routes } from "@/lib/routes";
 
 export default function DashboardClient() {
   const navigate = useNavigate();
   const [classList, setClassList] = useState<ClassCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeClassId, setActiveClassId] = useState<string | number | null>(null);
 
   // Fetch classes on mount
   useEffect(() => {
@@ -59,10 +59,10 @@ export default function DashboardClient() {
 
   const handleOpen = useCallback(
     (id: string, role?: string) => {
-      setActiveClassId(id);
-      // Route students to /student-class/:id, teachers to /class/:id
-      const route = role === "Student" ? `/student-class/${id}` : `/class/${id}`;
-      navigate(route, { state: { role } });
+      // Role is resolved by the class route from the API. Navigation carries
+      // only the resource identity, so direct links and refreshes are safe.
+      void role;
+      navigate(routes.classGeneral(id));
     },
     [navigate],
   );
@@ -154,7 +154,7 @@ export default function DashboardClient() {
               const classItem = filteredClasses.find(c => c.id.toString() === id);
               handleOpen(id, classItem?.role);
             }}
-            activeClassId={activeClassId}
+            activeClassId={null}
             onEdit={(id) => {
               console.log("Edit class:", id);
               // TODO: Implement edit class functionality

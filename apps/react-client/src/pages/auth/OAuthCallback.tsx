@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { STORAGE_KEYS, storage } from '@/lib/Storage';
 import { useNavigate } from 'react-router-dom';
 
 export default function OAuthCallback() {
@@ -38,7 +39,7 @@ export default function OAuthCallback() {
                 if (data.success && data.data?.accessToken) {
                     // Store access token in localStorage using the same key as AuthContext expects
                     const accessToken = data.data.accessToken;
-                    localStorage.setItem('token', accessToken);
+                    storage.set(STORAGE_KEYS.token, accessToken);
                     console.log('Access token stored successfully');
 
                     // Emit a storage event to trigger AuthContext update
@@ -46,7 +47,6 @@ export default function OAuthCallback() {
                         new StorageEvent('storage', {
                             key: 'token',
                             newValue: accessToken,
-                            storageArea: localStorage,
                         })
                     );
 

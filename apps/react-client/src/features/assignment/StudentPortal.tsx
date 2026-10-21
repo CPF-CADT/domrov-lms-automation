@@ -2,7 +2,7 @@
 
 import { CheckCircle, ChevronRight, Info } from "lucide-react";
 import { useState } from "react";
-import submissionService from "@/services/submissionService";
+import submissionService from "@/services/SubmissionService";
 import Dialog from "@/components/Dialog";
 import UploadSection from "./UploadSection";
 import type { UploadedFile } from "./UploadSection";

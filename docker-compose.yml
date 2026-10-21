@@ -1,21 +1,65 @@
-version: "3.9"
-
 services:
   backend:
-    image: phyvathanak/nestjs-backend:latest
+    build:
+      context: ./apps/backend_nest
+      dockerfile: Dockerfile
     container_name: domrov_backend
-    restart: always
+    restart: unless-stopped
     ports:
       - "3000:3000"
     env_file:
-      - .env
+      - ./apps/backend_nest/.env
+    environment:
+      CODE_EVAL_GRPC_CLIENT_HOST: code_eval
+      CODE_EVAL_GRPC_CLIENT_PORT: 50051
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      code_eval:
+        condition: service_started
+      redis:
+        condition: service_started
+
+  client:
+    build:
+      context: ./apps/react-client
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:3000
+    container_name: domrov_client
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_started
 
   code_eval:
-    image: phyvathanak/code_eval:latest
+    build:
+      context: ./apps/code_eval
+      dockerfile: Dockerfile
     container_name: domrov_code_eval
-    restart: always
+    restart: unless-stopped
     env_file:
-      - .env
+      - ./apps/code_eval/.env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    expose:
+      - "50051"
+    depends_on:
+      redis:
+        condition: service_started
+
+  redis:
+    image: redis:7-alpine
+    container_name: domrov_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    expose:
+      - "6379"
+
+volumes:
+  redis_data:
 
 networks:
   default:

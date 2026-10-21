@@ -1,7 +1,7 @@
 "use client";
 
 import { Link, useLocation } from "react-router-dom";
-import { CTA_LINK, NAV_LINKS, type NavLinkItem } from "@/config/navigation";
+import { CTA_LINK, NAV_LINKS, type NavLinkItem } from "@/config/Navigation";
 import { useAuth } from "@/context/AuthContext";
 import { ProfileDropdown } from "@/components/data-display";
 

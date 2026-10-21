@@ -1,4 +1,5 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig, type AxiosResponse } from 'axios';
+import { STORAGE_KEYS, storage } from '@/lib/Storage';
 
 const axiosInstance = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000',
@@ -10,7 +11,7 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
-        const token = localStorage.getItem('token');
+        const token = storage.get(STORAGE_KEYS.token);
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }

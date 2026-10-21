@@ -1,9 +1,9 @@
-import { useState, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import MainNavigation from "@/components/navigation/Navigation";
+import { useCallback } from "react";
+import { useParams } from "react-router-dom";
+import MainNavigation from "@/components/navigation/MainNavigation";
 import { MOCK_ASSIGNMENT } from "@/config";
 import { useSubmissions, useZipExtractor } from "@/hooks";
-import { ClassSidebar } from "@/features/classDashboard";
+import { ClassSidebar } from "@/features/class-dashboard";
 import AssignmentHeader from "@/features/assignment/AssignmentHeader";
 import AssignmentInstructions from "@/features/assignment/AssignmentInstructions";
 import CodeEditorView from "@/features/assignment/CodeEditorView";
@@ -11,23 +11,15 @@ import ReferenceMaterials from "@/features/assignment/ReferenceMaterials";
 import StudentPortal from "@/features/assignment/StudentPortal";
 import type { UploadedFile } from "@/features/assignment/UploadSection";
 
-type TabId = "general" | "assignment" | "posts" | "students" | "teams" | "files" | "grades";
-
 export default function AssignmentDetail() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const assignmentId = id || "";
 
-  const [activeTab] = useState<TabId>("assignment");
 
   const classId = "flutter";
 
   const { uploadedFiles, addFiles, removeFile } = useSubmissions(assignmentId, "1");
   const { editorFiles, showCodeEditor, extractAndOpen, openFileInEditor, closeEditor } = useZipExtractor();
-
-  const handleTabChange = () => {
-    navigate(`/class/${classId}`);
-  };
 
   const handleUploadComplete = useCallback((data: unknown) => {
     console.log("Upload complete:", data);
@@ -65,7 +57,7 @@ export default function AssignmentDetail() {
         )}
 
         <div className={`h-screen bg-white flex overflow-hidden ${showCodeEditor ? 'hidden' : ''}`}>
-          <ClassSidebar classId={classId} activeTab={activeTab} onTabChange={handleTabChange} />
+          <ClassSidebar classId={classId} />
 
           <div className="flex-1 flex flex-col min-w-0">
             <AssignmentHeader />

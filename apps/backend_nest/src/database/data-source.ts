@@ -33,7 +33,9 @@ import { TeamAssessment } from '../libs/entities/classroom/team-assessment.entit
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
-  url: process.env.POSTGRES_URL,
+  // Prefer the standard connection-string variable. Keep POSTGRES_URL as a
+  // deployment compatibility fallback until infrastructure is migrated.
+  url: process.env.DATABASE_URL,
   synchronize: true,
   logging: false,
   entities: [

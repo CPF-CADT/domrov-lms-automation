@@ -1,4 +1,4 @@
-import axiosInstance from '@/lib/axiosInstance';
+import axiosInstance from '@/lib/AxiosInstance';
 
 import type {
     UserProfileResponseDto,
@@ -7,7 +7,7 @@ import type {
     UpdateProfileResponseDto,
     ChangePasswordResponseDto,
     UserListItemDto,
-} from '@/types/user';
+} from '@/types/User';
 
 /**
  * Get current user's profile

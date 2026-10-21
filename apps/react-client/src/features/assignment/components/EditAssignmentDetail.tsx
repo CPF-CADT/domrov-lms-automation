@@ -4,10 +4,12 @@ import { ArrowLeft, Upload, Link2, FileText, Eye, AlertTriangle, Sparkles, Chevr
 import Dialog from "@/components/Dialog";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
 import { RubricEditor, type RubricItem } from "./RubricEditor";
-import assessmentService from "@/services/assessmentService";
-import fileUploadService from "@/services/fileUploadService";
-import { SubmissionType, SubmissionMethod } from "@/types/enums";
-import type { UpdateAssessmentDto } from "@/types/assessment";
+import assessmentService from "@/services/AssessmentService";
+import fileUploadService from "@/services/FileUploadService";
+import { SubmissionType, SubmissionMethod } from "@/types/Enums";
+import type { UpdateAssessmentDto } from "@/types/Assessment";
+import { storage } from "@/lib/Storage";
+import { routes } from "@/lib/routes";
 
 interface UploadedFile {
   id?: string;
@@ -109,8 +111,8 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
   const [formData, setFormData] = useState<FormData>(() => {
     if (!isNewDraft) return DEFAULT_FORM;
     try {
-      const saved = localStorage.getItem(draftKey);
-      return saved ? { ...DEFAULT_FORM, ...JSON.parse(saved) } : DEFAULT_FORM;
+      const saved = storage.getJson<Partial<FormData>>(draftKey);
+      return saved ? { ...DEFAULT_FORM, ...saved } : DEFAULT_FORM;
     } catch {
       return DEFAULT_FORM;
     }
@@ -133,7 +135,7 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    localStorage.setItem(draftKey, JSON.stringify(formData));
+    storage.setJson(draftKey, formData);
   }, [formData, draftKey]);
 
   useEffect(() => {
@@ -391,11 +393,11 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
     try {
       await updateAssignmentData();
       console.log("✅ Changes saved");
-      if (isNewDraft) localStorage.removeItem(draftKey);
+      if (isNewDraft) storage.remove(draftKey);
 
       // Navigate to the edit page after saving
       if (classId && id) {
-        navigate(`/class/${classId}/assignment/${id}/edit`);
+        navigate(routes.assignmentEdit(classId, id));
       } else {
         setTimeout(() => onBack(), 500);
       }
@@ -887,7 +889,7 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
         iconBgColor="bg-yellow-100"
         buttons={[
           { label: isNewDraft ? "Keep Creating" : "Keep Editing", onClick: () => setCancelDialogOpen(false), variant: "secondary" },
-          { label: "Discard", onClick: () => { setCancelDialogOpen(false); if (isNewDraft) localStorage.removeItem(draftKey); onBack(); }, variant: "danger" },
+          { label: "Discard", onClick: () => { setCancelDialogOpen(false); if (isNewDraft) storage.remove(draftKey); onBack(); }, variant: "danger" },
         ]}
       />
 
@@ -906,7 +908,7 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
             onClick: () => {
               setFormData(DEFAULT_FORM);
               setUploadedFiles([]);
-              if (isNewDraft) localStorage.removeItem(draftKey);
+              if (isNewDraft) storage.remove(draftKey);
               setResetDialogOpen(false);
             },
             variant: "danger",

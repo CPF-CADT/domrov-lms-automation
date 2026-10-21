@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import authService from "@/services/authService";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import authService from "@/services/AuthService";
+import { STORAGE_KEYS, storage } from "@/lib/Storage";
 
 interface VerificationState {
     otp: string;
@@ -8,8 +9,8 @@ interface VerificationState {
 
 export default function EmailVerification() {
     const navigate = useNavigate();
-    const location = useLocation();
-    const email = (location.state as any)?.email || "";
+    const [searchParams] = useSearchParams();
+    const email = searchParams.get("email") || "";
 
     const [form, setForm] = useState<VerificationState>({
         otp: "",
@@ -60,13 +61,12 @@ export default function EmailVerification() {
             const response = await authService.verifyOtp({ email, otp: form.otp });
             
             // Store access token in localStorage
-            localStorage.setItem('token', response.accessToken);
+            storage.set(STORAGE_KEYS.token, response.accessToken);
             
             // Dispatch storage event to sync auth context across tabs
             window.dispatchEvent(new StorageEvent('storage', {
                 key: 'token',
                 newValue: response.accessToken,
-                storageArea: localStorage,
             }));
             
             setSuccess("Email verified successfully! Redirecting to dashboard...");

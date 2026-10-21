@@ -7,8 +7,9 @@ import {
     useRef,
     type ReactNode,
 } from 'react';
-import authService from '@/services/authService';
-import userService from '@/services/userService';
+import authService from '@/services/AuthService';
+import userService from '@/services/UserService';
+import { STORAGE_KEYS, storage } from '@/lib/Storage';
 
 export interface IUser {
     id: number;
@@ -53,8 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         setToken(null);
         setUser(null);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        storage.remove(STORAGE_KEYS.token);
+        storage.remove(STORAGE_KEYS.user);
     };
 
     const refreshProfile = async (): Promise<void> => {
@@ -63,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Backend returns user data directly, not wrapped in { data: ... }
             const userData = (userResponse as any).data || userResponse;
             setUser(userData);
-            localStorage.setItem('user', JSON.stringify(userData));
+            storage.setJson(STORAGE_KEYS.user, userData);
         } catch (error) {
             console.error('Failed to fetch profile:', error);
             handleLogout();
@@ -75,8 +76,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         (async () => {
             try {
                 // Try to restore from localStorage
-                const storedToken = localStorage.getItem('token');
-                const storedUser = localStorage.getItem('user');
+                const storedToken = storage.get(STORAGE_KEYS.token);
+                const storedUser = storage.get(STORAGE_KEYS.user);
 
                 if (storedToken && storedUser) {
                     setToken(storedToken);
@@ -102,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         const userResponse = await userService.getMyProfile();
                         const userData = (userResponse as any).data || userResponse;
                         setUser(userData);
-                        localStorage.setItem('user', JSON.stringify(userData));
+                        storage.setJson(STORAGE_KEYS.user, userData);
                     } catch (error) {
                         console.error('Failed to fetch profile after OAuth:', error);
                     }
@@ -129,19 +130,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 throw new Error('Login failed.');
             }
             setToken(accessToken);
-            localStorage.setItem('token', accessToken);
+            storage.set(STORAGE_KEYS.token, accessToken);
             // Fetch user info after login
             try {
                 const userRes = await userService.getMyProfile();
                 // Backend returns user data directly, not wrapped in { data: ... }
                 const userData = (userRes as any).data || userRes;
                 setUser(userData);
-                localStorage.setItem('user', JSON.stringify(userData));
+                storage.setJson(STORAGE_KEYS.user, userData);
             } catch (error) {
                 console.error('Failed to fetch user profile after login:', error);
                 // Still keep the token even if profile fetch fails
                 setUser(null);
-                localStorage.removeItem('user');
+                storage.remove(STORAGE_KEYS.user);
             }
         } catch (error: any) {
             // Expose error to login page

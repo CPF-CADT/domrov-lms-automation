@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import EditAssignmentDetail from "./components/EditAssignmentDetail";
+import { routes } from "@/lib/routes";
 
 interface EditAssignmentFormProps {
   classId: string;
@@ -10,7 +11,7 @@ export default function EditAssignmentForm({ classId, assignmentId }: EditAssign
   const navigate = useNavigate();
 
   const handleBack = () => {
-    navigate(`/class/${classId}`, { state: { activeTab: "assignment" } });
+    navigate(routes.classAssignments(classId));
   };
 
   return (

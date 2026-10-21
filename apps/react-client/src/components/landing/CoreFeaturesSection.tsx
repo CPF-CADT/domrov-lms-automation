@@ -1,7 +1,7 @@
 import { SectionHeader } from "@/components/data-display";
 import FeatureCard from "@/components/primitives/FeatureCard";
 import SectionWrapper from "@/components/primitives/SectionWrapper";
-import { CORE_FEATURES, type IconCard } from "@/config/landing";
+import { CORE_FEATURES, type IconCard } from "@/config/Landing";
 
 /**
  * CoreFeaturesSection - Displays the core platform features in a grid.

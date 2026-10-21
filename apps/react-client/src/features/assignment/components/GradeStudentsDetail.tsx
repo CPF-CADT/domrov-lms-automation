@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ArrowLeft, Loader2, ChevronUp, ChevronDown, File, Download, RefreshCw, Sparkles, CheckCircle2 } from "lucide-react";
-import assessmentService from "@/services/assessmentService";
-import submissionService from "@/services/submissionService";
+import assessmentService from "@/services/AssessmentService";
+import submissionService from "@/services/SubmissionService";
 import { useToast } from "@/components/Toast";
-import type { AssessmentListItemDto, TeamTrackingItemDto, IndividualTrackingItemDto } from "@/types/assessment";
-import type { TeamRosterItemDto, IndividualRosterItemDto, SubmissionViewerResponseDto } from "@/types/submission";
+import type { AssessmentListItemDto, TeamTrackingItemDto, IndividualTrackingItemDto } from "@/types/Assessment";
+import type { TeamRosterItemDto, IndividualRosterItemDto, SubmissionViewerResponseDto } from "@/types/Submission";
 
 interface GradeStudentsDetailProps {
     assignmentId: number | string;
@@ -18,6 +19,7 @@ type RosterItem = TeamRosterItemDto | IndividualRosterItemDto;
 
 export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStudentsDetailProps) {
     const { showToast } = useToast();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [assignment, setAssignment] = useState<AssessmentListItemDto | null>(null);
     const [trackingData, setTrackingData] = useState<TrackingItem[]>([]);
     const [rosterData, setRosterData] = useState<RosterItem[]>([]);
@@ -27,12 +29,20 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
     const [sortBy, setSortBy] = useState<"name" | "score">("name");
     const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
     const [searchTerm, setSearchTerm] = useState("");
-    const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
+    const selectedStudentParam = searchParams.get("studentId");
+    const selectedStudentId = selectedStudentParam ? Number(selectedStudentParam) : null;
     const [submissionDetail, setSubmissionDetail] = useState<SubmissionViewerResponseDto | null>(null);
     const [submissionLoading, setSubmissionLoading] = useState(false);
     const [isApproving, setIsApproving] = useState(false);
     const [manualScore, setManualScore] = useState<number>(0);
     const [manualFeedback, setManualFeedback] = useState<string>("");
+
+    const setSelectedStudentId = (studentId: number | null) => {
+        const next = new URLSearchParams(searchParams);
+        if (studentId === null) next.delete("studentId");
+        else next.set("studentId", String(studentId));
+        setSearchParams(next);
+    };
 
     const fetchData = async (isRefresh = false) => {
         try {

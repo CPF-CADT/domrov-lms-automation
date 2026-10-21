@@ -2,8 +2,8 @@
 
 import { useRef, useState, useEffect } from "react";
 import { Upload, FileText, Trash, Lock, ArrowLeft } from "lucide-react";
-import submissionService from "@/services/submissionService";
-import fileUploadService from "@/services/fileUploadService";
+import submissionService from "@/services/SubmissionService";
+import fileUploadService from "@/services/FileUploadService";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
 
 export interface UploadedFile {

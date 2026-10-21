@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import MainNavigation from "@/components/navigation/Navigation";
-import AIEvaluationSettings from "@/features/aiEvaluation/components/AIEvaluationSettings";
+import MainNavigation from "@/components/navigation/MainNavigation";
+import AIEvaluationSettings from "@/features/ai-evaluation/components/AIEvaluationSettings";
 import ProfileDropdown from "@/components/data-display/ProfileDropdown";
 
 /**

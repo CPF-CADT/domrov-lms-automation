@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import type { IconProps } from "@/features/classDashboard/icons";
+import type { IconProps } from "@/features/class-dashboard/Icons";
 
 // --- Types ---
 interface SidebarItem {

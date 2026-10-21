@@ -5,12 +5,13 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import AnimatedPage from "@/components/AnimatedPage";
 import ClassGrid from "@/features/dashboard/components/ClassGrid";
-import StatusFilters from "@/features/dashboard/components/TermFilters";
+import StatusFilters from "@/features/dashboard/components/StatusFilters";
 import JoinClassModal from "@/features/dashboard/components/JoinClassModal";
 import DeleteConfirmModal from "@/features/dashboard/components/DeleteConfirmModal";
 import { useDashboardFilters } from "@/hooks";
-import classService from "@/services/classService";
-import type { ClassCard } from "@/types/classCard";
+import classService from "@/services/ClassService";
+import type { ClassCard } from "@/types/ClassCard";
+import { routes } from "@/lib/routes";
 
 interface ClassesDetailProps {
   onBack: () => void;
@@ -21,7 +22,6 @@ export default function ClassesDetail({ onBack }: ClassesDetailProps) {
   const [classList, setClassList] = useState<ClassCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeClassId, setActiveClassId] = useState<string | number | null>(null);
 
   // Fetch classes on mount
   useEffect(() => {
@@ -63,8 +63,8 @@ export default function ClassesDetail({ onBack }: ClassesDetailProps) {
 
   const handleOpen = useCallback(
     (id: string, role?: string) => {
-      setActiveClassId(id);
-      navigate(`/class/${id}`, { state: { role } });
+      void role;
+      navigate(routes.classGeneral(id));
     },
     [navigate],
   );
@@ -167,7 +167,7 @@ export default function ClassesDetail({ onBack }: ClassesDetailProps) {
                 const classItem = filteredClasses.find(c => c.id.toString() === id);
                 handleOpen(id, classItem?.role);
               }}
-              activeClassId={activeClassId}
+              activeClassId={null}
               onEdit={(id) => {
                 console.log("Edit class:", id);
               }}

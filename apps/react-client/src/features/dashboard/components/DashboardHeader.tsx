@@ -2,7 +2,7 @@
 
 import { Link } from "react-router-dom";
 import { ProfileDropdown } from "@/components/data-display";
-import type { StatusFilter } from "@/types/classCard";
+import type { StatusFilter } from "@/types/ClassCard";
 
 interface DashboardHeaderProps {
   activeStatus: StatusFilter;
@@ -23,7 +23,7 @@ export default function DashboardHeader({
 
       <div className="flex items-center space-x-3">
         <Link
-          to="/class/create"
+          to="/classes/new"
           className="px-4 py-2 bg-white text-primary font-semibold rounded-md shadow-sm hover:bg-blue-50"
         >
           + Create Class

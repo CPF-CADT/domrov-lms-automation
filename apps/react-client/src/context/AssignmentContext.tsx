@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { assignmentRepository } from "@/services/AssignmentRepository";
+import { draftAssignmentKey, storage } from "@/lib/Storage";
 
 export interface AssignmentData {
   id?: string;
@@ -82,8 +83,8 @@ export function AssignmentProvider({ children }: { children: React.ReactNode }) 
   // Create a draft (localStorage based)
   const createDraft = useCallback(
     (classId: string, data: AssignmentData): void => {
-      const draftKey = `draft_assignment_${classId}`;
-      localStorage.setItem(draftKey, JSON.stringify(data));
+      const draftKey = draftAssignmentKey(classId);
+      storage.setJson(draftKey, data);
       console.log("Draft saved for class:", classId);
     },
     []
@@ -110,16 +111,7 @@ export function AssignmentProvider({ children }: { children: React.ReactNode }) 
   // Get draft data from localStorage
   const getDraftByClass = useCallback(
     (classId: string): AssignmentData | undefined => {
-      const draftKey = `draft_assignment_${classId}`;
-      const saved = localStorage.getItem(draftKey);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          return undefined;
-        }
-      }
-      return undefined;
+      return storage.getJson<AssignmentData>(draftAssignmentKey(classId)) ?? undefined;
     },
     []
   );
@@ -142,10 +134,10 @@ export function AssignmentProvider({ children }: { children: React.ReactNode }) 
   // Update draft
   const updateDraft = useCallback(
     (classId: string, data: Partial<AssignmentData>): void => {
-      const draftKey = `draft_assignment_${classId}`;
+      const draftKey = draftAssignmentKey(classId);
       const existing = getDraftByClass(classId);
       const updated = { ...existing, ...data };
-      localStorage.setItem(draftKey, JSON.stringify(updated));
+      storage.setJson(draftKey, updated);
       console.log("Draft updated for class:", classId);
     },
     [getDraftByClass]
@@ -165,24 +157,14 @@ export function AssignmentProvider({ children }: { children: React.ReactNode }) 
 
   // Delete draft
   const deleteDraft = useCallback((classId: string): void => {
-    const draftKey = `draft_assignment_${classId}`;
-    localStorage.removeItem(draftKey);
+    storage.remove(draftAssignmentKey(classId));
     console.log("Draft deleted for class:", classId);
   }, []);
 
   // Get draft data (alternative method)
   const getDraftData = useCallback(
     (classId: string): AssignmentData | null => {
-      const draftKey = `draft_assignment_${classId}`;
-      const saved = localStorage.getItem(draftKey);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          return null;
-        }
-      }
-      return null;
+      return storage.getJson<AssignmentData>(draftAssignmentKey(classId));
     },
     []
   );

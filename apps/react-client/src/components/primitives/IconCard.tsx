@@ -1,5 +1,5 @@
 import { Icon } from "@/components/data-display";
-import type { IconCard as IconCardType } from "@/config/landing";
+import type { IconCard as IconCardType } from "@/config/Landing";
 
 type IconSize = "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl";
 

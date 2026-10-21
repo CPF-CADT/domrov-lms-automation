@@ -3,9 +3,9 @@
 import { useState, useCallback, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import MainNavigation from "@/components/navigation/Navigation";
+import MainNavigation from "@/components/navigation/MainNavigation";
 import { useZipExtractor } from "@/hooks";
-import { ClassSidebar } from "@/features/classDashboard";
+import { ClassSidebar } from "@/features/class-dashboard";
 import AssignmentHeader from "@/features/assignment/AssignmentHeader";
 import AssignmentInstructions from "@/features/assignment/AssignmentInstructions";
 import CodeEditorView from "@/features/assignment/CodeEditorView";
@@ -15,12 +15,13 @@ import GradingSection from "@/features/assignment/GradingSection";
 import SubmissionResources from "@/features/assignment/SubmissionResources";
 import ResourceViewer from "@/features/assignment/ResourceViewer";
 import type { UploadedFile } from "@/features/assignment/UploadSection";
-import { UserRole } from "@/types/enums";
-import assessmentService from "@/services/assessmentService";
-import submissionService from "@/services/submissionService";
-import type { AssessmentDetailDto } from "@/types/assessment";
-import type { SubmissionViewerResponseDto } from "@/types/submission";
+import { UserRole } from "@/types/Enums";
+import assessmentService from "@/services/AssessmentService";
+import submissionService from "@/services/SubmissionService";
+import type { AssessmentDetailDto } from "@/types/Assessment";
+import type { SubmissionViewerResponseDto } from "@/types/Submission";
 import StudentEvaluationFeedback from "@/features/assignment/StudentEvaluationFeedback";
+import { routes } from "@/lib/routes";
 
 type StudentTabId = "general" | "assignment" | "grades";
 
@@ -31,7 +32,6 @@ export default function StudentAssignmentDetail() {
   const id = assignmentId || "";
   const cId = classId || "";
 
-  const [activeTab] = useState<StudentTabId>("assignment");
   const [assignment, setAssignment] = useState<AssessmentDetailDto | null>(null);
   const [submission, setSubmission] = useState<SubmissionViewerResponseDto | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -160,12 +160,6 @@ export default function StudentAssignmentDetail() {
     fetchData();
   }, [id]);
 
-  const handleTabChange = (tab: StudentTabId | string) => {
-    if (tab !== "students") {
-      navigate(`/student-class/${cId}`, { state: { activeTab: tab } });
-    }
-  };
-
   const handleUploadComplete = useCallback((data: unknown) => {
     console.log("Upload complete:", data);
   }, []);
@@ -239,7 +233,7 @@ export default function StudentAssignmentDetail() {
           <div className="flex flex-col items-center gap-4">
             <p className="text-red-500 font-medium">{error || "Failed to load assignment"}</p>
             <button
-              onClick={() => navigate(`/student-class/${cId}`)}
+              onClick={() => navigate(routes.classAssignments(cId))}
               className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
             >
               Back to Class
@@ -266,8 +260,6 @@ export default function StudentAssignmentDetail() {
         <div className={`h-screen bg-white flex overflow-hidden ${showCodeEditor ? 'hidden' : ''}`}>
           <ClassSidebar
             classId={cId}
-            activeTab={activeTab}
-            onTabChange={handleTabChange as any}
             allowedTabs={allowedTabs}
             role={UserRole.Student}
           />

@@ -1,5 +1,5 @@
 import { Icon } from "@/components/data-display";
-import type { NavItem } from "@/config/documentation";
+import type { NavItem } from "@/config/Documentation";
 
 interface SidebarItemProps {
   item: NavItem;

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import GoogleOAuthButton from "./GoogleOAuthButton";
-import authService from "@/services/authService";
+import authService from "@/services/AuthService";
 
 interface SignUpFormProps {
   onSuccess?: () => void;
@@ -74,7 +74,7 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
       if (onSuccess) onSuccess();
 
       // Redirect to email verification page after successful registration
-      navigate('/verify-email', { state: { email: form.email }, replace: true });
+      navigate(`/verify-email?email=${encodeURIComponent(form.email)}`, { replace: true });
     } catch (err: unknown) {
       // Extract error message from API response
       const errorMessage = err instanceof Error ? err.message : 'Registration failed. Please try again.';

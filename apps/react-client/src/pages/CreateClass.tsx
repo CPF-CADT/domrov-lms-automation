@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import ImageUpload from "@/components/forms/ImageUpload";
-import classService from "@/services/classService";
+import classService from "@/services/ClassService";
 import type { CloudinaryUploadResponse } from "@/types";
+import { routes } from "@/lib/routes";
 
 interface CreateClassFormData {
     name: string;
@@ -45,7 +46,7 @@ export default function CreateClass() {
                 description: formData.description.trim() || undefined,
                 coverImageUrl: formData.coverImageUrl,
             });
-            navigate(`/class/${result.id}`);
+            navigate(routes.classGeneral(result.id));
         } catch (err) {
             setSubmitError(err instanceof Error ? err.message : "Failed to create class");
         } finally {

@@ -1,5 +1,5 @@
-import axiosInstance from '@/lib/axiosInstance';
-import type { MessageResponse } from '@/types/api';
+import axiosInstance from '@/lib/AxiosInstance';
+import type { MessageResponse } from '@/types/Api';
 import type {
     TeamResponseDto,
     CreateTeamDto,
@@ -9,7 +9,7 @@ import type {
     JoinTeamByTokenDto,
     JoinTeamResponseDto,
     InviteTeamByEmailDto,
-} from '@/types/team';
+} from '@/types/Team';
 
 /**
  * Create a new team

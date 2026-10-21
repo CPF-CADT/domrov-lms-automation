@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, Clock, AlertCircle, Award } from "lucide-react";
-import { getAssessmentsByClass } from "@/services/assessmentService";
-import submissionService from "@/services/submissionService";
-import type { SubmissionStatusItemDto } from "@/types/submission";
-import type { AssessmentListItemDto } from "@/types/assessment";
+import { getAssessmentsByClass } from "@/services/AssessmentService";
+import submissionService from "@/services/SubmissionService";
+import type { SubmissionStatusItemDto } from "@/types/Submission";
+import type { AssessmentListItemDto } from "@/types/Assessment";
+import { routes } from "@/lib/routes";
 
 interface StudentAssignmentListProps {
     classId: string;
@@ -273,7 +274,7 @@ export default function StudentAssignmentList({
                                         key={assignment.id}
                                         onClick={() =>
                                             navigate(
-                                                `/student-class/${classId}/assignment/${assignment.id}/`
+                                                routes.assignment(classId, assignment.id)
                                             )
                                         }
                                         className="group cursor-pointer bg-white border border-slate-200 rounded-lg p-4 hover:border-slate-300 hover:shadow-md transition-all duration-200"
