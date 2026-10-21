@@ -5,6 +5,8 @@ import Dialog from "@/components/Dialog";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
 import { RubricEditor, type RubricItem } from "./RubricEditor";
 import assessmentService from "@/services/AssessmentService";
+import teamService from "@/services/TeamService";
+import type { TeamResponseDto } from "@/types/Team";
 import fileUploadService from "@/services/FileUploadService";
 import { SubmissionType, SubmissionMethod } from "@/types/Enums";
 import type { UpdateAssessmentDto } from "@/types/Assessment";
@@ -40,6 +42,7 @@ interface FormData {
   allowLateSubmissions: boolean;
   aiEvaluationEnabled: boolean;
   rubrics: RubricItem[];
+  allowedTeamIds: number[];
 }
 
 const DEFAULT_FORM: FormData = {
@@ -54,6 +57,7 @@ const DEFAULT_FORM: FormData = {
   allowLateSubmissions: false,
   aiEvaluationEnabled: false,
   rubrics: [{ definition: "Overall Score", totalScore: 100 }],
+  allowedTeamIds: [],
 };
 
 function mapDtoToFormWithMethods(dto: any): FormData {
@@ -73,6 +77,7 @@ function mapDtoToFormWithMethods(dto: any): FormData {
     allowLateSubmissions: dto.allowLate ?? false,
     aiEvaluationEnabled: dto.aiEvaluationEnable ?? false,
     rubrics,
+    allowedTeamIds: (dto.teamAssessments ?? []).map((item: any) => Number(item.team_id ?? item.teamId ?? item.team?.id)).filter(Number.isFinite),
   };
 }
 
@@ -99,6 +104,7 @@ function mapToDto(data: FormData, uploadedFiles: UploadedFile[]): UpdateAssessme
     resources: uploadedFiles
       .filter(file => file.resourceId)
       .map(file => ({ resourceId: file.resourceId! })),
+    allowedTeamIds: data.submissionType === "team" ? data.allowedTeamIds : [],
   };
 }
 
@@ -119,6 +125,8 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
   });
 
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [teams, setTeams] = useState<TeamResponseDto[]>([]);
+  const [teamsError, setTeamsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(!isNewDraft);
   const [isSaving, setIsSaving] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -137,6 +145,11 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
   useEffect(() => {
     storage.setJson(draftKey, formData);
   }, [formData, draftKey]);
+
+  useEffect(() => {
+    if (!classId || formData.submissionType !== "team") return;
+    teamService.getTeamsByClass(Number(classId)).then(setTeams).catch(() => setTeamsError("Unable to load class teams."));
+  }, [classId, formData.submissionType]);
 
   useEffect(() => {
     if (isNewDraft) return;
@@ -210,6 +223,15 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
           : name === "maxScore"
             ? Math.min(100, Math.max(1, Number(value)))
             : value,
+    }));
+  };
+
+  const toggleTeam = (teamId: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      allowedTeamIds: prev.allowedTeamIds.includes(teamId)
+        ? prev.allowedTeamIds.filter((id) => id !== teamId)
+        : [...prev.allowedTeamIds, teamId],
     }));
   };
 
@@ -369,9 +391,14 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
       setError("Please set a due date before publishing.");
       return;
     }
+    if (formData.submissionType === "team" && formData.allowedTeamIds.length === 0) {
+      setError("Select at least one team before publishing.");
+      return;
+    }
     setError(null);
     setIsSaving(true);
     try {
+      await updateAssignmentData();
       await assessmentService.publishAssessment(id);
       console.log("✅ Published:", id);
       setTimeout(() => onBack(), 500);
@@ -513,6 +540,22 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
                   </select>
                 </div>
               </div>
+              {formData.submissionType === "team" && (
+                <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50 p-4">
+                  <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">Allowed teams</label>
+                  {teamsError && <p className="text-xs text-red-600">{teamsError}</p>}
+                  {!teamsError && teams.length === 0 && <p className="text-xs text-slate-500">No teams are available in this class.</p>}
+                  <div className="space-y-2">
+                    {teams.map((team) => (
+                      <label key={team.id} className="flex items-center gap-2 text-sm text-slate-700">
+                        <input type="checkbox" checked={formData.allowedTeamIds.includes(team.id)} onChange={() => toggleTeam(team.id)} />
+                        <span>{team.name}</span>
+                        <span className="text-xs text-slate-500">({team.members?.length ?? 0} members)</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

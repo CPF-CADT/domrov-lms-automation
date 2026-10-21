@@ -103,14 +103,6 @@ export async function unsubmitSubmission(submissionId: number): Promise<MySubmis
 }
 
 /**
- * Delete a file/resource from a submission (Student)
- */
-export async function deleteSubmissionResource(submissionId: number, resourcePath: string): Promise<MySubmissionResponseDto> {
-    const response = (await axiosInstance.delete(`/submissions/${submissionId}/resource`, { data: { path: resourcePath } })).data;
-    return response.data;
-}
-
-/**
  * Approve submission evaluation (Teacher)
  */
 export async function approveSubmission(submissionId: number): Promise<any> {
@@ -145,7 +137,6 @@ const submissionService = {
     updateFeedback,
     submitSubmission,
     unsubmitSubmission,
-    deleteSubmissionResource,
     saveDraftAssignment,
     approveSubmission,
 };

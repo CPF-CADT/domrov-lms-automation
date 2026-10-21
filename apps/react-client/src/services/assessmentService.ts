@@ -11,7 +11,6 @@ import type {
   TeamTrackingItemDto,
   IndividualTrackingItemDto,
   AssessmentStatsResponseDto,
-  CompleteAssessmentResponseDto,
 } from '@/types/Assessment';
 
 /**
@@ -49,7 +48,7 @@ export async function createAssessmentDraft(classId: number, session: number): P
 /**
  * Update an assessment draft
  */
-export async function updateAssessment(assessmentId: number, data: UpdateAssessmentDto): Promise<UpdateAssessmentResponseDto> {
+export async function updateAssessment(assessmentId: number, data: UpdateAssessmentDto | FormData): Promise<UpdateAssessmentResponseDto> {
   const response = (await axiosInstance.patch(`/assessments/${assessmentId}`, data)).data;
   return response.data;
 }
@@ -71,14 +70,6 @@ export async function deleteAssessment(assessmentId: number): Promise<DeleteAsse
 }
 
 /**
- * Complete an assessment
- */
-export async function completeAssessment(assessmentId: number): Promise<CompleteAssessmentResponseDto> {
-  const response = await axiosInstance.post(`/assessments/${assessmentId}/complete`);
-  return response.data;
-}
-
-/**
  * Get assessment tracking information (team or individual)
  */
 export async function getAssessmentTracking(assessmentId: number): Promise<TeamTrackingItemDto[] | IndividualTrackingItemDto[]> {
@@ -89,16 +80,11 @@ export async function getAssessmentTracking(assessmentId: number): Promise<TeamT
 /**
  * Get assessment statistics
  */
-export async function getAssessmentStats(classId: number, assessmentId: number): Promise<AssessmentStatsResponseDto> {
-  const response = (await axiosInstance.get(`/assessments/${classId}/stats/${assessmentId}`)).data;
+export async function getAssessmentStats(assessmentId: number): Promise<AssessmentStatsResponseDto> {
+  const response = (await axiosInstance.get(`/submissions/assessment/${assessmentId}/stats`)).data;
   return response.data;
 }
 // Fetch assignments for a class from backend API
-export async function fetchAssignmentsByClass(classId: string) {
-  const res = await fetch(`https://api.domrov.app/assessments/class/${classId}`);
-  if (!res.ok) throw new Error("Failed to fetch assignments");
-  return res.json();
-}
 
 const assessmentService = {
   getAssessmentsByClass,
@@ -108,7 +94,6 @@ const assessmentService = {
   updateAssessment,
   publishAssessment,
   deleteAssessment,
-  completeAssessment,
   getAssessmentTracking,
   getAssessmentStats,
 };

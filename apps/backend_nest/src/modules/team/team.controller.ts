@@ -314,6 +314,29 @@ export class TeamController {
 
   // ==================== LEAVE / REMOVE ====================
 
+  @UseGuards(TeamLeaderGuard)
+  @Delete(':teamId')
+  @ApiOperation({
+    summary: 'Delete a team',
+    description: 'Deletes a team and its memberships. Only the team leader can delete the team.',
+  })
+  @ApiParam({ name: 'teamId', type: Number, example: 1, description: 'The ID of the team to delete' })
+  @ApiOkResponse({
+    schema: {
+      example: {
+        success: true,
+        data: { message: 'Team deleted successfully' },
+      },
+    },
+  })
+  async deleteTeam(
+    @Param('teamId', ParseIntPipe) teamId: number,
+    @GetTeamContext() context: TeamContext,
+  ): Promise<{ success: true; data: MessageResponseDto }> {
+    const data = await this.teamService.deleteTeam(context);
+    return { success: true, data };
+  }
+
   @UseGuards(TeamMemberGuard)
   @Delete(':teamId/leave')
   @ApiOperation({
@@ -370,6 +393,23 @@ export class TeamController {
     @GetTeamContext() context: TeamContext,
   ): Promise<{ success: true; data: MessageResponseDto }> {
     const data = await this.teamService.removeMember(memberId, context);
+    return { success: true, data };
+  }
+
+  @UseGuards(TeamLeaderGuard)
+  @Post(':teamId/members/:memberId')
+  @ApiOperation({
+    summary: 'Add an enrolled student to a team',
+    description: 'Adds an enrolled student to the team. Only the team leader can perform this action.',
+  })
+  @ApiParam({ name: 'teamId', type: Number, example: 1 })
+  @ApiParam({ name: 'memberId', type: Number, example: 5 })
+  async addMember(
+    @Param('teamId', ParseIntPipe) teamId: number,
+    @Param('memberId', ParseIntPipe) memberId: number,
+    @GetTeamContext() context: TeamContext,
+  ): Promise<{ success: true; data: JoinTeamResponseDto }> {
+    const data = await this.teamService.addMember(memberId, context);
     return { success: true, data };
   }
 }

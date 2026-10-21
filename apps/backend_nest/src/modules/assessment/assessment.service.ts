@@ -80,7 +80,7 @@ export class AssessmentService {
     try {
       const assessment = await this.assessmentRepo.findOne({
         where: { id: context.assessmentId },
-        relations: ['class', 'rubrics'],
+        relations: ['class', 'rubrics', 'teamAssessments', 'teamAssessments.team'],
       });
 
       if (!assessment) throw new BadRequestException('Failed to publish assessment');
@@ -130,6 +130,9 @@ export class AssessmentService {
     if (totalRubricScore !== assessment.maxScore) {
       throw new BadRequestException('Rubric total score must equal maxScore');
     }
+    if (assessment.submissionType === SubmissionType.TEAM && !assessment.teamAssessments?.length) {
+      throw new BadRequestException('At least one allowed team is required for a team assignment');
+    }
   }
 
   async updateAssessment(dto: UpdateAssessmentDTO, context: AssessmentContext): Promise<UpdateAssessmentResponseDto> {
@@ -144,7 +147,24 @@ export class AssessmentService {
         throw new NotFoundException('Assessment not found');
       }
 
-      const { resources, rubrics, ...metadata } = dto;
+      const effectiveSubmissionType = dto.submissionType ?? assessment.submissionType;
+      if (dto.allowedTeamIds !== undefined) {
+        const uniqueTeamIds = [...new Set(dto.allowedTeamIds)];
+        if (uniqueTeamIds.length !== dto.allowedTeamIds.length) {
+          throw new BadRequestException('Duplicate team IDs are not allowed');
+        }
+        if (uniqueTeamIds.length > 0) {
+          const teams = await this.teamRepo.find({ where: { id: In(uniqueTeamIds) }, relations: ['class'] });
+          if (teams.length !== uniqueTeamIds.length) {
+            throw new BadRequestException('One or more teams were not found');
+          }
+          if (teams.some((team) => team.class?.id !== assessment.class.id)) {
+            throw new BadRequestException('All teams must belong to the assessment class');
+          }
+        }
+      }
+
+      const { resources, rubrics, allowedTeamIds, ...metadata } = dto;
 
       // 2. Merge metadata onto the assessment entity
       Object.assign(assessment, metadata);
@@ -197,15 +217,18 @@ export class AssessmentService {
           await manager.save(Rubrics, rubricEntities);
         }
 
-        // Handle Team Assessments (Sync logic: Delete and Re-create)
-        await manager.delete(TeamAssessment, { assessment: { id: assessment.id } });
+        // Only change team links when explicitly supplied. A title-only update
+        // must not remove existing team access.
+        if (effectiveSubmissionType === SubmissionType.INDIVIDUAL || allowedTeamIds !== undefined) {
+          await manager.delete(TeamAssessment, { assessment: { id: assessment.id } });
 
-        if (dto.allowedTeamIds?.length) {
-          const teams = await manager.findBy(Team, { id: In(dto.allowedTeamIds) });
-          const newTeamAssessments = teams.map(team =>
-            manager.create(TeamAssessment, { team, assessment })
-          );
-          await manager.save(TeamAssessment, newTeamAssessments);
+          if (effectiveSubmissionType === SubmissionType.TEAM && allowedTeamIds?.length) {
+            const teams = await manager.findBy(Team, { id: In(allowedTeamIds) });
+            const newTeamAssessments = teams.map(team =>
+              manager.create(TeamAssessment, { team, assessment })
+            );
+            await manager.save(TeamAssessment, newTeamAssessments);
+          }
         }
 
         return assessment;
@@ -319,7 +342,7 @@ export class AssessmentService {
 
     const assessment = await this.assessmentRepo.findOne({
       where: { id: context.assessmentId },
-      relations: ['resources', 'resources.resource', 'rubrics'],
+      relations: ['resources', 'resources.resource', 'rubrics', 'teamAssessments', 'teamAssessments.team'],
     });
     if (!assessment) throw new NotFoundException('Assessment not found');
     return assessment;

@@ -295,6 +295,18 @@ export class TeamService {
         return { message: 'You have successfully left the team' };
     }
 
+    async deleteTeam(context: TeamContext): Promise<MessageResponseDto> {
+        if (!context?.teamEntity) {
+            throw new NotFoundException('Team context not available');
+        }
+        if (!context.isLeader) {
+            throw new ForbiddenException('Only the team leader can delete the team');
+        }
+
+        await this.teamRepository.remove(context.teamEntity);
+        return { message: 'Team deleted successfully' };
+    }
+
     async removeMember(
         memberId: number,
         context: TeamContext,
@@ -319,6 +331,16 @@ export class TeamService {
         }
         await this.teamMemberRepository.remove(member);
         return { message: 'Team member removed successfully' };
+    }
+
+    async addMember(memberId: number, context: TeamContext): Promise<JoinTeamResponseDto> {
+        if (!context?.teamEntity) {
+            throw new NotFoundException('Team context not available');
+        }
+        if (!context.isLeader) {
+            throw new ForbiddenException('Only the team leader can add members');
+        }
+        return this.addMemberToTeam(context.teamEntity, memberId);
     }
 
 

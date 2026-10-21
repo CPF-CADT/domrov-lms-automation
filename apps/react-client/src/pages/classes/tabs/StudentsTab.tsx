@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import axiosInstance from "@/lib/AxiosInstance";
+import { getClassStudents } from "@/services/ClassService";
 
 interface Student {
   id: number;
@@ -49,8 +49,7 @@ export default function StudentsTab({ classId }: StudentsTabProps) {
     setLoading(true);
     setError(null);
     try {
-      const response = await axiosInstance.get(`/class/${classId}/students`);
-      const raw = response.data?.data ?? response.data ?? [];
+      const raw = await getClassStudents(Number(classId));
       setStudents(Array.isArray(raw) ? raw : []);
     } catch {
       setError("Could not load students. Please try again.");

@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { STORAGE_KEYS, storage } from "@/lib/Storage";
+import userService from "@/services/UserService";
 
 const transactions = [
   { id: 19,  amount: 2712.72, reason: "AI Usage",    balanceBefore: 18293.79, balanceAfter: 15581.02, date: "3/8/2026" },
@@ -23,8 +24,6 @@ const reasonColors: Record<ReasonKey, { bg: string; color: string; border: strin
   "Adjustment": { bg: "#fffbe6", color: "#d48806", border: "#ffe58f" },
   "Payment":    { bg: "#e6f4ff", color: "#0958d9", border: "#91caff" },
 };
-
-const API_URL = "https://api.domrov.app/users/me";
 
 const Icons = {
   Mail:          () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>),
@@ -91,7 +90,7 @@ interface FormState {
 }
 
 export default function UserProfile() {
-  const { user, isLoading: loading, token } = useAuth();
+  const { user, isLoading: loading } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const profile = user as ExtendedUser | null;
@@ -129,14 +128,13 @@ export default function UserProfile() {
       gender:      profile.gender      ?? "",
       dob:         profile.dob         ?? "",
     });
-    setAvatarPreview(null); setAvatarFile(null); setSaveStatus(null); setImgError(false); setEditOpen(true);
+    setAvatarPreview(null); setSaveStatus(null); setImgError(false); setEditOpen(true);
   };
-  const closeEdit = () => { setEditOpen(false); setSaveStatus(null); setAvatarPreview(null); setAvatarFile(null); };
+  const closeEdit = () => { setEditOpen(false); setSaveStatus(null); setAvatarPreview(null); };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setAvatarFile(file);
     setAvatarPreview(URL.createObjectURL(file));
     setImgError(false);
   };
@@ -145,15 +143,14 @@ export default function UserProfile() {
     if (!profile) return;
     setSaving(true); setSaveStatus(null);
     try {
-      const body = new FormData();
-      Object.entries(form).forEach(([k, v]) => body.append(k, v));
-      if (avatarFile) body.append("profilePicture", avatarFile);
-      await fetch(API_URL, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
-        body,
+      const response = await userService.updateMyProfile({
+        firstName: form.firstName,
+        lastName: form.lastName,
+        phoneNumber: form.phoneNumber,
+        gender: form.gender || undefined,
+        dob: form.dob ? new Date(form.dob) : undefined,
       });
-      const updated = { ...profile, ...form, profilePictureUrl: avatarPreview ?? profile.profilePictureUrl, updated_at: new Date().toISOString() };
+      const updated = response.user;
       storage.setJson(STORAGE_KEYS.user, updated);
     } catch (_) { /* ignore */ }
     setSaveStatus("success");

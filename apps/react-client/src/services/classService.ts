@@ -8,7 +8,6 @@ import type {
     JoinClassByCodeDto,
     JoinClassByTokenDto,
     JoinClassResponseDto,
-    ClassMembersDto,
     InviteMembersDto,
     TransferOwnershipDto,
     LeaderboardItemDto,
@@ -27,14 +26,6 @@ export async function createClass(data: CreateClassDto): Promise<ClassResponseDt
  */
 export async function getMyClasses(): Promise<GetMyClassesResponseDto[]> {
     const response = (await axiosInstance.get('/class/my-classes')).data;
-    return response.data;
-}
-
-/**
- * Get a specific class by ID
- */
-export async function getClass(classId: number): Promise<ClassResponseDto> {
-    const response = (await axiosInstance.get(`/class/${classId}`)).data;
     return response.data;
 }
 
@@ -66,15 +57,7 @@ export async function joinClassByCode(data: JoinClassByCodeDto): Promise<JoinCla
  * Join a class using join token
  */
 export async function joinClassByToken(data: JoinClassByTokenDto): Promise<JoinClassResponseDto> {
-    const response = (await axiosInstance.post('/class/join/token', data)).data;
-    return response.data;
-}
-
-/**
- * Get class members
- */
-export async function getClassMembers(classId: number): Promise<ClassMembersDto[]> {
-    const response = (await axiosInstance.get(`/class/${classId}/members`)).data;
+    const response = (await axiosInstance.get('/class/join/link', { params: data })).data;
     return response.data;
 }
 
@@ -90,7 +73,7 @@ export async function getClassStudents(classId: number): Promise<any[]> {
  * Invite members to class
  */
 export async function inviteMembers(classId: number, data: InviteMembersDto): Promise<MessageResponse> {
-    const response = (await axiosInstance.post(`/class/${classId}/members`, data)).data;
+    const response = (await axiosInstance.post(`/class/${classId}/invite`, data)).data;
     return response;
 }
 
@@ -98,7 +81,7 @@ export async function inviteMembers(classId: number, data: InviteMembersDto): Pr
  * Remove member from class
  */
 export async function removeMember(classId: number, userId: number): Promise<MessageResponse> {
-    const response = (await axiosInstance.delete(`/class/${classId}/members/${userId}`)).data;
+    const response = (await axiosInstance.delete(`/class/${classId}/student/${userId}`)).data;
     return response;
 }
 
@@ -121,12 +104,10 @@ export async function getLeaderboard(classId: number): Promise<LeaderboardItemDt
 const classService = {
     createClass,
     getMyClasses,
-    getClass,
     updateClass,
     deleteClass,
     joinClassByCode,
     joinClassByToken,
-    getClassMembers,
     getClassStudents,
     inviteMembers,
     removeMember,

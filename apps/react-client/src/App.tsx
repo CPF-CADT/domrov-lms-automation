@@ -2,7 +2,6 @@
 import { Navigate, Routes, Route, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { AuthProvider } from '@/context/AuthContext';
-import { AssignmentProvider } from '@/context/AssignmentContext';
 import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import PublicRoute from '@/components/PublicRoute';
@@ -233,11 +232,9 @@ const InitialAuthRedirect: React.FC<{ children: React.ReactNode }> = ({ children
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <AssignmentProvider>
-        <InitialAuthRedirect>
-          <AppRoutes />
-        </InitialAuthRedirect>
-      </AssignmentProvider>
+      <InitialAuthRedirect>
+        <AppRoutes />
+      </InitialAuthRedirect>
     </AuthProvider>
   );
 };

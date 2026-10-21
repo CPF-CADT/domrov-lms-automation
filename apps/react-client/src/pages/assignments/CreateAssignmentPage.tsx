@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/Toast";
 import assessmentService from "@/services/AssessmentService";
+import teamService from "@/services/TeamService";
+import type { TeamResponseDto } from "@/types/Team";
 import { SubmissionType, SubmissionMethod } from "@/types/Enums";
 import type { UpdateAssessmentDto } from "@/types/Assessment";
 import { storage } from "@/lib/Storage";
@@ -18,6 +20,7 @@ interface CreateAssignmentData {
   allowedSubmissionMethod: "GITHUB" | "UPLOAD" | "LINK";
   allowLateSubmissions: boolean;
   aiEvaluationEnabled: boolean;
+  allowedTeamIds: number[];
 }
 
 const DEFAULT_FORM: CreateAssignmentData = {
@@ -31,6 +34,7 @@ const DEFAULT_FORM: CreateAssignmentData = {
   allowedSubmissionMethod: "GITHUB",
   allowLateSubmissions: false,
   aiEvaluationEnabled: false,
+  allowedTeamIds: [],
 };
 
 /**
@@ -49,6 +53,7 @@ function mapToDto(data: CreateAssignmentData): UpdateAssessmentDto {
       ? SubmissionType.TEAM
       : SubmissionType.INDIVIDUAL,
     aiEvaluationEnable: data.aiEvaluationEnabled,
+    allowedTeamIds: data.submissionType === "team" ? data.allowedTeamIds : [],
     allowedSubmissionMethod:
       data.allowedSubmissionMethod === "UPLOAD" ? SubmissionMethod.ANY
       : data.allowedSubmissionMethod === "LINK"   ? SubmissionMethod.ANY
@@ -63,6 +68,13 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
 
   const [formData, setFormData] = useState<CreateAssignmentData>(DEFAULT_FORM);
   const [loading, setLoading] = useState<null | "draft" | "publish">(null);
+  const [teams, setTeams] = useState<TeamResponseDto[]>([]);
+  const [teamsError, setTeamsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (formData.submissionType !== "team") return;
+    teamService.getTeamsByClass(Number(classId)).then(setTeams).catch(() => setTeamsError("Unable to load class teams."));
+  }, [classId, formData.submissionType]);
 
   // Load local draft on mount
   useEffect(() => {
@@ -135,6 +147,10 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
       showToast("Please set a due date before publishing.", "error", 3000);
       return;
     }
+    if (formData.submissionType === "team" && formData.allowedTeamIds.length === 0) {
+      showToast("Select at least one team before publishing.", "error", 3000);
+      return;
+    }
     setLoading("publish");
     try {
       const draftId = await createAndUpdate();
@@ -171,6 +187,15 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
   const handleReset = () => {
     setFormData(DEFAULT_FORM);
     storage.remove(draftKey);
+  };
+
+  const toggleTeam = (teamId: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      allowedTeamIds: prev.allowedTeamIds.includes(teamId)
+        ? prev.allowedTeamIds.filter((id) => id !== teamId)
+        : [...prev.allowedTeamIds, teamId],
+    }));
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -234,6 +259,23 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                 </select>
               </div>
             </div>
+
+            {formData.submissionType === "team" && (
+              <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-3">
+                <label className="block mb-2 text-xs font-semibold text-slate-700">Allowed teams</label>
+                {teamsError && <p className="text-xs text-red-600">{teamsError}</p>}
+                {!teamsError && teams.length === 0 && <p className="text-xs text-slate-500">No teams are available in this class.</p>}
+                <div className="space-y-2">
+                  {teams.map((team) => (
+                    <label key={team.id} className="flex items-center gap-2 text-sm text-slate-700">
+                      <input type="checkbox" checked={formData.allowedTeamIds.includes(team.id)} onChange={() => toggleTeam(team.id)} />
+                      <span>{team.name}</span>
+                      <span className="text-xs text-slate-500">({team.members?.length ?? 0} members)</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="block mb-1 text-xs font-medium text-slate-700">

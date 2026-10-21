@@ -48,22 +48,6 @@ export async function triggerAIEvaluation(submissionId: number): Promise<AddToQu
 }
 
 /**
- * Save AI configuration
- */
-export async function saveAIConfig(config: {
-  provider: string;
-  model: string;
-  apiKey: string;
-  apiEndpoint: string;
-}): Promise<{ message: string }> {
-  const response = (await axiosInstance.post(
-    '/evaluations/ai-config',
-    config
-  )).data;
-  return response.data;
-}
-
-/**
  * Fetch all AI providers
  */
 export async function fetchAIProviders(): Promise<AIProviderDto[]> {
@@ -122,7 +106,6 @@ const evaluationService = {
   getSubmissionFileContent,
   getSubmissionFolderStructure,
   triggerAIEvaluation,
-  saveAIConfig,
   fetchAIProviders,
   createAIKey,
   fetchAIKeys,

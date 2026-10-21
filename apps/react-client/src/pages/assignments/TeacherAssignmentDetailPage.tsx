@@ -8,14 +8,14 @@ import type { AssessmentDetailDto } from "@/types/Assessment";
 import { routes } from "@/lib/routes";
 
 export default function TeacherAssignmentDetail() {
-  const { id, assignmentId } = useParams<{ id?: string; assignmentId?: string }>();
+  const { id, classId: routeClassId, assignmentId } = useParams<{ id?: string; classId?: string; assignmentId?: string }>();
   const resolvedAssignmentId = assignmentId ?? id;
   const navigate = useNavigate();
   const [assignment, setAssignment] = useState<AssessmentDetailDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const classId = assignment?.class?.id?.toString() || "flutter";
+  const classId = routeClassId || assignment?.class?.id?.toString() || "";
 
   useEffect(() => {
     if (resolvedAssignmentId) {
@@ -39,8 +39,9 @@ export default function TeacherAssignmentDetail() {
   };
 
   const handleEditAssignment = () => {
-    // Navigate to edit page or open edit modal
-    console.log("Edit assignment:", resolvedAssignmentId);
+    if (classId && resolvedAssignmentId) {
+      navigate(routes.assignmentEdit(classId, resolvedAssignmentId));
+    }
   };
 
   const handleDeleteAssignment = async () => {
@@ -146,6 +147,22 @@ export default function TeacherAssignmentDetail() {
                     </button>
                   </div>
                 </div>
+
+                {assignment.submissionType === "TEAM" && (
+                  <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
+                    <h2 className="text-sm font-semibold text-slate-900">Allowed teams</h2>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {(assignment.teamAssessments ?? []).map((team) => (
+                        <span key={team.team_id} className="rounded-full bg-white px-3 py-1 text-xs text-slate-700">
+                          {team.team?.name ?? `Team ${team.team_id}`}
+                        </span>
+                      ))}
+                      {(assignment.teamAssessments ?? []).length === 0 && (
+                        <span className="text-xs text-red-600">No teams selected</span>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6">
                   {/* Left Column - Main Content */}

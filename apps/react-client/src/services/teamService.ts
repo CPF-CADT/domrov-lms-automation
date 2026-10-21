@@ -71,7 +71,7 @@ export async function inviteTeamByEmail(teamId: number, data: InviteTeamByEmailD
  * Leave a team
  */
 export async function leaveTeam(teamId: number): Promise<MessageResponse> {
-    const response = (await axiosInstance.post(`/team/${teamId}/leave`)).data;
+    const response = (await axiosInstance.delete(`/team/${teamId}/leave`)).data;
     return response.data;
 }
 
@@ -80,6 +80,16 @@ export async function leaveTeam(teamId: number): Promise<MessageResponse> {
  */
 export async function deleteTeam(teamId: number): Promise<MessageResponse> {
     const response = (await axiosInstance.delete(`/team/${teamId}`)).data;
+    return response.data;
+}
+
+export async function addMember(teamId: number, memberId: number): Promise<MessageResponse> {
+    const response = (await axiosInstance.post(`/team/${teamId}/members/${memberId}`)).data;
+    return response.data;
+}
+
+export async function removeMember(teamId: number, memberId: number): Promise<MessageResponse> {
+    const response = (await axiosInstance.delete(`/team/${teamId}/members/${memberId}`)).data;
     return response.data;
 }
 
@@ -93,6 +103,8 @@ const teamService = {
     inviteTeamByEmail,
     leaveTeam,
     deleteTeam,
+    addMember,
+    removeMember,
 };
 
 export default teamService;

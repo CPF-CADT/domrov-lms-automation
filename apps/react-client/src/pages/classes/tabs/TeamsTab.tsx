@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import CreateTeamModal from "../components/CreateTeamModal";
 import teamService from "@/services/TeamService";
-import axiosInstance from "@/lib/AxiosInstance";
+import { getClassStudents } from "@/services/ClassService";
 import type { TeamResponseDto } from "@/types/Team";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -422,8 +422,7 @@ export default function TeamsTab({ classId }: TeamsTabProps) {
   const fetchStudents = async () => {
     setStudentsLoading(true);
     try {
-      const response = await axiosInstance.get(`/class/${classId}/students`);
-      const raw = response.data?.data ?? response.data ?? [];
+      const raw = await getClassStudents(Number(classId));
       setStudents(Array.isArray(raw) ? raw : []);
     } catch {
       // silently fail — panel will show empty
@@ -445,7 +444,7 @@ export default function TeamsTab({ classId }: TeamsTabProps) {
     e.dataTransfer.effectAllowed = "move";
   };
 
-  const handleDrop = (teamId: number) => (e: React.DragEvent) => {
+  const handleDrop = (teamId: number) => async (e: React.DragEvent) => {
     e.preventDefault();
     setDragOverTeamId(null);
     const student = dragStudent.current;
@@ -455,7 +454,8 @@ export default function TeamsTab({ classId }: TeamsTabProps) {
     if (!team) return;
 
     // Check if already assigned to this team
-    const alreadyHere = (assignments[teamId] ?? []).some((s) => s.id === student.id);
+    const alreadyHere = (team.members ?? []).some((member) => member.id === student.id)
+      || (assignments[teamId] ?? []).some((s) => s.id === student.id);
     if (alreadyHere) return;
 
     // Check capacity
@@ -466,29 +466,30 @@ export default function TeamsTab({ classId }: TeamsTabProps) {
       return;
     }
 
-    // Remove from any other team assignment first
-    setAssignments((prev) => {
-      const next = { ...prev };
-      // Remove from other teams
-      Object.keys(next).forEach((key) => {
-        const tid = Number(key);
-        if (tid !== teamId) {
-          next[tid] = next[tid].filter((s) => s.id !== student.id);
-        }
+    try {
+      await teamService.addMember(teamId, student.id);
+      await fetchTeams();
+      setAssignments((prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach((key) => {
+          next[Number(key)] = next[Number(key)].filter((s) => s.id !== student.id);
+        });
+        return next;
       });
-      // Add to this team
-      next[teamId] = [...(next[teamId] ?? []), student];
-      return next;
-    });
-
-    dragStudent.current = null;
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Failed to add student to the team.");
+    } finally {
+      dragStudent.current = null;
+    }
   };
 
-  const handleRemoveStudent = (teamId: number, studentId: number) => {
-    setAssignments((prev) => ({
-      ...prev,
-      [teamId]: (prev[teamId] ?? []).filter((s) => s.id !== studentId),
-    }));
+  const handleRemoveStudent = async (teamId: number, studentId: number) => {
+    try {
+      await teamService.removeMember(teamId, studentId);
+      await fetchTeams();
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Failed to remove student from the team.");
+    }
   };
 
   const handleDeleteTeam = async (teamId: number) => {
@@ -507,11 +508,10 @@ export default function TeamsTab({ classId }: TeamsTabProps) {
   };
 
   // IDs of students already dragged into any team
-  const allAssignedIds = new Set(
-    Object.values(assignments)
-      .flat()
-      .map((s) => s.id)
-  );
+  const allAssignedIds = new Set([
+    ...teams.flatMap((team) => (team.members ?? []).map((member) => member.id)),
+    ...Object.values(assignments).flat().map((student) => student.id),
+  ]);
 
   // ── Loading ──────────────────────────────────────────────────────────────
 
@@ -603,7 +603,7 @@ export default function TeamsTab({ classId }: TeamsTabProps) {
                 <TeamCard
                   key={team.id}
                   team={team}
-                  assignedStudents={assignments[team.id] ?? []}
+                  assignedStudents={[...(team.members ?? []), ...(assignments[team.id] ?? [])]}
                   onDrop={handleDrop(team.id)}
                   onRemoveStudent={(sid) => handleRemoveStudent(team.id, sid)}
                   onDelete={() => handleDeleteTeam(team.id)}

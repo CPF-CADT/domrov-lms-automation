@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/Toast";
 import assessmentService from "@/services/AssessmentService";
-import axiosInstance from "@/lib/AxiosInstance";
 import { storage } from "@/lib/Storage";
 import { routes } from "@/lib/routes";
 
@@ -143,10 +142,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
 
       // 2. Update with form data (stays as draft — no publish call)
       const form = mapToFormData(formData);
-      const patchRes = await axiosInstance.patch(`/assessments/${draftId}`, form, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      console.log("[Draft] Patch response:", patchRes);
+      await assessmentService.updateAssessment(draftId, form);
 
       showToast("✅ Draft saved!", "success", 3000);
       storage.remove(draftKey);
@@ -179,10 +175,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
 
       // 2. Update with form data
       const form = mapToFormData(formData);
-      const patchRes = await axiosInstance.patch(`/assessments/${draftId}`, form, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      console.log("[Publish] Patch response:", patchRes);
+      await assessmentService.updateAssessment(draftId, form);
 
       // 3. Publish
       const publishRes = await assessmentService.publishAssessment(draftId);
