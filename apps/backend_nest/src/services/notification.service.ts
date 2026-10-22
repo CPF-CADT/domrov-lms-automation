@@ -144,6 +144,22 @@ export class NotificationService {
         await this.notificationRepo.update(notificationId, { status: NotificationStatus.READ });
     }
 
+    async getNotifications(userId: number): Promise<Notification[]> {
+        return this.notificationRepo.find({
+            where: { user: { id: userId } },
+            order: { createdAt: 'DESC' },
+            take: 100,
+        });
+    }
+
+    async markAsReadForUser(notificationId: number, userId: number): Promise<void> {
+        const notification = await this.notificationRepo.findOne({
+            where: { id: notificationId, user: { id: userId } },
+        });
+        if (!notification) return;
+        await this.notificationRepo.update(notification.id, { status: NotificationStatus.READ });
+    }
+
     /**
      * Get all unread notifications for a user
      */

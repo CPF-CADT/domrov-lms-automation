@@ -43,6 +43,10 @@ class EvaluateClient:
                 "user_include_files": response.user_include_files,
                 "user_exclude_files": response.user_exclude_files,
                 "resource_url": response.resource_url,
+                "storage_provider": response.storage_provider,
+                "storage_key": response.storage_key,
+                "checksum": response.checksum,
+                "external_url": response.external_url,
                 "rubric": [
                     {"criterion": r.criterion, "weight": r.weight}
                     for r in response.rubric
@@ -66,6 +70,10 @@ class EvaluateClient:
             response = self.submission_stub.GetSubmissionResource(request)
             return {
                 "resource_url": response.resource_url,
+                "storage_provider": response.storage_provider,
+                "storage_key": response.storage_key,
+                "checksum": response.checksum,
+                "external_url": response.external_url,
             }
 
         except grpc.RpcError as e:

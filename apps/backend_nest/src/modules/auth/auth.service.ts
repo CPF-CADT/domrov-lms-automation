@@ -145,10 +145,58 @@ export class AuthService {
     return await this.userService.validateOAuthUser(profile)
   }
 
-  async refreshToken(id: string, email: string): Promise<RefreshTokenResponseDto> {
+  async refreshToken(id: string, email: string, refreshToken: string): Promise<RefreshTokenResponseDto> {
     if (!id || !email) throw new BadRequestException('User ID and email are required')
+    if (!refreshToken) throw new UnauthorizedException('Refresh token is required')
+    const session = await this.userRefreshTokenRepository.findOne({
+      where: { user: { id: Number(id) }, refreshToken },
+      relations: ['user'],
+    })
+    if (!session || session.expiresAt <= new Date()) {
+      if (session) await this.userRefreshTokenRepository.delete(session.id)
+      throw new UnauthorizedException('Refresh token is invalid or expired')
+    }
     const accessToken = await this.accessJwtService.signAsync({ sub: id, email })
     return { accessToken, status: 'success', issuedAt: Date.now() }
+  }
+
+  async requestPasswordReset(email: string): Promise<MessageResponseDto> {
+    const user = await this.userService.findByEmail(email)
+    // Do not reveal whether an account exists.
+    if (!user) return { message: 'If the email exists, a password reset code was sent.' }
+
+    const otp = randomInt(100000, 999999).toString()
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
+    let record = await this.userEmailOtpRepository.findOne({ where: { user: { id: user.id } } })
+    if (record) {
+      record.otp = otp
+      record.purpose = 'password_reset'
+      record.expiresAt = expiresAt
+    } else {
+      record = this.userEmailOtpRepository.create({ user, otp, purpose: 'password_reset', expiresAt })
+    }
+    await this.userEmailOtpRepository.save(record)
+    await this.mailerService.sendMail({
+      to: user.email,
+      subject: 'Your password reset code',
+      text: `Your password reset code is: ${otp}`,
+      html: `<p>Your password reset code is: <b>${otp}</b></p>`,
+    })
+    return { message: 'If the email exists, a password reset code was sent.' }
+  }
+
+  async resetPassword(email: string, otp: string, newPassword: string): Promise<MessageResponseDto> {
+    const user = await this.userService.findByEmail(email)
+    if (!user) throw new BadRequestException('Invalid or expired password reset code')
+    const record = await this.userEmailOtpRepository.findOne({ where: { user: { id: user.id } } })
+    if (!record || record.purpose !== 'password_reset' || record.expiresAt <= new Date() || record.otp !== otp) {
+      throw new BadRequestException('Invalid or expired password reset code')
+    }
+    user.password = await Encryption.hashPassword(newPassword)
+    await this.userService.saveUser(user)
+    await this.userEmailOtpRepository.delete(record.id)
+    await this.userRefreshTokenRepository.delete({ user: { id: user.id } })
+    return { message: 'Password reset successfully' }
   }
 
   async logout(userId: number, refreshToken: string): Promise<MessageResponseDto> {
@@ -170,8 +218,9 @@ export class AuthService {
       userOtp.otp = otp
       userOtp.expiresAt = expiresAt
     } else {
-      userOtp = this.userEmailOtpRepository.create({ user, otp, expiresAt })
+      userOtp = this.userEmailOtpRepository.create({ user, otp, purpose: 'verification', expiresAt })
     }
+    userOtp.purpose = 'verification'
     await this.userEmailOtpRepository.save(userOtp)
     await this.mailerService.sendMail({
       to: email,
@@ -187,7 +236,7 @@ export class AuthService {
     if (!user) throw new NotFoundException('User with this email not found')
     if (user.isVerified) throw new BadRequestException('Email is already verified')
     const userOtp = await this.userEmailOtpRepository.findOne({ where: { user: { id: user.id } } })
-    if (!userOtp) throw new BadRequestException('No OTP found. Please request a new verification code.')
+    if (!userOtp || userOtp.purpose !== 'verification') throw new BadRequestException('No OTP found. Please request a new verification code.')
     if (userOtp.expiresAt < new Date()) {
       await this.userEmailOtpRepository.delete(userOtp.id)
       throw new BadRequestException('OTP has expired. Please request a new verification code.')

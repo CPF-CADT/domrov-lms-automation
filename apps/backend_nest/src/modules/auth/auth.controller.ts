@@ -28,6 +28,7 @@ import { OAuthProfileDecorator } from '../../common/decorators/user.decorator';
 import { DynamicOAuthGuard, OAuthProvider } from '../../common/decorators/oauth.decorator';
 import type { OAuthProfile } from '../../libs/dtos/auth/oauth-profile.interface';
 import { RateLimiterGuard } from '../../common/security/guards/custom-throttler.guard';
+import { RequestPasswordResetDto, ResetPasswordDto } from '../../libs/dtos/user/password-reset.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -205,7 +206,7 @@ export class AuthController {
     })
     async refreshToken(@Req() req, @Res({ passthrough: true }) res: Response): Promise<{ success: true; data: any }> {
         const user = req.user;
-        const { accessToken } = await this.authService.refreshToken(user.id, user.email);
+        const { accessToken } = await this.authService.refreshToken(user.id, user.email, req.cookies?.refresh_token);
         const issuedAt = Math.floor(Date.now() / 1000);
         const data = {
             status: 'success',
@@ -213,6 +214,20 @@ export class AuthController {
             issuedAt
         };
         return { success: true, data };
+    }
+
+    @Post('request-password-reset')
+    @UseGuards(RateLimiterGuard)
+    @HttpCode(HttpStatus.OK)
+    async requestPasswordReset(@Body() body: RequestPasswordResetDto): Promise<{ success: true; data: MessageResponseDto }> {
+        return { success: true, data: await this.authService.requestPasswordReset(body.email) };
+    }
+
+    @Post('reset-password')
+    @UseGuards(RateLimiterGuard)
+    @HttpCode(HttpStatus.OK)
+    async resetPassword(@Body() body: ResetPasswordDto): Promise<{ success: true; data: MessageResponseDto }> {
+        return { success: true, data: await this.authService.resetPassword(body.email, body.otp, body.newPassword) };
     }
 
     // ==================== LOGOUT ====================

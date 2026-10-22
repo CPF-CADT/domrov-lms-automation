@@ -56,6 +56,7 @@ export default function UploadSection({
   );
   const [linkInput, setLinkInput] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [isUnsubmitting, setIsUnsubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -195,6 +196,7 @@ export default function UploadSection({
   };
 
   const handleFiles = async (files: File[]) => {
+    if (isUploading || files.length === 0) return;
     // Check if submission ID is available
     if (!submissionId) {
       setError("Submission data is still loading. Please wait a moment and try again.");
@@ -202,20 +204,21 @@ export default function UploadSection({
     }
 
     setIsUploading(true);
+    setUploadProgress(0);
     setError(null);
     setSuccessMessage(null);
     try {
       const uploadedFilesList: UploadedFile[] = [];
       const resources: { resourceId?: number }[] = [];
 
-      // Upload each file to R2
-      for (const file of files) {
+      // Upload each file through the authenticated NestJS local-storage endpoint.
+      for (const [index, file] of files.entries()) {
         const uploadResponse = await fileUploadService.uploadFileFlow(
           file,
           'submission',
           submissionId,
           (progress) => {
-            console.log(`Upload progress for ${file.name}: ${progress}%`);
+            setUploadProgress(Math.round(((index + progress / 100) / files.length) * 100));
           }
         );
 
@@ -249,6 +252,7 @@ export default function UploadSection({
       setError(error.message || 'Upload failed. Please try again.');
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -260,10 +264,7 @@ export default function UploadSection({
     setSuccessMessage(null);
     try {
       // Notify backend of link submission
-      const notifyResponse = await fileUploadService.notifyBackendOfUpload({
-        key: linkInput,
-        filename: linkInput,
-      });
+      const notifyResponse = await fileUploadService.createExternalResource(linkInput);
 
       const newLink: UploadedFile = {
         name: linkInput,
@@ -448,7 +449,7 @@ export default function UploadSection({
                 type="file"
                 multiple
                 onChange={handleFileInput}
-                disabled={!submissionId}
+                disabled={!submissionId || isUploading}
                 className="hidden"
               />
               <div className="flex flex-col items-center gap-3">
@@ -461,7 +462,14 @@ export default function UploadSection({
                 </div>
                 <p className="text-xs text-slate-400 mt-2">SUPPORTED: .PY, .JS, .ZIP, .PDF, .DOCX</p>
                 {isUploading && (
-                  <p className="text-sm text-blue-600 font-medium mt-2">Uploading...</p>
+                  <div className="w-full max-w-xs mt-2" aria-live="polite">
+                    <div className="flex justify-between text-xs text-blue-600 font-medium mb-1">
+                      <span>Uploading...</span><span>{uploadProgress}%</span>
+                    </div>
+                    <div className="h-2 bg-blue-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-600 transition-all" style={{ width: `${uploadProgress}%` }} />
+                    </div>
+                  </div>
                 )}
               </div>
             </div>

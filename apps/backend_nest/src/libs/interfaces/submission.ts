@@ -16,10 +16,18 @@ export interface SubmissionContentResponse {
     user_exclude_files: string[];            // URL of the repo / resource
     rubric: RubricCriterion[];       // List of rubric criteria
     ai?: AIKeyInfo;                  // Optional AI key info (only for USER mode with valid key)
+    storage_provider?: string;
+    storage_key?: string;
+    checksum?: string;
+    external_url?: string;
 }
 
 export interface SubmissionContentResource {
     resource_url: string;            // URL of the repo / resource
+    storage_provider?: string;
+    storage_key?: string;
+    checksum?: string;
+    external_url?: string;
 }
 
 // ----------------------------

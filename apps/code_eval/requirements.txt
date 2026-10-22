@@ -3,7 +3,6 @@ chardet
 pathspec
 GitPython
 PyGithub
-patool
 requests
 boto3
 pydantic

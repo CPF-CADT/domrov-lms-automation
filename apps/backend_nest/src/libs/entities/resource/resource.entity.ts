@@ -18,6 +18,18 @@ export class Resource extends BaseEntity {
   @Column()
   url: string; 
 
+  @Column({ length: 32, nullable: true })
+  storageProvider: string;
+
+  @Column({ length: 255, nullable: true })
+  contentType: string;
+
+  @Column({ type: 'bigint', nullable: true })
+  size: number;
+
+  @Column({ length: 64, nullable: true })
+  checksum: string;
+
   @Column({ length: 100 })
   owner: string; 
 

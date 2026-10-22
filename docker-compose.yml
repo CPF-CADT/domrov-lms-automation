@@ -13,6 +13,12 @@ services:
       CODE_EVAL_GRPC_CLIENT_HOST: code_eval
       CODE_EVAL_GRPC_CLIENT_PORT: 50051
       REDIS_URL: redis://redis:6379/0
+      LOCAL_FILE_ROOT: /data/files
+      MAX_FILE_SIZE_BYTES: ${MAX_FILE_SIZE_BYTES:-262144000}
+      MAX_STORAGE_QUOTA_BYTES: ${MAX_STORAGE_QUOTA_BYTES:-0}
+      MIN_FREE_SPACE_BYTES: ${MIN_FREE_SPACE_BYTES:-1073741824}
+    volumes:
+      - ${EBS_MOUNT_PATH:-./.local-ebs/files}:/data/files
     depends_on:
       code_eval:
         condition: service_started
@@ -43,6 +49,13 @@ services:
       - ./apps/code_eval/.env
     environment:
       REDIS_URL: redis://redis:6379/0
+      LOCAL_FILE_ROOT: /data/files
+      EVAL_MAX_ARCHIVE_FILES: ${EVAL_MAX_ARCHIVE_FILES:-10000}
+      EVAL_MAX_EXTRACTED_SIZE: ${EVAL_MAX_EXTRACTED_SIZE:-536870912}
+      EVALUATION_CACHE_TTL_SECONDS: ${EVALUATION_CACHE_TTL_SECONDS:-86400}
+      EVALUATION_CACHE_CLEANUP_INTERVAL_SECONDS: ${EVALUATION_CACHE_CLEANUP_INTERVAL_SECONDS:-3600}
+    volumes:
+      - ${EBS_MOUNT_PATH:-./.local-ebs/files}:/data/files
     expose:
       - "50051"
     depends_on:

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/Toast";
 import assessmentService from "@/services/AssessmentService";
+import fileUploadService from "@/services/FileUploadService";
 import { storage } from "@/lib/Storage";
 import { routes } from "@/lib/routes";
 
@@ -47,9 +48,6 @@ function mapToFormData(data: CreateAssignmentData): FormData {
   form.append("submissionType", data.submissionType.toUpperCase());
   form.append("aiEvaluationEnable", String(data.aiEvaluationEnabled));
   form.append("allowedSubmissionMethod", data.allowedSubmissionMethod);
-  data.learningResources.forEach((file) => {
-    form.append("files", file);
-  });
   return form;
 }
 
@@ -59,8 +57,9 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
   const draftKey = `draft_assignment_${classId}`;
 
   const [formData, setFormData] = useState<CreateAssignmentData>(DEFAULT_FORM);
-  const [uploadedFiles, setUploadedFiles] = useState<{ name: string; type: string }[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<{ name: string; type: string; resourceId?: number }[]>([]);
   const [loading, setLoading] = useState<null | "draft" | "publish">(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Load saved draft on mount
   useEffect(() => {
@@ -97,6 +96,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (loading) return;
     const files = Array.from(e.target.files || []);
     setFormData((prev) => ({
       ...prev,
@@ -114,6 +114,27 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
       learningResources: prev.learningResources.filter((_, i) => i !== index),
     }));
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadLearningResources = async (assessmentId: number) => {
+    if (formData.learningResources.length === 0) return;
+
+    const resourceIds: { resourceId: number }[] = [];
+    const total = formData.learningResources.length;
+    for (const [index, file] of formData.learningResources.entries()) {
+      const upload = await fileUploadService.uploadFileFlow(
+        file,
+        "assessment",
+        assessmentId,
+        (progress) => setUploadProgress(Math.round(((index + progress / 100) / total) * 100)),
+      );
+      resourceIds.push({ resourceId: upload.resourceId });
+      setUploadedFiles((previous) => previous.map((item) =>
+        item.name === file.name && !item.resourceId ? { ...item, resourceId: upload.resourceId } : item,
+      ));
+    }
+    await assessmentService.updateAssessment(assessmentId, { resources: resourceIds });
+    setUploadProgress(100);
   };
 
   const handleReset = () => {
@@ -143,6 +164,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
       // 2. Update with form data (stays as draft — no publish call)
       const form = mapToFormData(formData);
       await assessmentService.updateAssessment(draftId, form);
+      await uploadLearningResources(draftId);
 
       showToast("✅ Draft saved!", "success", 3000);
       storage.remove(draftKey);
@@ -176,6 +198,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
       // 2. Update with form data
       const form = mapToFormData(formData);
       await assessmentService.updateAssessment(draftId, form);
+      await uploadLearningResources(draftId);
 
       // 3. Publish
       const publishRes = await assessmentService.publishAssessment(draftId);
@@ -193,6 +216,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
       showToast("❌ Failed to publish assignment.", "error", 3000);
     }
     setLoading(null);
+    setUploadProgress(0);
   };
 
 
@@ -368,16 +392,27 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
               className="flex flex-col items-center p-3 text-center border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 group transition-colors"
             >
               <p className="text-xs font-medium text-slate-900 group-hover:text-blue-700">Click to upload files</p>
-              <p className="text-xs text-slate-500 mt-0.5">PDF, DOCX, ZIP or MP4</p>
+              <p className="text-xs text-slate-500 mt-0.5">PDF, DOCX, PPT, PPTX, ZIP or MP4</p>
               <input
                 type="file"
                 multiple
                 onChange={handleFileUpload}
+                disabled={loading !== null}
                 className="hidden"
                 id="file-upload"
-                accept=".pdf,.docx,.zip,.mp4"
+                accept=".pdf,.docx,.ppt,.pptx,.zip,.mp4"
               />
             </label>
+            {loading && formData.learningResources.length > 0 && (
+              <div className="mt-2" aria-live="polite">
+                <div className="flex justify-between text-xs text-slate-500 mb-1">
+                  <span>Uploading resources...</span><span>{uploadProgress}%</span>
+                </div>
+                <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-600 transition-all" style={{ width: `${uploadProgress}%` }} />
+                </div>
+              </div>
+            )}
             {uploadedFiles.length > 0 && (
               <div className="mt-2 space-y-1">
                 {uploadedFiles.map((file, index) => (

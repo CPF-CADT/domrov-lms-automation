@@ -13,6 +13,10 @@ export class UserEmailOtp extends BaseEntity {
     @Column()
     otp: string;
 
+    // A user can have different one-time codes for verification and recovery.
+    @Column({ default: 'verification' })
+    purpose: 'verification' | 'password_reset';
+
     @Column({ type: 'timestamp' })
     expiresAt: Date;
 }

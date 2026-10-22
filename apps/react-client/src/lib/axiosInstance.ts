@@ -11,6 +11,15 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
+        // Let the browser set multipart/form-data with its boundary. Keeping
+        // the JSON default here causes Multer to receive no `file` part.
+        if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+            if (typeof config.headers.delete === 'function') {
+                config.headers.delete('Content-Type');
+            } else {
+                delete config.headers['Content-Type'];
+            }
+        }
         const token = storage.get(STORAGE_KEYS.token);
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;

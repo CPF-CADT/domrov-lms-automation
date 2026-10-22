@@ -169,7 +169,7 @@ def build_directory_json(directory: Path, checker: IgnoreChecker) -> Union[Dict,
 
 
 if __name__ == "__main__":
-    base_path = Path("./files_cache/35")  # Replace with your folder path
+    base_path = Path(os.getenv("LOCAL_FILE_ROOT", "/data/files")) / "evaluation-cache" / "35"
     user_exclude = ["models/", "examples/"]  # Optional extra exclude patterns
     user_include = [
         "src/main.ts",

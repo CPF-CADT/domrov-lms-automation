@@ -1,83 +1,97 @@
 import os
-import sys
 from time import sleep
 
 import grpc
-from rq import Queue, get_current_job, Retry
+from rq import Queue, get_current_job
 from rq.registry import ScheduledJobRegistry
 
 from ai.llm.base import AIModel
 from ai.llm.evaluation import evaluate
-from utils.normalize_ai_scores_auto import normalize_ai_scores_auto
-from utils.custom_exception import InputTokenLimited
 from config.grpc_config import EvaluateClient
 from config.redis_connection import RedisSingleton
+from utils.custom_exception import InputTokenLimited
+from utils.normalize_ai_scores_auto import normalize_ai_scores_auto
+from utils.structured_logging import event
+
+
+LOCK_TIMEOUT_SECONDS = int(os.getenv("EVALUATION_LOCK_TIMEOUT_SECONDS", str(6 * 60 * 60)))
+
+
+def _remove_job(registry, job):
+    if job is not None:
+        registry.remove(job)
 
 
 def process_submission(submission_id: str):
-    client = EvaluateClient()
-    print(f"Processing submission {submission_id} in PID {os.getpid()}")
-
     redis_conn = RedisSingleton.get_instance()
-    q = Queue("submission_queue", connection=redis_conn)
+    queue = Queue("submission_queue", connection=redis_conn)
     job = get_current_job(connection=redis_conn)
-    registry = ScheduledJobRegistry(queue=q)
+    registry = ScheduledJobRegistry(queue=queue)
+    lock = redis_conn.lock(
+        f"evaluation:submission:{submission_id}",
+        timeout=LOCK_TIMEOUT_SECONDS,
+        blocking_timeout=0,
+    )
+
+    if not lock.acquire(blocking=False):
+        print(f"Skipping duplicate evaluation job for submission {submission_id}")
+        _remove_job(registry, job)
+        return
 
     try:
-        # ---- gRPC fetch ----
+        _process_submission_locked(submission_id, registry, job)
+    finally:
+        if lock.owned():
+            lock.release()
+
+
+def _process_submission_locked(submission_id: str, registry, job):
+    client = EvaluateClient()
+    event("evaluation_start", "processing submission", submission_id=str(submission_id), pid=os.getpid())
+
+    try:
         submission = client.get_submission_content(submission_id)
-        print(f"Fetched submission: {submission}")
+        event("evaluation_start", "submission metadata fetched", submission_id=str(submission_id))
 
         if submission is None:
-            print(f"Submission {submission_id} not found, removing job")
-            job.delete()
+            print(f"Submission {submission_id} not found")
+            _remove_job(registry, job)
             return
 
-        submission_url = submission.get("resource_url")
-        submission_rubric = submission.get("rubric")
         ai_info = submission.get("ai") or {}
-        user_include_files = submission.get("user_include_files")
-        user_exclude_files = submission.get("user_exclude_files")
-        print(user_exclude_files, user_include_files)
-
-        # SYSTEM MODE
         provider_raw = (ai_info.get("provider") or "").lower()
 
         if provider_raw == "domrov":
-            print("SYSTEM mode detected")
             api_key = None
             api_endpoint = None
             provider = None
             ai_model = AIModel.OLLAMA_GPT_OSS
-
-        # USER MODE
         else:
             api_key = ai_info.get("api_key") or ai_info.get("apiKey")
             api_endpoint = ai_info.get("api_endpoint") or ai_info.get("apiEndpoint")
             provider = provider_raw or None
             ai_model = ai_info.get("model")
-            print(f"USER AI detected: {provider}, model={ai_model}")
 
-        # ---- Evaluation ----
         raw_response = evaluate(
             submission_id=submission_id,
-            resource_url=submission_url,
-            rubrics=submission_rubric,
+            resource_url=submission.get("resource_url", ""),
+            storage_provider=submission.get("storage_provider", ""),
+            storage_key=submission.get("storage_key", ""),
+            checksum=submission.get("checksum", ""),
+            external_url=submission.get("external_url", ""),
+            rubrics=submission.get("rubric", []),
             ai_model=ai_model,
             api_key=api_key,
             api_endpoint=api_endpoint,
             provider=provider,
-            user_exclude_files=user_exclude_files,
-            user_include_files=user_include_files
+            user_exclude_files=submission.get("user_exclude_files"),
+            user_include_files=submission.get("user_include_files"),
         )
-
-        print(f"Raw evaluation response: {raw_response}")
 
         evaluation_data = raw_response.get("result", {})
         ai_scores = evaluation_data.get("scores", [])
         ai_feedback = evaluation_data.get("feedback", "")
-
-        actual_scores = normalize_ai_scores_auto(submission_rubric, ai_scores)
+        actual_scores = normalize_ai_scores_auto(submission.get("rubric", []), ai_scores)
 
         response = client.evaluate_submission(
             submission_id=submission_id,
@@ -86,56 +100,30 @@ def process_submission(submission_id: str):
             input_token=raw_response.get("input_tokens", 0),
             output_token=raw_response.get("output_tokens", 0),
         )
-
         print(f"Evaluation response: {response}")
         sleep(5)
 
-    except grpc.RpcError as e:
-        code = e.code()
-        details = e.details() or "no details"
+    except grpc.RpcError as error:
+        code = error.code()
+        print(f"gRPC error [{code.name}]: {error.details() or 'no details'}")
+        if code in (grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.DEADLINE_EXCEEDED, grpc.StatusCode.INTERNAL):
+            raise
+        _remove_job(registry, job)
 
-        print(f"gRPC error [{code.name}]: {details}")
+    except InputTokenLimited as error:
+        _remove_job(registry, job)
+        print(f"Submission {submission_id} failed (token limit): {error}")
 
-        if code in (
-            grpc.StatusCode.UNAVAILABLE,       # server down, network issue
-            grpc.StatusCode.DEADLINE_EXCEEDED, # timeout
-            grpc.StatusCode.INTERNAL,          # often transient on server
-        ):
-            print("Transient gRPC/network error will retry")
-            raise 
-
-        elif code in (
-            grpc.StatusCode.UNAUTHENTICATED,   # bad/expired/no token
-            grpc.StatusCode.PERMISSION_DENIED, # forbidden / invalid credentials
-            grpc.StatusCode.INVALID_ARGUMENT,  # malformed token / bad auth
-        ):
-            print("Auth / token problem permanent fail")
-            registry.remove(job)
-        else:
-            registry.remove(job)
-            print(f"Non-retryable gRPC code failed")
-
-    except InputTokenLimited as itl:
-        registry.remove(job)
-        print(f"Submission {submission_id} failed (token limit): {itl}")
-
-    except (ValueError, RuntimeError) as e:  
-        msg = str(e).lower()
+    except (ValueError, RuntimeError) as error:
+        message = str(error).lower()
         auth_keywords = ["token expired", "invalid token", "unauthorized", "api key", "authentication"]
-        
-        if any(kw in msg for kw in auth_keywords):
-            print(f"ERROR: [Submission: {submission_id}] [Model: {ai_model}] Permanent Auth Fail: {e}")
-            registry.remove(job)
+        _remove_job(registry, job)
+        if any(keyword in message for keyword in auth_keywords):
+            print(f"Permanent authentication failure for submission {submission_id}: {error}")
         else:
-            print(f"ERROR: [Submission: {submission_id}] [Model: {ai_model}] Transient LLM error: {e}")
-            registry.remove(job)
             raise
 
-    except Exception as e:
-        code = getattr(e, "code", None) or getattr(getattr(e, "error", {}), "code", None)
-        if code is not None and str(code).isdigit() and int(code) >= 400:
-            registry.remove(job)
-            print(f"ERROR: [Submission: {submission_id}] [Model: {ai_model}] Fatal Exception (Code {code}): {e}")
-        else:
-            print(f"ERROR: [Submission: {submission_id}] [Model: {ai_model}] Unexpected Error: {e}")
-            raise
+    except Exception as error:
+        _remove_job(registry, job)
+        event("evaluation_failure", str(error), submission_id=str(submission_id))
+        raise

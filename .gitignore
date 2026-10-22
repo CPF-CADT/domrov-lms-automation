@@ -24,6 +24,8 @@ lerna-debug.log*
 # temp directory
 .temp
 .tmp
+.local-ebs/files/*
+!.local-ebs/files/.gitkeep
 
 # Terraform
 *.tfstate

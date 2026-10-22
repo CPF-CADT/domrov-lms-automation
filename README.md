@@ -128,7 +128,7 @@ DOMROV uses a modern, distributed cloud architecture to deliver scalable, secure
 ### Data Storage
 
 - PostgreSQL (Neon) for relational data storage  
-- Cloudflare R2 for file and submission storage  
+- EBS-mounted local storage for files and submissions, shared by the backend and evaluator
 - Cloudinary for image hosting  
 
 ### AI & Evaluation
@@ -225,10 +225,17 @@ The system follows a distributed architecture composed of:
 
 ### 6. File Handling & Storage
 
-- Cloudflare R2 for secure uploads/downloads  
-- No direct backend streaming  
-- Reduced server load  
-- Secure access control  
+Uploaded files are sent to the authenticated NestJS API and stored as relative
+keys below the shared EBS mount. Permanent files live under `permanent` and
+temporary evaluation workspaces live under `evaluation-cache`; the evaluator
+never downloads active submissions from R2. See
+`docs/local-ebs-storage.md` for limits, permissions, health checks, and the
+legacy-record migration strategy.
+
+- Local EBS storage for authenticated uploads/downloads
+- Backend streams downloads by resource ID
+- Shared permanent/evaluation-cache layout
+- Secure access control and archive extraction limits
 
 ---
 
@@ -302,7 +309,7 @@ domrov-lms-automation/
 | `tasks/` | Background job scheduling (Bull MQ) |
 | `wallet/` | Credits, payments, Stripe integration |
 | `admin/` | User management, analytics, monitoring |
-| `file/` | File uploads to S3, Cloudinary, R2 |
+| `file/` | Local EBS file uploads/downloads and Cloudinary image uploads |
 
 **External Connections:** PostgreSQL DB, Redis cache, Python eval service (gRPC), OpenAI API, AWS S3
 
@@ -403,8 +410,8 @@ domrov-lms-automation/
 📦 DATA STORAGE:
 ├─ PostgreSQL: User, class, assignment data
 ├─ Redis: Caching & job queue
-├─ AWS S3: File uploads
-└─ Cloudinary/R2: Images & CDN
+├─ EBS: Permanent uploads and evaluation cache
+└─ Cloudinary: Images & CDN
 ```
 
 ---
@@ -420,7 +427,7 @@ domrov-lms-automation/
 | **Cloud** | AWS (EC2, RDS, S3, ALB, CloudFront) |
 | **DNS & CDN** | Cloudflare (proxy, DDoS, SSL) |
 | **AI Services** | OpenAI API, Google GenAI, Ollama |
-| **Storage** | AWS S3, Cloudinary, Cloudflare R2 |
+| **Storage** | EBS-mounted local storage, Cloudinary |
 | **Queue** | Bull MQ (Node.js), RQ (Python) |
 | **IPC** | gRPC, REST APIs, WebSocket |
 | **DevOps** | Terraform, Docker, Docker Compose |

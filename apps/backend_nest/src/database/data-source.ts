@@ -66,7 +66,7 @@ export const dataSourceOptions: DataSourceOptions = {
     TeamAssessment,
     Notification
   ],
-  migrations: ['migrations/*.ts'],
+  migrations: [__dirname + '/migrations/*{.ts,.js}'],
 };
 const AppDataSource = new DataSource(dataSourceOptions);
 export default AppDataSource;

@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 FROM python:3.11-alpine
 
 # Install runtime dependencies + timezone
-RUN apk add --no-cache git bash tzdata
+RUN apk add --no-cache git bash tzdata su-exec
 
 # Set timezone to Phnom Penh
 ENV TZ=Asia/Phnom_Penh
@@ -27,16 +27,20 @@ COPY . .
 # Remove dev/debug files that shouldn't be in production
 RUN rm -rf __pycache__ resource/ shared/ .env Dockerfile* .dockerignore .gitignore *.log
 
-# Create cache directory for runtime
-USER root
-RUN mkdir -p /files_cache && chmod -R 777 /files_cache
-
 # Non-root user for security
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER root
+RUN addgroup -S -g 1000 appgroup && adduser -S -u 1000 -G appgroup appuser
 RUN chown -R appuser:appgroup /app
+RUN mkdir -p /data/files/permanent /data/files/evaluation-cache \
+    && chmod 0750 /data/files /data/files/permanent /data/files/evaluation-cache \
+    && chown -R appuser:appgroup /data/files
 
-USER appuser
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod 0750 /usr/local/bin/docker-entrypoint.sh
+
+USER root
 
 EXPOSE 50051
 
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["python", "main.py"]

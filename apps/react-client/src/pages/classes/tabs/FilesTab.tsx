@@ -41,13 +41,6 @@ export default function FilesTab({ classId: _classId }: FilesTabProps) {
     async function fetchData() {
       try {
 
-        await fileService.getPresignedUrl({
-          filename: "example.txt",
-          contentType: "application/pdf",
-          resourceType: "class",
-          resourceId: parseInt(_classId),
-        });
-
         // Simulate folder and file data
         setFolders([{ id: "1", name: "Example Folder", fileCount: 1, type: "folder" }]); // Replace with actual folder data if available
         setFiles([

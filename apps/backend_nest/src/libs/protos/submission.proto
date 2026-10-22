@@ -30,6 +30,10 @@
   // Request to fetch submission content
   message SubmissionResourceResponse {
   string resource_url = 1;
+  string storage_provider = 2;
+  string storage_key = 3;
+  string checksum = 4;
+  string external_url = 5;
   }
   // Request to fetch submission content
   message SubmissionFolderStructureResponse {
@@ -45,6 +49,10 @@
     repeated string user_include_files = 5; // List of rubric criteria
     repeated RubricCriterion rubric = 6; // List of rubric criteria
     AIKeyInfo ai = 7;
+    string storage_provider = 8;
+    string storage_key = 9;
+    string checksum = 10;
+    string external_url = 11;
   }
 
   // Rubric item

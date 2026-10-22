@@ -6,6 +6,7 @@ import { R2Service } from '../../services/r2.service';
 import { Resource } from '../../libs/entities/resource/resource.entity';
 import { CloudinaryService } from '../../services/cloudinary.service';
 import { AssessmentModule } from '../assessment/assessment.module';
+import { LocalStorageService } from '../../services/local-storage.service';
 
 @Module({
   imports: [
@@ -13,7 +14,7 @@ import { AssessmentModule } from '../assessment/assessment.module';
     AssessmentModule
   ],
   controllers: [FileController],
-  providers: [FileService, R2Service,CloudinaryService],
-  exports: [FileService],
+  providers: [FileService, R2Service, CloudinaryService, LocalStorageService],
+  exports: [FileService, LocalStorageService],
 })
 export class FileModule { }

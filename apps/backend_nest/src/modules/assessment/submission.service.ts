@@ -255,6 +255,9 @@ export class SubmissionService {
           if (!resource) {
             throw new BadRequestException(`Resource ${resourceId} not found`);
           }
+          if (resource.owner !== `${userId}`) {
+            throw new ForbiddenException(`You do not own resource ${resourceId}`);
+          }
 
           // Optional GitHub URL enforcement
           if (
@@ -280,6 +283,8 @@ export class SubmissionService {
           type: ResourceType.URL,
           url: dto.githubUrl,
           owner: `${userId}`,
+          storageProvider: 'external',
+          contentType: 'text/uri-list',
         });
         await this.resourceRepo.save(resource);
 
@@ -929,24 +934,7 @@ export class SubmissionService {
     if (!assessment.aiEvaluationEnable)
       throw new NotFoundException('Submission not found');
 
-    const R2_KEY = `${submission.userId}/submission/${submission.id}`;
-    let resourceUrl: string | null = null;
-    if (
-      assessment.allowedSubmissionMethod === SubmissionMethod.ANY ||
-      assessment.allowedSubmissionMethod == SubmissionMethod.ZIP
-    ) {
-      const githubRes = submission.resources?.find(
-        (sr) =>
-          sr.resource.type === ResourceType.URL &&
-          sr.resource.url.includes('github.com'),
-      );
-      resourceUrl = githubRes ? githubRes.resource.url : R2_KEY;
-    } else if (assessment.allowedSubmissionMethod === SubmissionMethod.GITHUB) {
-      const githubRes = submission.resources?.find((sr) =>
-        sr.resource.url.includes('github.com'),
-      );
-      resourceUrl = githubRes ? githubRes.resource.url : null;
-    }
+    const evaluationResource = this.getEvaluationResource(submission);
 
     const rubric = assessment.rubrics.map((r) => ({
       criterion: r.definition,
@@ -961,7 +949,11 @@ export class SubmissionService {
       return {
         submission_id: submission.id.toString(),
         instructions: assessment.instruction,
-        resource_url: resourceUrl,
+        resource_url: evaluationResource.resource_url,
+        storage_provider: evaluationResource.storage_provider,
+        storage_key: evaluationResource.storage_key,
+        checksum: evaluationResource.checksum,
+        external_url: evaluationResource.external_url,
         user_exclude_files: assessment.user_exclude_files,
         user_include_files: assessment.user_include_files,
         rubric,
@@ -990,7 +982,11 @@ export class SubmissionService {
       return {
         submission_id: submission.id.toString(),
         instructions: assessment.instruction,
-        resource_url: resourceUrl,
+        resource_url: evaluationResource.resource_url,
+        storage_provider: evaluationResource.storage_provider,
+        storage_key: evaluationResource.storage_key,
+        checksum: evaluationResource.checksum,
+        external_url: evaluationResource.external_url,
         user_exclude_files: assessment.user_exclude_files,
         user_include_files: assessment.user_include_files,
         rubric,
@@ -1033,28 +1029,41 @@ export class SubmissionService {
 
     if (!submission) throw new NotFoundException('Submission not found');
 
-    const assessment = submission.assessment;
-    const R2_KEY = `${submission.userId ?? `Team${submission.teamId}`}/submission/${submission.id}`;
-    let resourceUrl: string | null = null;
+    return this.getEvaluationResource(submission);
+  }
 
-    if (
-      assessment.allowedSubmissionMethod === SubmissionMethod.ANY ||
-      assessment.allowedSubmissionMethod == SubmissionMethod.ZIP
-    ) {
-      const githubRes = submission.resources?.find(
-        (sr) =>
-          sr.resource.type === ResourceType.URL &&
-          sr.resource.url.includes('github.com'),
-      );
-      resourceUrl = githubRes ? githubRes.resource.url : R2_KEY;
-    } else if (assessment.allowedSubmissionMethod === SubmissionMethod.GITHUB) {
-      const githubRes = submission.resources?.find((sr) =>
-        sr.resource.url.includes('github.com'),
-      );
-      resourceUrl = githubRes ? githubRes.resource.url : null;
+  private getEvaluationResource(submission: Submission) {
+    const githubResource = submission.resources?.find(
+      (sr) => sr.resource?.type === ResourceType.URL && sr.resource.url?.includes('github.com'),
+    )?.resource;
+    const fileResource = submission.resources?.find(
+      (sr) => sr.resource && sr.resource.type !== ResourceType.URL,
+    )?.resource;
+    const selected = submission.assessment.allowedSubmissionMethod === SubmissionMethod.GITHUB
+      ? githubResource
+      : githubResource || fileResource;
+
+    if (!selected) {
+      return {
+        resource_url: null,
+        storage_provider: '',
+        storage_key: '',
+        checksum: '',
+        external_url: '',
+      };
     }
 
-    return { resource_url: resourceUrl };
+    // Legacy rows must be classified by the storage migration. Do not silently
+    // turn an unclassified resource into an R2 evaluation request.
+    const storageProvider = selected.storageProvider || (selected.type === ResourceType.URL ? 'external' : 'unknown');
+    const isExternal = storageProvider === 'external' || selected.type === ResourceType.URL;
+    return {
+      resource_url: selected.url,
+      storage_provider: storageProvider,
+      storage_key: storageProvider === 'local' ? selected.url : '',
+      checksum: selected.checksum || '',
+      external_url: isExternal ? selected.url : '',
+    };
   }
 
   async getSubmissionForTeacher(

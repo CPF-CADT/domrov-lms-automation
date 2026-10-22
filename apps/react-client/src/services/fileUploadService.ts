@@ -1,4 +1,5 @@
 import axiosInstance from '@/lib/AxiosInstance';
+import type { LocalUploadResponse } from '@/types/File';
 
 export interface PresignedUrlResponse {
     presignedUrl: string;
@@ -10,10 +11,7 @@ export interface NotifyUploadPayload {
     filename: string;
 }
 
-export interface UploadResponse {
-    key: string;
-    resourceId?: number;
-}
+export type UploadResponse = LocalUploadResponse;
 
 /**
  * Determine correct MIME type based on file extension
@@ -117,6 +115,31 @@ export async function uploadFileToR2(
     });
 }
 
+/** Upload a file directly through the NestJS local-storage endpoint. */
+export async function uploadFileToLocal(
+    file: File,
+    resourceType: string,
+    resourceId: number,
+    onProgress?: (progress: number) => void
+): Promise<UploadResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('resourceType', resourceType);
+    formData.append('resourceId', resourceId.toString());
+
+    const response = await axiosInstance.post('/file/upload', formData, {
+        onUploadProgress: (event) => {
+            const total = event.total || file.size;
+            if (total > 0) onProgress?.(Math.min(100, Math.round((event.loaded / total) * 100)));
+        },
+    });
+    const data = response.data.data;
+    return {
+        ...data,
+        filename: data.filename ?? data.originalFilename,
+    };
+}
+
 /**
  * Notify backend that file was uploaded to R2
  */
@@ -135,8 +158,15 @@ export async function notifyBackendOfUpload(
     }
 }
 
+/** Create a URL resource. This uses the temporary compatibility endpoint for external links only. */
+export async function createExternalResource(
+    url: string,
+): Promise<{ message: string; resourceId?: number }> {
+    return notifyBackendOfUpload({ key: url, filename: url });
+}
+
 /**
- * Complete file upload flow: get URL -> upload to R2 -> notify backend
+ * Complete file upload flow through local EBS storage.
  */
 export async function uploadFileFlow(
     file: File,
@@ -152,30 +182,10 @@ export async function uploadFileFlow(
     });
 
     try {
-        // Step 1: Get presigned URL with correct content type
-        const contentType = getContentType(file.name);
-        console.log('📋 Content type:', { filename: file.name, detected: contentType });
-
-        const { presignedUrl, key } = await getPresignedUrl(
-            file.name,
-            resourceType,
-            resourceId
-        );
-
-        // Step 2: Upload to R2
-        await uploadFileToR2(file, presignedUrl, onProgress);
-
-        // Step 3: Notify backend and capture resourceId
-        const notifyResponse = await notifyBackendOfUpload({
-            key,
-            filename: file.name,
-        });
-
-        console.log('✅ Upload flow complete:', { key, resourceId: notifyResponse.resourceId });
-        return {
-            key,
-            resourceId: notifyResponse.resourceId,
-        };
+        if (!resourceType || !resourceId) throw new Error('Upload parent type and ID are required');
+        const response = await uploadFileToLocal(file, resourceType, resourceId, onProgress);
+        console.log('✅ Local upload flow complete:', { key: response.key, resourceId: response.resourceId });
+        return response;
     } catch (err: any) {
         console.error('❌ Upload flow failed:', err);
         throw err;
@@ -185,7 +195,9 @@ export async function uploadFileFlow(
 const fileUploadService = {
     getPresignedUrl,
     uploadFileToR2,
+    uploadFileToLocal,
     notifyBackendOfUpload,
+    createExternalResource,
     uploadFileFlow,
 };
 

@@ -29,10 +29,12 @@ import { UserCreditBalance } from './libs/entities/ai/user-credit-balance.entity
 import { HttpModule } from '@nestjs/axios';
 import { UserAiModule } from './modules/user-ai/user-ai.module';
 import { NotificationService } from './services/notification.service';
+import { NotificationModule } from './services/notification.module';
 import { Assessment } from './libs/entities/assessment/assessment.entity';
 import { Notification } from './libs/entities/user/notification.entity';
 import { RateLimiterService } from './services/rate-limiter.service';
 import { AIConnectionTestService } from './services/ai-connection-test.service';
+import { LocalStorageService } from './services/local-storage.service';
 
 @Module({
     imports: [
@@ -50,11 +52,12 @@ import { AIConnectionTestService } from './services/ai-connection-test.service';
         TasksModule,
         AdminModule,
         UserAiModule,
+        NotificationModule,
         HttpModule.register({}),
         TypeOrmModule.forFeature([Payment, CreditPackage, UserCreditBalance, WalletTransaction, Notification, Assessment,]),
     ],
     controllers: [AppController],
-    providers: [AppService, PaymentService, RedisService, PaymentFlowService, PaymentGateway, NotificationService, RateLimiterService, AIConnectionTestService],
+    providers: [AppService, PaymentService, RedisService, PaymentFlowService, PaymentGateway, NotificationService, RateLimiterService, AIConnectionTestService, LocalStorageService],
     exports: [NotificationService],
 })
 export class AppModule { }

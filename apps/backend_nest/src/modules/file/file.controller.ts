@@ -1,10 +1,14 @@
-import { Body, Controller, Get, Param, Post, Query, Res, UseGuards, NotFoundException } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Res, UploadedFile, UseGuards, UseInterceptors, NotFoundException } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags, ApiBody, ApiOkResponse, ApiParam } from '@nestjs/swagger';
 import { UserId } from '../../common/decorators/user.decorator';
 import { FileService } from './file.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import express from 'express';
 import { NotifyUploadDto, PresignedUrlResponseDto, NotifyUploadResponseDto } from '../../libs/dtos/file/file-response.dto';
+import type { FileParentType } from './file.service';
+import { MAX_FILE_SIZE } from '../../libs/const/system';
 
 @ApiTags('Files')
 @ApiBearerAuth('JWT-auth')
@@ -12,6 +16,35 @@ import { NotifyUploadDto, PresignedUrlResponseDto, NotifyUploadResponseDto } fro
 @Controller('file')
 export class FileController {
   constructor(private readonly fileService: FileService) { }
+
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: memoryStorage(),
+    limits: { fileSize: MAX_FILE_SIZE },
+  }))
+  @ApiOperation({ summary: 'Upload a file to local EBS storage' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file', 'resourceType', 'resourceId'],
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        resourceType: { type: 'string', enum: ['module', 'topic', 'assessment', 'class', 'submission'] },
+        resourceId: { type: 'integer' },
+      },
+    },
+  })
+  async upload(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('resourceType') resourceType: FileParentType,
+    @Body('resourceId') resourceId: string,
+    @UserId() userId: number,
+  ) {
+    return {
+      success: true,
+      data: await this.fileService.uploadFile(userId, file, resourceType, Number(resourceId)),
+    };
+  }
 
   /**
    * GET /file/presigned-url?filename=xxx&contentType=yyy&resourceType=module&resourceId=123

@@ -1,5 +1,6 @@
 import os
 import shutil
+from pathlib import Path
 from git import GitCommandError, Repo
 from github import Github
 from urllib.parse import urlparse
@@ -19,7 +20,7 @@ def is_repo_accessible(repo_url: str, token: str = None) -> bool:
 
 
 def clone_repo(repo_url: str, destination: str = None, name=None) -> str:
-    destination = destination or "/files_cache"
+    destination = destination or str(Path(os.getenv("LOCAL_FILE_ROOT", "/data/files")) / "evaluation-cache")
 
     # Normalize repo_url and detect subfolders
     folder_in_repo = ""
@@ -70,5 +71,5 @@ if __name__ == "__main__":
     repo = (
         "https://github.com/Next-Gen-G9/week-2-algorithms-gossip-team/tree/main/utils"
     )
-    path = clone_repo(repo, "/files_cache", "13")
+    path = clone_repo(repo, str(Path(os.getenv("LOCAL_FILE_ROOT", "/data/files")) / "evaluation-cache"), "13")
     print(f"Cloned repository to: {path}")

@@ -125,6 +125,7 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
   });
 
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [teams, setTeams] = useState<TeamResponseDto[]>([]);
   const [teamsError, setTeamsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(!isNewDraft);
@@ -268,7 +269,9 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
   };
 
   const handleFiles = async (files: File[]) => {
+    if (isUploading || files.length === 0) return;
     setIsUploading(true);
+    setUploadProgress(0);
     setError(null);
     setSuccessMessage(null);
     try {
@@ -278,13 +281,13 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
 
       const uploadedFilesList: UploadedFile[] = [];
 
-      for (const file of files) {
+      for (const [index, file] of files.entries()) {
         const uploadResponse = await fileUploadService.uploadFileFlow(
           file,
           resourceType,
           resourceId,
           (progress) => {
-            console.log(`Upload progress for ${file.name}: ${progress}%`);
+            setUploadProgress(Math.round(((index + progress / 100) / files.length) * 100));
           }
         );
 
@@ -306,6 +309,7 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
       setError(error.message || 'Upload failed. Please try again.');
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -316,10 +320,7 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
     setError(null);
     setSuccessMessage(null);
     try {
-      const notifyResponse = await fileUploadService.notifyBackendOfUpload({
-        key: linkInput,
-        filename: linkInput,
-      });
+      const notifyResponse = await fileUploadService.createExternalResource(linkInput);
 
       const newLink: UploadedFile = {
         name: linkInput,
@@ -786,6 +787,7 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
                 type="file"
                 multiple
                 onChange={handleFileInput}
+                disabled={isUploading}
                 className="hidden"
                 accept=".pdf,.docx,.zip,.mp4,.ppt,.pptx"
               />
@@ -799,7 +801,14 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
                 </div>
                 <p className="text-xs text-slate-400 mt-2">SUPPORTED: .PDF, .DOCX, .ZIP, .MP4, .PPT</p>
                 {isUploading && (
-                  <p className="text-sm text-blue-600 font-medium mt-2">Uploading...</p>
+                  <div className="w-full max-w-xs mt-2" aria-live="polite">
+                    <div className="flex justify-between text-xs text-blue-600 font-medium mb-1">
+                      <span>Uploading...</span><span>{uploadProgress}%</span>
+                    </div>
+                    <div className="h-2 bg-blue-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-600 transition-all" style={{ width: `${uploadProgress}%` }} />
+                    </div>
+                  </div>
                 )}
               </div>
             </div>

@@ -20,6 +20,16 @@ export interface NotifyUploadResponseDto {
     message: string;
 }
 
+export interface LocalUploadResponse {
+    resourceId: number;
+    key: string;
+    filename?: string;
+    originalFilename?: string;
+    contentType?: string;
+    size: number;
+    checksum: string;
+}
+
 // Cloudinary types
 export interface CloudinaryPresignedParams {
     signature: string;

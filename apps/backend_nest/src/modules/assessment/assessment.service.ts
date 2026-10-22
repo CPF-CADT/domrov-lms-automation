@@ -1,4 +1,4 @@
-import { BadRequestException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, IsNull, Not, Repository } from 'typeorm';
 
@@ -191,6 +191,9 @@ export class AssessmentService {
             const resource = await manager.findOne(Resource, { where: { id: r.resourceId } });
             if (!resource) {
               throw new BadRequestException(`Resource ${r.resourceId} not found`);
+            }
+            if (resource.owner !== `${context.userId}`) {
+              throw new ForbiddenException(`You do not own resource ${r.resourceId}`);
             }
 
             const exists = assessment.resources?.some((ar) => ar.resource.id === r.resourceId);

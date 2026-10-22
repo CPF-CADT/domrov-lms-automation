@@ -42,6 +42,10 @@ export class UserService {
     private readonly transactionRepo: Repository<WalletTransaction>,   
   ) { }
 
+  async saveUser(user: User): Promise<User> {
+    return this.userRepository.save(user)
+  }
+
   // --- PROFILE METHODS ---
   async getMyProfile(userId: number): Promise<UserProfileResponseDto> {
     if (!userId) throw new BadRequestException('User ID is required')

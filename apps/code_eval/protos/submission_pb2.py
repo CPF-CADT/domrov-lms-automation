@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10submission.proto\x12\nsubmission\"1\n\x18SubmissionContentRequest\x12\x15\n\rsubmission_id\x18\x01 \x01(\t\"2\n\x19SubmissionResourceRequest\x12\x15\n\rsubmission_id\x18\x01 \x01(\t\"2\n\x1aSubmissionResourceResponse\x12\x14\n\x0cresource_url\x18\x01 \x01(\t\"=\n!SubmissionFolderStructureResponse\x12\x18\n\x10\x66older_structure\x18\x01 \x01(\t\"\xe6\x01\n\x19SubmissionContentResponse\x12\x15\n\rsubmission_id\x18\x01 \x01(\t\x12\x14\n\x0cinstructions\x18\x02 \x01(\t\x12\x14\n\x0cresource_url\x18\x03 \x01(\t\x12\x1a\n\x12user_exclude_files\x18\x04 \x03(\t\x12\x1a\n\x12user_include_files\x18\x05 \x03(\t\x12+\n\x06rubric\x18\x06 \x03(\x0b\x32\x1b.submission.RubricCriterion\x12!\n\x02\x61i\x18\x07 \x01(\x0b\x32\x15.submission.AIKeyInfo\"4\n\x0fRubricCriterion\x12\x11\n\tcriterion\x18\x01 \x01(\t\x12\x0e\n\x06weight\x18\x02 \x01(\x05\"b\n\tAIKeyInfo\x12\x10\n\x08provider\x18\x01 \x01(\t\x12\x0f\n\x07\x61pi_key\x18\x02 \x01(\t\x12\x14\n\x0c\x61pi_endpoint\x18\x03 \x01(\t\x12\r\n\x05model\x18\x04 \x01(\t\x12\r\n\x05label\x18\x05 \x01(\t\"=\n\x11SubmissionRequest\x12\x15\n\rsubmission_id\x18\x01 \x01(\t\x12\x11\n\tfile_path\x18\x02 \x01(\t\"]\n\x12SubmissionResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12%\n\x04\x66ile\x18\x03 \x01(\x0b\x32\x17.submission.FileContent\"H\n\x0b\x46ileContent\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0c\n\x04path\x18\x03 \x01(\t\x12\x0f\n\x07\x63ontent\x18\x04 \x03(\t2\xa3\x03\n\x11SubmissionService\x12R\n\x11ProcessSubmission\x12\x1d.submission.SubmissionRequest\x1a\x1e.submission.SubmissionResponse\x12\\\n\rGetSubmission\x12$.submission.SubmissionContentRequest\x1a%.submission.SubmissionContentResponse\x12\x66\n\x15GetSubmissionResource\x12%.submission.SubmissionResourceRequest\x1a&.submission.SubmissionResourceResponse\x12t\n\x1cGetSubmissionFolderStructure\x12%.submission.SubmissionResourceRequest\x1a-.submission.SubmissionFolderStructureResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10submission.proto\x12\nsubmission\"1\n\x18SubmissionContentRequest\x12\x15\n\rsubmission_id\x18\x01 \x01(\t\"2\n\x19SubmissionResourceRequest\x12\x15\n\rsubmission_id\x18\x01 \x01(\t\"\x89\x01\n\x1aSubmissionResourceResponse\x12\x14\n\x0cresource_url\x18\x01 \x01(\t\x12\x18\n\x10storage_provider\x18\x02 \x01(\t\x12\x13\n\x0bstorage_key\x18\x03 \x01(\t\x12\x10\n\x08\x63hecksum\x18\x04 \x01(\t\x12\x14\n\x0c\x65xternal_url\x18\x05 \x01(\t\"=\n!SubmissionFolderStructureResponse\x12\x18\n\x10\x66older_structure\x18\x01 \x01(\t\"\xbd\x02\n\x19SubmissionContentResponse\x12\x15\n\rsubmission_id\x18\x01 \x01(\t\x12\x14\n\x0cinstructions\x18\x02 \x01(\t\x12\x14\n\x0cresource_url\x18\x03 \x01(\t\x12\x1a\n\x12user_exclude_files\x18\x04 \x03(\t\x12\x1a\n\x12user_include_files\x18\x05 \x03(\t\x12+\n\x06rubric\x18\x06 \x03(\x0b\x32\x1b.submission.RubricCriterion\x12!\n\x02\x61i\x18\x07 \x01(\x0b\x32\x15.submission.AIKeyInfo\x12\x18\n\x10storage_provider\x18\x08 \x01(\t\x12\x13\n\x0bstorage_key\x18\t \x01(\t\x12\x10\n\x08\x63hecksum\x18\n \x01(\t\x12\x14\n\x0c\x65xternal_url\x18\x0b \x01(\t\"4\n\x0fRubricCriterion\x12\x11\n\tcriterion\x18\x01 \x01(\t\x12\x0e\n\x06weight\x18\x02 \x01(\x05\"b\n\tAIKeyInfo\x12\x10\n\x08provider\x18\x01 \x01(\t\x12\x0f\n\x07\x61pi_key\x18\x02 \x01(\t\x12\x14\n\x0c\x61pi_endpoint\x18\x03 \x01(\t\x12\r\n\x05model\x18\x04 \x01(\t\x12\r\n\x05label\x18\x05 \x01(\t\"=\n\x11SubmissionRequest\x12\x15\n\rsubmission_id\x18\x01 \x01(\t\x12\x11\n\tfile_path\x18\x02 \x01(\t\"]\n\x12SubmissionResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12%\n\x04\x66ile\x18\x03 \x01(\x0b\x32\x17.submission.FileContent\"H\n\x0b\x46ileContent\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0c\n\x04path\x18\x03 \x01(\t\x12\x0f\n\x07\x63ontent\x18\x04 \x03(\t2\xa3\x03\n\x11SubmissionService\x12R\n\x11ProcessSubmission\x12\x1d.submission.SubmissionRequest\x1a\x1e.submission.SubmissionResponse\x12\\\n\rGetSubmission\x12$.submission.SubmissionContentRequest\x1a%.submission.SubmissionContentResponse\x12\x66\n\x15GetSubmissionResource\x12%.submission.SubmissionResourceRequest\x1a&.submission.SubmissionResourceResponse\x12t\n\x1cGetSubmissionFolderStructure\x12%.submission.SubmissionResourceRequest\x1a-.submission.SubmissionFolderStructureResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,22 +35,22 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_SUBMISSIONCONTENTREQUEST']._serialized_end=81
   _globals['_SUBMISSIONRESOURCEREQUEST']._serialized_start=83
   _globals['_SUBMISSIONRESOURCEREQUEST']._serialized_end=133
-  _globals['_SUBMISSIONRESOURCERESPONSE']._serialized_start=135
-  _globals['_SUBMISSIONRESOURCERESPONSE']._serialized_end=185
-  _globals['_SUBMISSIONFOLDERSTRUCTURERESPONSE']._serialized_start=187
-  _globals['_SUBMISSIONFOLDERSTRUCTURERESPONSE']._serialized_end=248
-  _globals['_SUBMISSIONCONTENTRESPONSE']._serialized_start=251
-  _globals['_SUBMISSIONCONTENTRESPONSE']._serialized_end=481
-  _globals['_RUBRICCRITERION']._serialized_start=483
-  _globals['_RUBRICCRITERION']._serialized_end=535
-  _globals['_AIKEYINFO']._serialized_start=537
-  _globals['_AIKEYINFO']._serialized_end=635
-  _globals['_SUBMISSIONREQUEST']._serialized_start=637
-  _globals['_SUBMISSIONREQUEST']._serialized_end=698
-  _globals['_SUBMISSIONRESPONSE']._serialized_start=700
-  _globals['_SUBMISSIONRESPONSE']._serialized_end=793
-  _globals['_FILECONTENT']._serialized_start=795
-  _globals['_FILECONTENT']._serialized_end=867
-  _globals['_SUBMISSIONSERVICE']._serialized_start=870
-  _globals['_SUBMISSIONSERVICE']._serialized_end=1289
+  _globals['_SUBMISSIONRESOURCERESPONSE']._serialized_start=136
+  _globals['_SUBMISSIONRESOURCERESPONSE']._serialized_end=273
+  _globals['_SUBMISSIONFOLDERSTRUCTURERESPONSE']._serialized_start=275
+  _globals['_SUBMISSIONFOLDERSTRUCTURERESPONSE']._serialized_end=336
+  _globals['_SUBMISSIONCONTENTRESPONSE']._serialized_start=339
+  _globals['_SUBMISSIONCONTENTRESPONSE']._serialized_end=656
+  _globals['_RUBRICCRITERION']._serialized_start=658
+  _globals['_RUBRICCRITERION']._serialized_end=710
+  _globals['_AIKEYINFO']._serialized_start=712
+  _globals['_AIKEYINFO']._serialized_end=810
+  _globals['_SUBMISSIONREQUEST']._serialized_start=812
+  _globals['_SUBMISSIONREQUEST']._serialized_end=873
+  _globals['_SUBMISSIONRESPONSE']._serialized_start=875
+  _globals['_SUBMISSIONRESPONSE']._serialized_end=968
+  _globals['_FILECONTENT']._serialized_start=970
+  _globals['_FILECONTENT']._serialized_end=1042
+  _globals['_SUBMISSIONSERVICE']._serialized_start=1045
+  _globals['_SUBMISSIONSERVICE']._serialized_end=1464
 # @@protoc_insertion_point(module_scope)
