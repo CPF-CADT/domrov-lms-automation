@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { STORAGE_KEYS, storage } from '@/lib/Storage';
 import { useNavigate } from 'react-router-dom';
+import AppLoadingScreen from '@/components/feedback/AppLoadingScreen';
 
 export default function OAuthCallback() {
     const navigate = useNavigate();
@@ -76,42 +77,10 @@ export default function OAuthCallback() {
     }, [navigate]);
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-purple-600 to-purple-800">
-            <div className="text-center">
-                {status === 'loading' && (
-                    <>
-                        <div className="inline-flex items-center justify-center w-12 h-12 mb-4 border-4 border-white rounded-full border-t-transparent animate-spin"></div>
-                        <h2 className="mb-2 text-2xl font-semibold text-white">Completing Login</h2>
-                        <p className="text-purple-100">Please wait while we authenticate you...</p>
-                    </>
-                )}
-
-                {status === 'success' && (
-                    <>
-                        <div className="inline-flex items-center justify-center w-12 h-12 mb-4 bg-green-500 rounded-full">
-                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                        </div>
-                        <h2 className="mb-2 text-2xl font-semibold text-white">Login Successful</h2>
-                        <p className="text-purple-100">Redirecting to dashboard...</p>
-                    </>
-                )}
-
-                {status === 'error' && (
-                    <>
-                        <div className="inline-flex items-center justify-center w-12 h-12 mb-4 bg-red-500 rounded-full">
-                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </div>
-                        <h2 className="mb-2 text-2xl font-semibold text-white">Authentication Failed</h2>
-                        <p className="mb-4 font-mono text-sm text-red-200">{errorMessage}</p>
-                        <p className="text-sm text-purple-200">Check console (F12) for more details</p>
-                        <p className="mt-2 text-sm text-purple-200">Redirecting to login in 3 seconds...</p>
-                    </>
-                )}
-            </div>
-        </div>
+        <AppLoadingScreen
+            variant="google"
+            status={status}
+            detail={status === 'error' ? `${errorMessage} Redirecting to login in 3 seconds...` : undefined}
+        />
     );
 }

@@ -1,20 +1,21 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
 import {
-  ChevronLeftIcon,
-  MoreVerticalIcon,
-  GraduationCapIcon,
-  TvIcon
-} from "./Icons";
-import { AiOutlineTeam } from "react-icons/ai";
+  BookOpen,
+  ChevronDown,
+  ChevronLeft,
+  LayoutDashboard,
+  Menu,
+  Users,
+  UsersRound,
+  X,
+} from "lucide-react";
 import { routes } from "@/lib/routes";
 import { useMyClasses } from "@/hooks/useMyClasses";
 
-
-
-type TabId = "general" | "assignment" | "posts" | "students" | "teams" | "files" | "grades";
+type TabId = "general" | "assignment" | "posts" | "students" | "teams" | "files";
 
 interface ClassSidebarProps {
   classId: string;
@@ -30,195 +31,209 @@ interface ClassShortcut {
   color: string;
   isActive: boolean;
   memberCount?: number;
-  assessmentCount?: number;
-  coverImageUrl?: string;
-  status?: string;
-  owner?: any;
   role?: string;
-  joinCode?: string;
-  createdAt?: Date | string;
 }
 
-const COLORS = ["bg-orange-500", "bg-blue-500", "bg-green-500", "bg-purple-500", "bg-pink-500", "bg-indigo-500", "bg-red-500", "bg-cyan-500"];
+const COLORS = [
+  "bg-orange-500",
+  "bg-blue-500",
+  "bg-green-500",
+  "bg-purple-500",
+  "bg-pink-500",
+  "bg-indigo-500",
+  "bg-red-500",
+  "bg-cyan-500",
+];
 
-/**
- * Generate smart badge from class name
- * Examples: "Web Developer" → "WD", "Function" → "F", "AI Fundamentals" → "AI"
- */
 const generateBadge = (className: string): string => {
-  const words = className.trim().split(/\s+/).filter(w => w.length > 0);
-  
+  const words = className.trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return "CLS";
-  if (words.length === 1) {
-    // Single word: take first letter + next consonant or just first char
-    const word = words[0];
-    if (word.length === 1) return word.toUpperCase();
-    return word.substring(0, 2).toUpperCase();
-  }
-  
-  // Multiple words: take first letter of each word (max 4 chars)
-  const abbreviation = words.slice(0, 4).map(w => w[0]).join("").toUpperCase();
-  return abbreviation.substring(0, 4);
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return words.slice(0, 4).map((word) => word[0]).join("").toUpperCase();
 };
 
-/**
- * ClassSidebar - Left sidebar navigation for class dashboard.
- * Shows class info and quick access to all classes, plus navigation items.
- */
+const tabConfig: Array<{ id: TabId; icon: typeof LayoutDashboard; label: string }> = [
+  { id: "general", icon: LayoutDashboard, label: "General" },
+  { id: "assignment", icon: BookOpen, label: "Assignments" },
+  { id: "students", icon: Users, label: "Students" },
+  { id: "teams", icon: UsersRound, label: "Teams" },
+];
 
-export default function ClassSidebar({ classId, allowedTabs}: ClassSidebarProps) {
+function getActiveTab(pathname: string): TabId {
+  const pathTab = pathname.split("/").filter(Boolean).at(-1);
+  return (pathTab === "assignments" ? "assignment" : pathTab ?? "general") as TabId;
+}
+
+/**
+ * Single class navigation column shared by teacher and student class pages.
+ * The old narrow class shortcut rail and the second module sidebar are now
+ * represented by one responsive navigation surface.
+ */
+export default function ClassSidebar({ classId, allowedTabs, role }: ClassSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const pathTab = location.pathname.split("/").filter(Boolean).at(-1);
-  const activeTab: TabId = (pathTab === "assignments" ? "assignment" : pathTab ?? "general") as TabId;
-  const [userClasses, setUserClasses] = useState<ClassShortcut[]>([]);
-  const [currentClass, setCurrentClass] = useState<ClassShortcut | null>(null);
   const { classes } = useMyClasses();
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isClassMenuOpen, setIsClassMenuOpen] = useState(false);
 
-  // Transform the shared class resource into sidebar shortcuts.
+  const userClasses: ClassShortcut[] = classes.map((currentClass, index) => ({
+    ...currentClass,
+    id: Number(currentClass.id),
+    badge: generateBadge(currentClass.name),
+    color: COLORS[index % COLORS.length],
+    isActive: Number(currentClass.id) === Number(classId),
+    description: currentClass.description || "",
+  }));
+
+  const currentClass = userClasses.find((item) => item.isActive) ?? userClasses[0];
+  const activeTab = getActiveTab(location.pathname);
+  const visibleTabs = tabConfig.filter((tab) => !allowedTabs || allowedTabs.includes(tab.id));
+  const roleLabel = role === "Teacher" || role === "TeacherAssistant" ? "Teacher view" : "Student view";
+
   useEffect(() => {
-        const classShortcuts: ClassShortcut[] = classes.map((c, index) => {
-          const badge = generateBadge(c.name);
-          const color = COLORS[index % COLORS.length];
-          
-          return {
-            ...c,
-            id: Number(c.id),
-            badge,
-            color,
-            isActive: Number(c.id) === Number(classId),
-            description: c.description || '',
-          };
-        });
+    setIsMobileOpen(false);
+    setIsClassMenuOpen(false);
+  }, [location.pathname]);
 
-        setUserClasses(classShortcuts);
-        const currentClassData = classShortcuts.find(c => Number(c.id) === Number(classId));
-        setCurrentClass(currentClassData ?? null);
-  }, [classes, classId]);
+  const navigateToTab = (tab: TabId) => {
+    const destination = tab === "general"
+      ? routes.classGeneral(classId)
+      : tab === "assignment"
+        ? routes.classAssignments(classId)
+        : tab === "students"
+          ? routes.classStudents(classId)
+          : tab === "teams"
+            ? routes.classTeams(classId)
+            : routes.classGeneral(classId);
 
-  const handleBackToDashboard = () => {
-    navigate("/dashboard");
+    navigate(destination);
   };
 
   const handleSwitchClass = (newClassId: string | number) => {
     navigate(routes.classGeneral(newClassId));
   };
 
-  // All possible nav items
-  const allNavItems = [
-    { id: "general" as TabId, icon: TvIcon, label: "General" },
-    { id: "assignment" as TabId, icon: GraduationCapIcon, label: "Assignment" },
-    { id: "teams" as TabId, icon: AiOutlineTeam, label: "Teams" },
-    { id: "students" as TabId, icon: GraduationCapIcon, label: "Students" },
-    { id: "grades" as TabId, icon: TvIcon, label: "Grades" },
-  ];
-  // Only show allowed tabs
-  const navItems = allowedTabs
-    ? allNavItems.filter(item => allowedTabs.includes(item.id))
-    : allNavItems;
+  const sidebarContent = (
+    <>
+      <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+        <button
+          type="button"
+          onClick={() => navigate("/dashboard")}
+          className="flex items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          <span>All classes</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsMobileOpen(false)}
+          className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 lg:hidden"
+          aria-label="Close class navigation"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
 
-  // Get current class for header display
-  const headerClass = currentClass || (userClasses.length > 0 ? userClasses[0] : null);
-
-  return (
-    <div className="flex h-screen">
-      {/* Left Sidebar: Class List - Quick Access */}
-      <aside className="flex flex-col w-24 bg-white border-r text-slate-900 border-slate-200">
-        {/* Navigator Button */}
-        <div className="border-b border-slate-200">
+      <div className="border-b border-slate-200 p-5">
+        <div className="relative">
           <button
-            onClick={handleBackToDashboard}
-            className="w-full p-6 transition-colors duration-150 hover:bg-slate-100 group"
-            title="Back to Dashboard"
+            type="button"
+            onClick={() => setIsClassMenuOpen((open) => !open)}
+            className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left transition-colors hover:border-slate-300 hover:bg-slate-50"
+            aria-expanded={isClassMenuOpen}
           >
-            <ChevronLeftIcon className="w-5 h-5 mx-auto transition-colors duration-150 text-slate-400 group-hover:text-slate-600" />
-          </button>
-        </div>
-
-        {/* Class Shortcuts */}
-        <div className="flex-1 py-3 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
-          {userClasses.map((classItem) => (
-            <button
-              key={classItem.id}
-              onClick={() => handleSwitchClass(classItem.id)}
-              className={`w-full p-4 transition-colors duration-150 relative ${classItem.isActive ? "" : "hover:bg-slate-50"
-                }`}
-              title={classItem.name}
-            >
-              <div className={`w-14 h-14 ${classItem.color} rounded-xl mx-auto shadow-sm grid place-items-center ${classItem.isActive
-                  ? "ring-2 ring-slate-400 ring-offset-2 ring-offset-white"
-                  : "opacity-70 hover:opacity-100 transition-opacity duration-150"
-                }`}>
-                <span className="text-white font-bold text-[0.75rem] leading-tight text-center w-full px-1 line-clamp-2">{classItem.badge}</span>
-              </div>
-              {classItem.isActive && (
-                <div className="absolute left-0 w-1 h-10 -translate-y-1/2 rounded-r bg-slate-400 top-1/2"></div>
-              )}
-            </button>
-          ))}
-        </div>
-      </aside>
-
-      {/* Right Sidebar: Module Navigation */}
-      <aside className="flex flex-col border-r w-72 bg-slate-50 text-slate-900 border-slate-200">
-        {/* Class Header */}
-        {headerClass && (
-          <div className="p-5 border-b border-slate-200">
-            <div className="flex items-center gap-3">
-              <div className={`flex items-center justify-center w-12 h-12 ${headerClass.color} rounded-xl shrink-0`}>
-                <span className="px-1 text-xs font-bold text-center text-white line-clamp-2">{headerClass.badge}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-semibold leading-tight truncate text-slate-900">{headerClass.name}</h3>
-                <div className="flex items-center justify-between mt-1">
-                  <p className="text-xs text-slate-500">{(headerClass as any).memberCount || 0} members</p>
-                  <span className={`text-xs font-semibold px-2 py-1 rounded ${
-                    headerClass.role === "Teacher" || headerClass.role === "Instructor"
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-green-100 text-green-700"
-                  }`}>
-                    {headerClass.role === "Teacher" || headerClass.role === "Instructor" ? "My Class" : "Member"}
-                  </span>
-                </div>
-              </div>
-              <button className="p-2 transition-colors duration-150 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200">
-                <MoreVerticalIcon className="w-4 h-4" />
-              </button>
+            <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${currentClass?.color ?? "bg-blue-500"}`}>
+              <span className="px-1 text-center text-xs font-bold leading-tight text-white">
+                {currentClass?.badge ?? "CLS"}
+              </span>
             </div>
-          </div>
-        )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-slate-900">
+                {currentClass?.name ?? "Current class"}
+              </p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                {currentClass?.memberCount ?? 0} members · {roleLabel}
+              </p>
+            </div>
+            <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${isClassMenuOpen ? "rotate-180" : ""}`} />
+          </button>
 
-        {/* Module Navigation */}
-        <nav className="flex-1 py-2 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
+          {isClassMenuOpen && (
+            <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+              {userClasses.map((classItem) => (
+                <button
+                  key={classItem.id}
+                  type="button"
+                  onClick={() => handleSwitchClass(classItem.id)}
+                  className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors ${classItem.isActive ? "bg-blue-50" : "hover:bg-slate-50"}`}
+                >
+                  <div className={`grid h-8 w-8 place-items-center rounded-lg ${classItem.color}`}>
+                    <span className="text-[10px] font-bold text-white">{classItem.badge}</span>
+                  </div>
+                  <span className="truncate text-sm font-medium text-slate-700">{classItem.name}</span>
+                </button>
+              ))}
+              {userClasses.length === 0 && (
+                <p className="px-3 py-2 text-sm text-slate-500">No classes available.</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
+      <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Class navigation">
+        <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+          Class workspace
+        </p>
+        <div className="space-y-1">
+          {visibleTabs.map(({ id, icon: Icon, label }) => {
+            const isActive = activeTab === id;
             return (
               <button
-                key={item.id}
-                onClick={() => navigate(
-                  item.id === "general" ? routes.classGeneral(classId)
-                    : item.id === "assignment" ? routes.classAssignments(classId)
-                      : item.id === "students" ? routes.classStudents(classId)
-                        : item.id === "teams" ? routes.classTeams(classId)
-                          : routes.classGrades(classId)
-                )}
-                className={`w-full flex items-center gap-3 px-5 py-3 transition-colors duration-150 relative ${isActive
-                    ? "bg-blue-50 text-blue-600"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                key={id}
+                type="button"
+                onClick={() => navigateToTab(id)}
+                aria-current={isActive ? "page" : undefined}
+                className={`relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${isActive
+                  ? "bg-blue-50 font-semibold text-blue-700"
+                  : "font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                   }`}
               >
-                {isActive && (
-                  <div className="absolute top-0 bottom-0 left-0 w-1 bg-blue-600 rounded-r"></div>
-                )}
-                <Icon className={`w-5 h-5 shrink-0 ${isActive ? "text-blue-600" : "text-slate-400"}`} />
-                <span className={`text-sm ${isActive ? "font-semibold" : "font-medium"}`}>{item.label}</span>
+                {isActive && <span className="absolute inset-y-1.5 left-0 w-1 rounded-r-full bg-blue-600" />}
+                <Icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? "text-blue-600" : "text-slate-400"}`} />
+                <span>{label}</span>
               </button>
             );
           })}
-        </nav>
+        </div>
+      </nav>
+
+    </>
+  );
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setIsMobileOpen(true)}
+        className="fixed left-4 top-4 z-30 rounded-lg border border-slate-200 bg-white p-2.5 text-slate-600 shadow-sm lg:hidden"
+        aria-label="Open class navigation"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
+      {isMobileOpen && (
+        <button
+          type="button"
+          aria-label="Close class navigation overlay"
+          onClick={() => setIsMobileOpen(false)}
+          className="fixed inset-0 z-40 bg-slate-900/30 lg:hidden"
+        />
+      )}
+
+      <aside className={`fixed inset-y-0 left-0 z-50 flex w-[min(84vw,280px)] flex-col border-r border-slate-200 bg-white shadow-xl transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:w-[260px] lg:shrink-0 lg:shadow-none ${isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
+        {sidebarContent}
       </aside>
-    </div>
+    </>
   );
 }

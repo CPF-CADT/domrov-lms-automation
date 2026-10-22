@@ -1,79 +1,52 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import {
-  ClipboardIcon,
-  UsersIcon,
-} from "./Icons";
+import { BookOpen, LayoutDashboard, Users, UsersRound } from "lucide-react";
 import { useLocation } from "react-router-dom";
 
-type TabId = "general" | "assignment" | "posts" | "students" | "teams" | "files" | "grades";
+type TabId = "general" | "assignment" | "posts" | "students" | "teams" | "files";
 
 interface ClassTabsProps {
   allowedTabs?: TabId[];
   role?: string;
 }
 
-/**
- * ClassTabs - Top navigation bar with tab title, search, and actions.
- * Displays the current tab and provides quick actions.
- */
-// Accept allowedTabs and role props
+const allTabs: Array<{ id: TabId; label: string; icon: typeof LayoutDashboard }> = [
+  { id: "general", label: "General", icon: LayoutDashboard },
+  { id: "assignment", label: "Assignments", icon: BookOpen },
+  { id: "students", label: "Students", icon: Users },
+  { id: "teams", label: "Teams", icon: UsersRound },
+];
+
+function getActiveTab(pathname: string): TabId {
+  const pathTab = pathname.split("/").filter(Boolean).at(-1);
+  return (pathTab === "assignments" ? "assignment" : pathTab ?? "general") as TabId;
+}
+
+/** Compact page header for the single-sidebar class layout. */
 export default function ClassTabs({ allowedTabs }: ClassTabsProps) {
   const location = useLocation();
-  const pathTab = location.pathname.split("/").filter(Boolean).at(-1);
-  const activeTab: TabId = (pathTab === "assignments" ? "assignment" : pathTab ?? "general") as TabId;
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
-      }
-    }
-
-    if (isMenuOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [isMenuOpen]);
-
-  // All possible tabs
-  const allTabs: { id: TabId; label: string; icon: any }[] = [
-    { id: "general", label: "General", icon: ClipboardIcon },
-    { id: "assignment", label: "Assignment", icon: ClipboardIcon },
-    { id: "students", label: "Students", icon: UsersIcon },
-    { id: "teams", label: "Teams", icon: UsersIcon },
-    { id: "grades", label: "Grades", icon: ClipboardIcon },
-  ];
-  const tabs = allowedTabs
-    ? allTabs.filter(tab => allowedTabs.includes(tab.id))
-    : allTabs;
-
-  const getTabIcon = () => {
-    const found = tabs.find(tab => tab.id === activeTab);
-    return found ? found.icon : ClipboardIcon;
-  };
-
-  const getTabTitle = () => {
-    const found = tabs.find(tab => tab.id === activeTab);
-    return found ? found.label : activeTab.charAt(0).toUpperCase() + activeTab.slice(1);
-  };
-
-  const TabIconComponent = getTabIcon();
+  const activeTab = getActiveTab(location.pathname);
+  const tabs = allTabs.filter((tab) => !allowedTabs || allowedTabs.includes(tab.id));
+  const active = tabs.find((tab) => tab.id === activeTab) ?? tabs[0] ?? allTabs[0];
+  const Icon = active.icon;
 
   return (
-    <header className="bg-white border-b border-slate-200 px-6 py-3.5">
-      <div className="flex items-center justify-between">
-        {/* Tab Title */}
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center justify-center rounded-lg w-9 h-9 bg-linear-to-br from-blue-500 to-purple-600">
-            {TabIconComponent({ className: "w-4 h-4 text-white" })}
+    <header className="border-b border-slate-200 bg-white px-5 py-4">
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="mb-1 text-xs font-medium text-slate-500">
+            Classes <span className="px-1 text-slate-300">/</span> Class workspace
+          </p>
+          <div className="flex items-center gap-3">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-600">
+              <Icon className="h-4 w-4" />
+            </div>
+            <h1 className="truncate text-xl font-semibold text-slate-900">{active.label}</h1>
           </div>
-          <h1 className="text-xl font-semibold text-slate-900">{getTabTitle()}</h1>
         </div>
+        <span className="hidden shrink-0 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 sm:inline-flex">
+          Class workspace
+        </span>
       </div>
     </header>
   );

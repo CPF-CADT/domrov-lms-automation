@@ -2,14 +2,11 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import MainNavigation from "@/components/navigation/MainNavigation";
 import ClassSidebar from "@/pages/classes/components/ClassSidebar";
 import AssignmentHeader from "@/pages/assignments/components/AssignmentHeader";
-import AssignmentInstructions from "@/pages/assignments/components/AssignmentInstructions";
-import ReferenceMaterials from "@/pages/assignments/components/ReferenceMaterials";
 import StudentPortal from "@/pages/assignments/components/StudentPortal";
-import GradingSection from "@/pages/assignments/components/GradingSection";
 import SubmissionResources from "@/pages/assignments/components/SubmissionResources";
 import ResourceViewer from "@/pages/assignments/components/ResourceViewer";
 import type { UploadedFile } from "@/pages/assignments/components/UploadSection";
@@ -21,7 +18,7 @@ import type { SubmissionViewerResponseDto } from "@/types/Submission";
 import StudentEvaluationFeedback from "@/pages/assignments/components/StudentEvaluationFeedback";
 import { routes } from "@/lib/routes";
 
-type StudentTabId = "general" | "assignment" | "grades";
+type StudentTabId = "general" | "assignment";
 
 export default function StudentAssignmentDetail() {
   const { classId, assignmentId } = useParams<{ classId: string; assignmentId: string }>();
@@ -191,7 +188,7 @@ export default function StudentAssignmentDetail() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-slate-50">
+      <div className="flex h-screen overflow-hidden bg-slate-50">
         <MainNavigation activeId="classes" />
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
@@ -205,7 +202,7 @@ export default function StudentAssignmentDetail() {
 
   if (error || !assignment) {
     return (
-      <div className="flex min-h-screen bg-slate-50">
+      <div className="flex h-screen overflow-hidden bg-slate-50">
         <MainNavigation activeId="classes" />
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
@@ -222,228 +219,83 @@ export default function StudentAssignmentDetail() {
     );
   }
 
-  const allowedTabs: StudentTabId[] = ["general", "assignment", "grades"];
+  const allowedTabs: StudentTabId[] = ["general", "assignment"];
+  const evaluation = submission?.evaluation;
+  const isGraded = Boolean(evaluation && (evaluation.isApproved || submission?.status === "GRADED"));
+  const isEvaluationPending = Boolean(evaluation && !evaluation.isApproved && submission?.status !== "GRADED");
+  const scorePercent = isGraded && evaluation ? Math.round((evaluation.score / Math.max(assignment.maxScore || 1, 1)) * 100) : 0;
+  const gradeLetter = scorePercent >= 90 ? "A" : scorePercent >= 80 ? "B" : scorePercent >= 70 ? "C" : scorePercent >= 60 ? "D" : "F";
+  const formatMetaDate = (value?: string | Date) => value
+    ? new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : "Not specified";
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       <MainNavigation activeId="classes" />
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="h-screen bg-white flex overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-h-0 w-full flex-1 bg-slate-50">
           <ClassSidebar
             classId={cId}
             allowedTabs={allowedTabs}
             role={UserRole.Student}
           />
 
-          <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <AssignmentHeader />
 
-            <div className="flex-1 overflow-y-auto bg-slate-50">
-              <div className="p-8">
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6">
-                  <div className="space-y-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <h1 className="text-3xl font-bold text-slate-900 mb-2">{assignment.title || "Untitled Assignment"}</h1>
-                      </div>
-                      <div className="flex flex-col gap-3 items-end">
-                        {/* Score Card */}
-                        <div className={`px-4 py-3 rounded-xl font-semibold text-sm whitespace-nowrap border-2 ${submission?.evaluation?.isApproved
-                          ? 'bg-blue-50 border-blue-200 text-blue-900'
-                          : 'bg-slate-50 border-slate-200 text-slate-600'
-                          }`}>
-                          {submission?.evaluation?.score !== undefined ? (
-                            <div className="flex items-baseline gap-1">
-                              <span className="text-2xl font-bold">{submission.evaluation.score}</span>
-                              <span className="text-sm opacity-75">/ {assignment.maxScore || 0}</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <span className="inline-block w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
-                              <span className="text-slate-700">Not graded yet</span>
-                            </div>
-                          )}
-                        </div>
-                        {assignment.isPublic !== undefined && (
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${assignment.isPublic
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-yellow-100 text-yellow-700'
-                            }`}>
-                            {assignment.isPublic ? 'Published' : 'Draft'}
-                          </span>
-                        )}
-                      </div>
+            <main className="min-h-0 flex-1 overflow-y-auto bg-slate-50">
+              <div className="w-full space-y-5 px-5 py-5">
+                <section className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${assignment.isPublic ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>{assignment.isPublic ? "Published" : "Draft"}</span>
+                      <span className="text-sm text-slate-500">Session {assignment.session}</span>
                     </div>
-                    <AssignmentInstructions
-                      dueDate={assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      }) : 'No due date'}
-                      objective={assignment.instruction || 'No objective provided'}
-                    />
+                    <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{assignment.title || "Untitled Assignment"}</h1>
+                    <p className="mt-2 text-sm text-slate-600">Due {assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "No due date"}</p>
+                  </div>
+                  <section className={`w-full rounded-2xl border p-5 shadow-sm lg:max-w-xs ${isGraded ? "border-green-200 bg-green-50" : isEvaluationPending ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white"}`}>
+                    <p className="text-sm text-slate-600">Your score</p>
+                    {isGraded ? <><div className="mt-1 flex items-baseline gap-2"><span className="text-5xl font-bold text-slate-900">{evaluation?.score}</span><span className="text-lg text-slate-600">/ {assignment.maxScore || 0}</span></div><p className="mt-1 flex items-center gap-2 text-sm font-semibold text-green-700"><CheckCircle2 className="h-4 w-4" /> {gradeLetter} · {scorePercent}%</p></> : <><p className="mt-2 text-xl font-bold text-slate-900">{isEvaluationPending ? "Evaluation in progress" : submission ? "Submitted" : "Not submitted"}</p><p className="mt-1 text-sm text-slate-600">{isEvaluationPending ? "Waiting for teacher approval." : submission ? "Your score will appear after grading." : "Submit your work before the due date."}</p></>}
+                  </section>
+                </section>
 
-                    {/* Grading Section - Show when evaluation exists */}
-                    {submission?.evaluation && (
-                      <GradingSection
-                        evaluation={submission.evaluation}
-                        maxScore={assignment.maxScore || 0}
-                        submissionStatus={submission.status || "PENDING"}
-                      />
-                    )}
+                <nav className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 shadow-sm" aria-label="Assignment sections">
+                  {[['overview', 'Overview'], ['instructions', 'Instructions'], ['rubric', 'Rubric'], ['submission', 'Submission'], ['feedback', 'Feedback']].map(([id, label]) => <a key={id} href={`#${id}`} className="shrink-0 rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-700">{label}</a>)}
+                </nav>
 
-                    {/* Assignment Details & Submission Guidelines */}
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                      <h2 className="text-xl font-bold text-slate-900 mb-6">Assignment Details</h2>
-
-                      {/* Details Grid */}
-                      <div className="grid grid-cols-2 gap-4 mb-6 pb-6 border-b border-slate-200">
-                        <div>
-                          <p className="text-sm text-slate-600 mb-1">Start Date</p>
-                          <p className="font-semibold text-slate-900">
-                            {assignment.startDate ? new Date(assignment.startDate).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                            }) : 'Not specified'}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-slate-600 mb-1">Due Date</p>
-                          <p className="font-semibold text-slate-900">
-                            {assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                            }) : 'Not specified'}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-slate-600 mb-1">Max Score</p>
-                          <p className="font-semibold text-slate-900">{assignment.maxScore || 0} points</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-slate-600 mb-1">Submission Type</p>
-                          <p className="font-semibold text-slate-900">{assignment.submissionType || 'Not specified'}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-slate-600 mb-1">Late Submissions</p>
-                          <p className="font-semibold text-slate-900">
-                            {typeof assignment.allowLate === 'boolean' ? (assignment.allowLate ? 'Allowed' : 'Not Allowed') : 'Not specified'}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-slate-600 mb-1">Session Number</p>
-                          <p className="font-semibold text-slate-900">{assignment.session || 'Not specified'}</p>
-                        </div>
+                <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+                  <div className="space-y-5">
+                    <section id="overview" className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                      <h2 className="text-xl font-bold text-slate-900">Assignment instructions</h2>
+                      <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-700">{assignment.instruction || "No instructions provided."}</p>
+                      <div className="mt-6 grid gap-4 border-t border-slate-200 pt-5 sm:grid-cols-2 xl:grid-cols-4">
+                        {[['Start date', formatMetaDate(assignment.startDate)], ['Due date', formatMetaDate(assignment.dueDate)], ['Submission type', assignment.submissionType || 'Not specified'], ['Late submissions', assignment.allowLate ? 'Allowed' : 'Not allowed']].map(([label, value]) => <div key={label}><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p><p className="mt-1 text-sm font-semibold text-slate-900">{value}</p></div>)}
                       </div>
+                    </section>
 
-                      {/* Submission Guidelines */}
-                      <div className="space-y-4">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-700 mb-2">Allowed Submission Method</p>
-                          <span className="inline-block px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-                            {assignment.allowedSubmissionMethod || 'ANY'}
-                          </span>
-                        </div>
-
-                        {assignment.user_include_files && assignment.user_include_files.length > 0 && (
-                          <div>
-                            <p className="text-sm font-semibold text-slate-700 mb-2">Required Files</p>
-                            <div className="space-y-1">
-                              {assignment.user_include_files.map((file, idx) => (
-                                <p key={idx} className="text-sm text-slate-600 ml-2">• {file}</p>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {assignment.user_exclude_files && assignment.user_exclude_files.length > 0 && (
-                          <div>
-                            <p className="text-sm font-semibold text-slate-700 mb-2">Exclude Files</p>
-                            <div className="space-y-1">
-                              {assignment.user_exclude_files.map((file, idx) => (
-                                <p key={idx} className="text-sm text-slate-600 ml-2">• {file}</p>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {assignment.penaltyCriteria && (
-                          <div>
-                            <p className="text-sm font-semibold text-slate-700 mb-2">Penalty Criteria</p>
-                            <p className="text-sm text-slate-600 bg-orange-50 p-3 rounded-lg border border-orange-200">
-                              {assignment.penaltyCriteria}
-                            </p>
-                          </div>
-                        )}
-
-                        {assignment.aiEvaluationEnable && (
-                          <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                            <p className="text-sm font-semibold text-purple-900">
-                              AI Evaluation Enabled
-                            </p>
-                          </div>
-                        )}
+                    <section id="instructions" className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                      <h2 className="text-xl font-bold text-slate-900">Submission requirements</h2>
+                      <div className="mt-4 space-y-4 text-sm text-slate-700">
+                        <p>Allowed method: <strong>{assignment.allowedSubmissionMethod || 'Any'}</strong></p>
+                        {assignment.user_include_files?.length ? <div><p className="font-semibold text-slate-900">Required files</p><ul className="mt-2 list-disc space-y-1 pl-5">{assignment.user_include_files.map((file) => <li key={file}>{file}</li>)}</ul></div> : null}
+                        {assignment.user_exclude_files?.length ? <div><p className="font-semibold text-slate-900">Files to exclude</p><ul className="mt-2 list-disc space-y-1 pl-5">{assignment.user_exclude_files.map((file) => <li key={file}>{file}</li>)}</ul></div> : null}
+                        {assignment.penaltyCriteria ? <p className="rounded-lg border border-orange-200 bg-orange-50 p-3">{assignment.penaltyCriteria}</p> : null}
                       </div>
-                    </div>
-                    {/* Grading Rubric Details */}
-                    {assignment.rubrics && assignment.rubrics.length > 0 && (
-                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                        <h2 className="text-xl font-bold text-slate-900 mb-4">Grading Rubric</h2>
-                        <div className="space-y-3">
-                          {assignment.rubrics.map((rubric) => (
-                            <div key={rubric.id} className="flex justify-between items-start p-3 bg-slate-50 rounded-lg">
-                              <div className="flex-1">
-                                <p className="font-semibold text-slate-900">{rubric.definition}</p>
-                              </div>
-                              <span className="ml-4 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold whitespace-nowrap">
-                                {rubric.totalScore} pts
-                              </span>
-                            </div>
-                          ))}
-                          <div className="mt-4 pt-4 border-t border-slate-200">
-                            <p className="text-sm text-slate-600">Total Points Available:</p>
-                            <p className="text-2xl font-bold text-slate-900">{assignment.maxScore || 0} points</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    </section>
 
-                    <ReferenceMaterials materials={assignment.resources?.map(r => ({
-                      name: r.resource?.title || 'Untitled',
-                      type: r.resource?.type || 'OTHER'
-                    })) || []} />
+                    {assignment.rubrics?.length ? <section id="rubric" className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-center justify-between"><h2 className="text-xl font-bold text-slate-900">Grading rubric</h2><span className="text-sm font-semibold text-slate-500">{assignment.maxScore} points</span></div><div className="mt-4 space-y-2">{assignment.rubrics.map((rubric, index) => <div key={rubric.id} className="flex items-start justify-between gap-4 rounded-xl bg-slate-50 p-4"><div><span className="mr-3 inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">{index + 1}</span><span className="font-semibold text-slate-900">{rubric.definition}</span></div><span className="shrink-0 rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">{rubric.totalScore} pts</span></div>)}</div></section> : null}
+
+                    {assignment.aiEvaluationEnable ? <section className="rounded-2xl border border-purple-200 bg-purple-50 p-6"><h2 className="text-lg font-bold text-purple-900">AI evaluation enabled</h2><p className="mt-1 text-sm text-purple-800">Your submission may be automatically evaluated before teacher approval.</p></section> : null}
+
+                    {assignment.resources?.length ? <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-xl font-bold text-slate-900">Resources</h2><div className="mt-4 space-y-2">{assignment.resources.map((resource) => <a key={resource.id} href={resource.resource?.url || '#'} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-xl border border-slate-200 p-4 text-sm hover:border-blue-300 hover:bg-blue-50"><span className="font-semibold text-slate-800">{resource.resource?.title || 'Untitled resource'}</span><span className="text-blue-600">Open</span></a>)}</div></section> : null}
+
+                    {draftSyncError ? <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><strong>Sync error:</strong> {draftSyncError}</div> : null}
                   </div>
 
-                  <div className="space-y-6">
-                    {/* Draft Sync Error Display */}
-                    {draftSyncError && (
-                      <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 flex items-start gap-3">
-                        <div className="flex-1">
-                          <h4 className="text-sm font-bold text-red-900 mb-1">Sync Error</h4>
-                          <p className="text-sm text-red-800">{draftSyncError}</p>
-                          <p className="text-xs text-red-700 mt-1">Your changes may not have been saved. Please review and try again.</p>
-                        </div>
-                        <button
-                          onClick={() => setDraftSyncError(null)}
-                          className="shrink-0 text-red-600 hover:text-red-800 font-bold"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Student Evaluation Feedback - Shows after teacher approval */}
-                    {submission && submission.evaluation?.isApproved && (
-                      <StudentEvaluationFeedback
-                        submission={submission}
-                        maxScore={assignment.maxScore || 0}
-                        assignmentTitle={assignment.title || "Assignment"}
-                      />
-                    )}
-
-                    <StudentPortal
+                  <aside className="space-y-5 lg:sticky lg:top-5">
+                    <section id="submission" className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                      <StudentPortal
                       status={submission?.status || "PENDING"}
                       progress={{ current: Math.floor(Math.random() * 100), total: 100 }}
                       progressPercent={0}
@@ -509,28 +361,18 @@ export default function StudentAssignmentDetail() {
                         };
                         refreshSubmission();
                       }}
-                    />
+                      />
+                    </section>
 
-                    {/* Submission Resources - Show when submission has resources */}
-                    {submission?.resources && submission.resources.length > 0 && (
-                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                        <h2 className="text-lg font-bold text-slate-900 mb-4">Submitted Resources</h2>
-                        <SubmissionResources
-                          resources={submission.resources.map((r: any) => ({
-                            id: r.resource?.id || r.id,
-                            title: r.resource?.title || "Untitled",
-                            type: r.resource?.type || "OTHER",
-                            url: r.resource?.url,
-                          }))}
-                          isViewOnly={submission?.evaluation?.isApproved || submission?.status === "GRADED"}
-                          onViewDetails={handleViewResourceDetails}
-                        />
-                      </div>
-                    )}
-                  </div>
+                    {submission?.resources?.length ? <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="text-lg font-bold text-slate-900">Submitted files</h2><div className="mt-4"><SubmissionResources resources={submission.resources.map((r: any) => ({ id: r.resource?.id || r.id, title: r.resource?.title || "Untitled", type: r.resource?.type || "OTHER", url: r.resource?.url }))} isViewOnly={Boolean(submission.evaluation?.isApproved || submission.status === "GRADED")} onViewDetails={handleViewResourceDetails} /></div></section> : null}
+
+                    <section id="feedback" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                      {submission?.evaluation?.isApproved ? <StudentEvaluationFeedback submission={submission} maxScore={assignment.maxScore || 0} assignmentTitle={assignment.title || "Assignment"} showSummary={false} /> : <><h2 className="text-lg font-bold text-slate-900">Score & feedback</h2><p className="mt-2 text-sm text-slate-600">Feedback will appear here after your assignment is reviewed.</p></>}
+                    </section>
+                  </aside>
                 </div>
               </div>
-            </div>
+            </main>
           </div>
         </div>
 

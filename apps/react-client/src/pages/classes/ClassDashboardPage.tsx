@@ -38,7 +38,7 @@ export default function ClassDashboard() {
 
   if (authLoading || classesLoading) {
     return (
-      <div className="flex min-h-screen bg-slate-50">
+      <div className="flex h-screen overflow-hidden bg-slate-50">
         <MainNavigation activeId="classes" />
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
@@ -53,7 +53,7 @@ export default function ClassDashboard() {
   // Require role from class context
   if (!role) {
     return (
-      <div className="flex min-h-screen bg-slate-50">
+      <div className="flex h-screen overflow-hidden bg-slate-50">
         <MainNavigation activeId="classes" />
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">

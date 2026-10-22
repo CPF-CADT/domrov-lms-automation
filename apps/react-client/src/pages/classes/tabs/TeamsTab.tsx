@@ -517,7 +517,7 @@ export default function TeamsTab({ classId }: TeamsTabProps) {
 
   if (teamsLoading) {
     return (
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="w-full max-w-none">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="bg-white rounded-xl border border-slate-200 p-5 animate-pulse">
@@ -535,7 +535,7 @@ export default function TeamsTab({ classId }: TeamsTabProps) {
 
   if (teamsError) {
     return (
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="w-full max-w-none">
         <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
           <p className="text-red-500 text-sm mb-4">{teamsError}</p>
           <button onClick={fetchTeams} className="text-primary font-medium text-sm underline">
@@ -550,7 +550,7 @@ export default function TeamsTab({ classId }: TeamsTabProps) {
 
   return (
     <>
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="w-full max-w-none">
         {/* Page header */}
         <div className="flex items-center justify-between mb-6">
           <div>

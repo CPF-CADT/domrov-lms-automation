@@ -8,7 +8,7 @@ import MainNavigation from "@/components/navigation/MainNavigation";
 import ClassSidebar from "@/pages/classes/components/ClassSidebar";
 import ClassTabs from "@/pages/classes/components/ClassTabs";
 
-type TeacherTabId = "general" | "assignment" | "students" | "teams" | "grades";
+type TeacherTabId = "general" | "assignment" | "students" | "teams";
 
 /**
  * TeacherDashboard - Teacher-specific class management interface
@@ -21,11 +21,11 @@ export default function TeacherDashboard() {
     const { isLoading: authLoading } = useAuth();
 
     // Teacher-specific tabs include "students" for class roster management and "teams" for team management
-    const allowedTabs: TeacherTabId[] = ["general", "assignment", "students", "teams", "grades"];
+    const allowedTabs: TeacherTabId[] = ["general", "assignment", "students", "teams"];
 
     if (authLoading) {
         return (
-            <div className="flex min-h-screen bg-slate-50">
+            <div className="flex h-screen overflow-hidden bg-slate-50">
                 <MainNavigation activeId="classes" />
                 <div className="flex-1 flex items-center justify-center">
                     <div className="flex flex-col items-center gap-4">
@@ -38,12 +38,12 @@ export default function TeacherDashboard() {
     }
 
     return (
-        <div className="flex min-h-screen bg-slate-50">
+        <div className="flex h-screen overflow-hidden bg-slate-50">
             {/* Main Navigation */}
             <MainNavigation activeId="classes" />
 
-            <div className="flex flex-col flex-1 min-w-0">
-                <div className="flex w-full min-h-screen">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                <div className="flex min-h-0 w-full flex-1">
                     {/* Class Sidebar */}
                     <ClassSidebar
                         classId={classId}
@@ -59,8 +59,8 @@ export default function TeacherDashboard() {
                         />
 
                         {/* Tab Content with Transition Animation */}
-                        <main className="flex-1 overflow-y-auto bg-slate-50">
-                            <div key={location.pathname} className="animate-fadeIn p-8">
+                        <main className="min-h-0 flex-1 overflow-y-auto bg-slate-50">
+                            <div key={location.pathname} className="animate-fadeIn p-5">
                                 <Outlet />
                             </div>
                         </main>

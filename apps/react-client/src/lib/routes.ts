@@ -6,7 +6,6 @@ export const routes = {
   classAssignments: (classId: string | number) => `/classes/${classId}/assignments`,
   classStudents: (classId: string | number) => `/classes/${classId}/students`,
   classTeams: (classId: string | number) => `/classes/${classId}/teams`,
-  classGrades: (classId: string | number) => `/classes/${classId}/grades`,
   assignmentCreate: (classId: string | number) => `/classes/${classId}/assignments/new`,
   assignment: (classId: string | number, assignmentId: string | number) =>
     `/classes/${classId}/assignments/${assignmentId}`,

@@ -66,7 +66,7 @@ export default function StudentsTab({ classId }: StudentsTabProps) {
 
   if (loading) {
     return (
-      <div className="p-6 max-w-5xl mx-auto">
+      <div className="w-full max-w-none">
         <div className="bg-white rounded-lg border border-slate-200">
           <div className="p-6 border-b border-slate-200">
             <div className="h-5 w-32 bg-slate-200 rounded animate-pulse" />
@@ -92,7 +92,7 @@ export default function StudentsTab({ classId }: StudentsTabProps) {
 
   if (error) {
     return (
-      <div className="p-6 max-w-5xl mx-auto">
+      <div className="w-full max-w-none">
         <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
           <p className="text-red-500 text-sm">{error}</p>
           <button
@@ -109,7 +109,7 @@ export default function StudentsTab({ classId }: StudentsTabProps) {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="w-full max-w-none">
       <div className="bg-white rounded-lg border border-slate-200">
 
         {/* Header */}

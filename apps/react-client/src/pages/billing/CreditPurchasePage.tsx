@@ -10,9 +10,9 @@ import ProfileDropdown from "@/components/data-display/ProfileDropdown";
 export default function CreditPurchasePage() {
     const navigate = useNavigate();
     return (
-        <div className="flex min-h-screen bg-slate-50">
+        <div className="flex h-screen overflow-hidden bg-slate-50">
             <MainNavigation activeId="credit" />
-            <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                 <header className="bg-primary text-white px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <button onClick={() => navigate("/dashboard")} className="p-2 hover:bg-blue-700 rounded-lg transition-colors" title="Go back to dashboard">

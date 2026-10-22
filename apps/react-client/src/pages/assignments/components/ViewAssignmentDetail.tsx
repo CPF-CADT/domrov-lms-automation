@@ -46,7 +46,7 @@ export default function ViewAssignmentDetail({ assignmentId, onBack }: ViewAssig
 
   if (loading) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="w-full p-5">
         <BackButton />
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
@@ -58,7 +58,7 @@ export default function ViewAssignmentDetail({ assignmentId, onBack }: ViewAssig
 
   if (error || !assignment) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="w-full p-5">
         <BackButton />
         <p className="text-red-500 text-sm text-center py-8">
           {error ?? "Assignment not found."}
@@ -68,7 +68,7 @@ export default function ViewAssignmentDetail({ assignmentId, onBack }: ViewAssig
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="w-full p-5">
       <BackButton />
 
       <div className="bg-white rounded-lg border border-slate-200 p-8">

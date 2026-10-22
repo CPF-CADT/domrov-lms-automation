@@ -1,5 +1,4 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
 import EditAssignmentForm from "@/pages/assignments/components/EditAssignmentForm";
 import GradeStudentsDetail from "@/pages/assignments/components/GradeStudentsDetail";
 import ViewAssignmentDetail from "@/pages/assignments/components/ViewAssignmentDetail";
@@ -34,40 +33,23 @@ export default function EditAssignmentPage({ mode }: { mode?: "edit" | "grade" |
 
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       <MainNavigation activeId="classes" />
       <ClassSidebar 
         classId={classId} 
-        allowedTabs={["general", "assignment", "students", "grades"]}
+        allowedTabs={["general", "assignment", "students"]}
       />
-      <div className="flex flex-col flex-1">
-        <div className="flex items-center gap-4 px-6 py-4 bg-white border-b border-slate-200">
-          <button
-            onClick={handleBack}
-            className="flex items-center justify-center transition-colors rounded-lg w-9 h-9 hover:bg-slate-100 text-slate-600 hover:text-slate-900"
-            title="Back to assignments"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">
-              {isGradeRoute ? "Grade Submissions" : isViewRoute ? "View Assignment" : "Edit Assignment"}
-            </h1>
-            <p className="text-sm text-slate-600">
-              {isGradeRoute ? "Review and grade student work" : isViewRoute ? "Detailed view of the assignment" : "Update assignment details and settings"}
-            </p>
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="min-h-0 flex-1 overflow-y-auto">
           {isGradeRoute ? (
-            <div className="p-8 mx-auto max-w-7xl">
+            <div className="w-full p-5">
               <GradeStudentsDetail 
                 assignmentId={assignmentId} 
                 onBack={handleBack} 
               />
             </div>
           ) : isViewRoute ? (
-            <div className="p-8 mx-auto max-w-7xl">
+            <div className="w-full p-5">
               <ViewAssignmentDetail 
                 assignmentId={assignmentId} 
                 onBack={handleBack} 

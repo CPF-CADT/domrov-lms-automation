@@ -488,8 +488,8 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Top Grid */}
-        <div className="grid grid-cols-3 gap-6">
+        {/* Assignment setup sections */}
+        <div className="space-y-6">
 
           {/* General Information */}
           <div className="bg-white border border-slate-200 rounded-lg p-6">
@@ -707,8 +707,8 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
           </div>
         )}
 
-        {/* Bottom Grid */}
-        <div className="grid grid-cols-2 gap-6">
+        {/* Instructions and resources */}
+        <div className="space-y-6">
 
           {/* Instructions */}
           <div className="bg-white border border-slate-200 rounded-lg p-6">

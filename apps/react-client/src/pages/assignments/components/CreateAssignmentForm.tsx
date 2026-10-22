@@ -223,7 +223,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
 
   return (
     <div className="p-4 bg-slate-50 min-h-screen">
-      <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-sm p-5">
+      <div className="w-full bg-white rounded-lg shadow-sm p-5">
         <form onSubmit={handlePublish} className="space-y-4">
 
           {/* Header */}

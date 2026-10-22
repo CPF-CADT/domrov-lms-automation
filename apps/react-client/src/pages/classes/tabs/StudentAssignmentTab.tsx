@@ -23,7 +23,7 @@ export default function StudentAssignmentTab({ classId }: StudentAssignmentTabPr
     };
 
     return (
-        <div className="max-w-6xl p-6 mx-auto">
+        <div className="w-full max-w-none">
             {/* Assignment Filters - Student focused on submission tracking */}
             <AssignmentFilters activeFilter={activeFilter} onFilterChange={setActiveFilter} />
 

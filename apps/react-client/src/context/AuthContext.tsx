@@ -10,6 +10,7 @@ import {
 import authService from '@/services/AuthService';
 import userService from '@/services/UserService';
 import { STORAGE_KEYS, storage } from '@/lib/Storage';
+import AppLoadingScreen from '@/components/feedback/AppLoadingScreen';
 
 export interface IUser {
     id: number;
@@ -166,14 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         <AuthContext.Provider value={value}>
             {!isLoading ? (
                 children
-            ) : (
-                <div className="flex items-center justify-center h-screen bg-gradient-to-br from-gray-900 to-gray-800">
-                    <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mb-4 mx-auto"></div>
-                        <p className="text-white text-lg font-medium">Loading...</p>
-                    </div>
-                </div>
-            )}
+            ) : <AppLoadingScreen variant="app" />}
         </AuthContext.Provider>
     );
 }

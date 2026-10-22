@@ -76,7 +76,7 @@ export default function CreateClass() {
         <div className="min-h-screen bg-slate-100">
             {/* Header */}
             <header className="bg-primary text-white">
-                <div className="max-w-4xl mx-auto px-6 py-4">
+                <div className="w-full px-5 py-4">
                     <div className="flex items-center gap-3">
                         <Link
                             to="/dashboard"
@@ -95,7 +95,7 @@ export default function CreateClass() {
             </header>
 
             {/* Main Content */}
-            <main className="max-w-4xl mx-auto px-6 py-8">
+            <main className="w-full px-5 py-5">
                 <form onSubmit={handleSubmit}>
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Left Column - Form */}

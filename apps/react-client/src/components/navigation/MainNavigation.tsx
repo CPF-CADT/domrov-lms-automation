@@ -36,7 +36,7 @@ const MainNavigation: React.FC<MainNavigationProps> = ({ activeId }) => {
   };
   const currentId = activeId || pathToId(pathname);
   return (
-    <aside className="flex flex-col items-center w-16 min-h-screen py-6 space-y-6 bg-white border-r border-slate-200">
+    <aside className="flex h-screen shrink-0 flex-col items-center space-y-6 overflow-y-auto border-r border-slate-200 bg-white py-6">
       <div className="h-10 w-10 rounded-xl bg-[#0B1531] flex items-center justify-center text-white font-black text-sm mb-8">
         <span className="tracking-tight">DR</span>
       </div>

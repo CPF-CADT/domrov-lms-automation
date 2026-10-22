@@ -15,8 +15,8 @@ export default function EditAssignmentForm({ classId, assignmentId }: EditAssign
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="p-8 mx-auto max-w-7xl">
+    <div className="min-h-full bg-slate-50">
+      <div className="w-full p-5">
         <EditAssignmentDetail
           assignmentId={assignmentId ? Number(assignmentId) : undefined}
           classId={classId}

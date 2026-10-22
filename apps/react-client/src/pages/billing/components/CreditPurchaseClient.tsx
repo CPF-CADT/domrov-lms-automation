@@ -333,8 +333,8 @@ export default function CreditPurchaseClient() {
     }
 
     return (
-        <main className="flex-1 overflow-y-auto bg-slate-50">
-            <div className="p-8 mx-auto max-w-7xl">
+        <main className="min-h-0 flex-1 overflow-y-auto bg-slate-50">
+            <div className="w-full p-5">
 
                 {/* HEADER */}
                 <div className="flex items-center justify-between gap-6 p-4 mb-6 bg-white rounded-lg">

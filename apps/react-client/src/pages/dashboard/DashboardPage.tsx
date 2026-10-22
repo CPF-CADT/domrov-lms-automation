@@ -7,7 +7,7 @@ import DashboardClient from "@/pages/dashboard/components/DashboardClient";
  */
 export default function Dashboard() {
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       <MainNavigation activeId="home" />
       <div className="flex flex-col flex-1 min-w-0">
         <DashboardClient />

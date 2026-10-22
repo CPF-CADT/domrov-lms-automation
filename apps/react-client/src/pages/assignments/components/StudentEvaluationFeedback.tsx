@@ -8,12 +8,14 @@ interface StudentEvaluationFeedbackProps {
     submission: SubmissionViewerResponseDto;
     maxScore: number;
     assignmentTitle: string;
+    showSummary?: boolean;
 }
 
 export default function StudentEvaluationFeedback({
     submission,
     maxScore,
     assignmentTitle,
+    showSummary = true,
 }: StudentEvaluationFeedbackProps) {
     if (!submission.evaluation?.isApproved) {
         return null;
@@ -42,7 +44,7 @@ export default function StudentEvaluationFeedback({
                     </div>
                 </div>
             )}
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 p-8">
+            {showSummary && <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 p-8">
                 <div className="flex items-start justify-between mb-6">
                     <div>
                         <h2 className="text-2xl font-bold text-slate-900 mb-2">Your Grade & Feedback</h2>
@@ -111,7 +113,7 @@ export default function StudentEvaluationFeedback({
                         </div>
                     </div>
                 )}
-            </div>
+            </div>}
 
             {/* Overall Feedback */}
             {evaluation.feedback && (

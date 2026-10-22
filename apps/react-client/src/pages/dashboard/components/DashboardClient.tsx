@@ -122,7 +122,7 @@ export default function DashboardClient() {
   }
 
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col">
       <DashboardHeader
         activeStatus={activeStatus}
         onChangeStatus={setActiveStatus}
@@ -130,7 +130,7 @@ export default function DashboardClient() {
         // Removed onViewAllClasses prop and button
       />
 
-      <main className="px-6 py-6">
+      <main className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">Classes</h2>
@@ -197,6 +197,6 @@ export default function DashboardClient() {
         onConfirm={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
       />
-    </>
+    </div>
   );
 }

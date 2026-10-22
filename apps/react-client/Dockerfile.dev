@@ -1,0 +1,12 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies into the image. Compose keeps this directory in a
+# named volume so the host source mount does not hide the container's modules.
+COPY package*.json ./
+RUN npm ci
+
+EXPOSE 5173
+
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

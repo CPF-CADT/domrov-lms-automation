@@ -10,7 +10,7 @@ interface AssignmentHeaderProps {
 export default function AssignmentHeader({ onBack }: AssignmentHeaderProps) {
 
   return (
-    <div className="px-8 py-4 bg-white border-b border-slate-200">
+    <div className="px-5 py-4 bg-white border-b border-slate-200">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button

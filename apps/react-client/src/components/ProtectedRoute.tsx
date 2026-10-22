@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import AppLoadingScreen from '@/components/feedback/AppLoadingScreen';
 
 interface ProtectedRouteProps {
     children: React.ReactNode;
@@ -15,14 +16,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
     // Show loading state while checking authentication
     if (isLoading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-50">
-                <div className="flex flex-col items-center gap-3">
-                    <div className="w-8 h-8 border-3 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
-                    <span className="text-slate-500 text-sm">Loading...</span>
-                </div>
-            </div>
-        );
+        return <AppLoadingScreen variant="route" />;
     }
 
     // Redirect to login if not authenticated

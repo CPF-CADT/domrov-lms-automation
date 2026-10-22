@@ -21,7 +21,7 @@ export default function AIEvaluationPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       <MainNavigation activeId="ai-evaluation" />
       <div className="flex-1 flex flex-col">
         <header className="bg-primary text-white px-6 py-4 flex items-center justify-between">
@@ -36,8 +36,8 @@ export default function AIEvaluationPage() {
           </div>
           <ProfileDropdown buttonClassName="h-10 w-10 rounded-lg bg-primary-600 hover:bg-primary-700 flex items-center justify-center text-white font-bold transition-colors border-2 border-white" />
         </header>
-        <div className="flex-1 p-8">
-          <div className="max-w-6xl mx-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          <div className="w-full">
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-slate-900 mb-2">
                 AI Evaluation Settings

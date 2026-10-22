@@ -64,7 +64,7 @@ export default function FilesTab({ classId: _classId }: FilesTabProps) {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="w-full max-w-none">
       <div className="bg-white rounded-lg border border-slate-200 p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-slate-900">Class Files</h2>

@@ -113,7 +113,7 @@ export default function StudentPortal({
     setDialogOpen(true);
   };
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm sticky top-6 mt-8">
+    <section className="bg-white rounded-2xl border border-slate-200 shadow-sm">
       {/* Status Banner */}
       <div className="px-6 pt-6 pb-3">
         {evaluationStatus === true ? (
@@ -313,6 +313,6 @@ export default function StudentPortal({
           },
         ]}
       />
-    </div>
+    </section>
   );
 }

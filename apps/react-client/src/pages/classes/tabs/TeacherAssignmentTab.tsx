@@ -197,7 +197,7 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
   // ─── Main list ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="p-8 mx-auto max-w-7xl">
+    <div className="w-full max-w-none">
       <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Assignment</h1>

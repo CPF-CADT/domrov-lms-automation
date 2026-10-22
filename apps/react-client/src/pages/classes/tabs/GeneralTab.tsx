@@ -40,7 +40,7 @@ export default function GeneralTab({ classId: _classId }: GeneralTabProps) {
   ];
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="w-full max-w-none space-y-6">
       {/* Assignment Section */}
       <div className="bg-white rounded-lg border border-slate-200 p-6">
         <div className="flex items-center gap-2 mb-4">

@@ -21,56 +21,24 @@ import TeacherGeneralTab from "@/pages/classes/tabs/TeacherGeneralTab";
 import TeacherAssignmentTab from "@/pages/classes/tabs/TeacherAssignmentTab";
 import StudentsTab from "@/pages/classes/tabs/StudentsTab";
 import TeamsTab from "@/pages/classes/tabs/TeamsTab";
-import TeacherGradesTab from "@/pages/classes/tabs/TeacherGradesTab";
 import Docs from '@/pages/docs/DocsPage';
 import About from '@/pages/about/AboutPage';
 import Pricing from '@/pages/pricing/PricingPage';
-import AssignmentDetail from '@/pages/assignments/AssignmentDetailPage';
 import CreditPurchasePage from '@/pages/billing/CreditPurchasePage';
 import AIEvaluationPage from '@/pages/ai-evaluation/AIEvaluationPage';
 
 import StudentGeneralTab from "@/pages/classes/tabs/StudentGeneralTab";
 import StudentAssignmentTab from "@/pages/classes/tabs/StudentAssignmentTab";
-import StudentGradesTab from "@/pages/classes/tabs/StudentGradesTab";
 import UserProfilePage from '@/pages/dashboard/ProfilePage';
 import classService from '@/services/ClassService';
 import { UserRole } from '@/types/Enums';
 import { routes } from '@/lib/routes';
 
-const LegacyClassRedirect: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  return <Navigate to={id ? routes.classGeneral(id) : routes.classes} replace />;
-};
-
-const LegacyClassTabRedirect: React.FC<{ tab: 'general' | 'assignment' | 'students' | 'teams' | 'grades' }> = ({ tab }) => {
-  const { id } = useParams<{ id: string }>();
-  if (!id) return <Navigate to={routes.classes} replace />;
-  const target = tab === 'general' ? routes.classGeneral(id)
-    : tab === 'assignment' ? routes.classAssignments(id)
-      : tab === 'students' ? routes.classStudents(id)
-        : tab === 'teams' ? routes.classTeams(id)
-          : routes.classGrades(id);
-  return <Navigate to={target} replace />;
-};
-
-const LegacyStudentAssignmentRedirect: React.FC = () => {
-  const { classId, assignmentId } = useParams<{ classId: string; assignmentId: string }>();
-  return <Navigate to={classId && assignmentId ? routes.assignment(classId, assignmentId) : routes.classes} replace />;
-};
-
-const LegacyAssignmentRedirect: React.FC<{ mode: 'new' | 'edit' | 'grade' }> = ({ mode }) => {
-  const { id, assignmentId } = useParams<{ id: string; assignmentId?: string }>();
-  if (!id) return <Navigate to={routes.classes} replace />;
-  if (mode === 'new') return <Navigate to={routes.assignmentCreate(id)} replace />;
-  if (!assignmentId) return <Navigate to={routes.classAssignments(id)} replace />;
-  return <Navigate to={mode === 'edit' ? routes.assignmentEdit(id, assignmentId) : routes.assignmentGrade(id, assignmentId)} replace />;
-};
-
 /**
  * Shared class routes resolve the user's role from the API instead of from
  * navigation state. This keeps direct links and browser refreshes reliable.
  */
-const RoleAwareClassTab: React.FC<{ tab: 'general' | 'assignment' | 'grades' }> = ({ tab }) => {
+const RoleAwareClassTab: React.FC<{ tab: 'general' | 'assignment' }> = ({ tab }) => {
   const { classId } = useParams<{ classId: string }>();
   const [role, setRole] = useState<string>();
 
@@ -102,8 +70,8 @@ const RoleAwareClassTab: React.FC<{ tab: 'general' | 'assignment' | 'grades' }> 
       : <StudentAssignmentTab classId={classId} />;
   }
   return isTeacher
-    ? <TeacherGradesTab classId={classId} />
-    : <StudentGradesTab classId={classId} />;
+    ? <TeacherAssignmentTab classId={classId} />
+    : <StudentAssignmentTab classId={classId} />;
 };
 
 const TeacherOnlyClassTab: React.FC<{ tab: 'students' | 'teams' }> = ({ tab }) => {
@@ -164,7 +132,6 @@ const AppRoutes: React.FC = () => {
       {/* Protected pages - require authentication */}
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/classes/new" element={<ProtectedRoute><CreateClass /></ProtectedRoute>} />
-      <Route path="/class/create" element={<Navigate to="/classes/new" replace />} />
 
       {/* Canonical URL-driven class resources */}
       <Route path="/classes/:classId" element={<ProtectedRoute><ClassDashboard /></ProtectedRoute>}>
@@ -173,31 +140,13 @@ const AppRoutes: React.FC = () => {
         <Route path="assignments" element={<RoleAwareClassTab tab="assignment" />} />
         <Route path="students" element={<TeacherOnlyClassTab tab="students" />} />
         <Route path="teams" element={<TeacherOnlyClassTab tab="teams" />} />
-        <Route path="grades" element={<RoleAwareClassTab tab="grades" />} />
+        <Route path="grades" element={<Navigate to="../assignments" replace />} />
       </Route>
       <Route path="/classes/:classId/assignments/new" element={<ProtectedRoute><CanonicalCreateAssignment /></ProtectedRoute>} />
       <Route path="/classes/:classId/assignments/:assignmentId" element={<ProtectedRoute><CanonicalAssignmentDetail /></ProtectedRoute>} />
       <Route path="/classes/:classId/assignments/:assignmentId/edit" element={<ProtectedRoute><EditAssignmentPage mode="edit" /></ProtectedRoute>} />
       <Route path="/classes/:classId/assignments/:assignmentId/grade" element={<ProtectedRoute><EditAssignmentPage mode="grade" /></ProtectedRoute>} />
 
-      {/* Legacy links; keep them working while clients migrate to /classes. */}
-      <Route path="/class/:id" element={<LegacyClassRedirect />} />
-      <Route path="/student-class/:id" element={<LegacyClassRedirect />} />
-      <Route path="/class/:id/general" element={<LegacyClassTabRedirect tab="general" />} />
-      <Route path="/class/:id/assignment" element={<LegacyClassTabRedirect tab="assignment" />} />
-      <Route path="/class/:id/students" element={<LegacyClassTabRedirect tab="students" />} />
-      <Route path="/class/:id/teams" element={<LegacyClassTabRedirect tab="teams" />} />
-      <Route path="/class/:id/grades" element={<LegacyClassTabRedirect tab="grades" />} />
-      <Route path="/student-class/:id/general" element={<LegacyClassTabRedirect tab="general" />} />
-      <Route path="/student-class/:id/assignment" element={<LegacyClassTabRedirect tab="assignment" />} />
-      <Route path="/student-class/:id/grades" element={<LegacyClassTabRedirect tab="grades" />} />
-      <Route path="/student-class/:classId/assignment/:assignmentId" element={<LegacyStudentAssignmentRedirect />} />
-      <Route path="/class/:id/assignment/create" element={<LegacyAssignmentRedirect mode="new" />} />
-      <Route path="/class/:id/assignment/:assignmentId/create" element={<LegacyAssignmentRedirect mode="edit" />} />
-      <Route path="/class/:id/assignment/:assignmentId/edit" element={<LegacyAssignmentRedirect mode="edit" />} />
-      <Route path="/class/:id/assignment/:assignmentId/grade" element={<LegacyAssignmentRedirect mode="grade" />} />
-      <Route path="/class/:id/assignment/:assignmentId/view" element={<LegacyAssignmentRedirect mode="edit" />} />
-      <Route path="/assignment/:id" element={<ProtectedRoute><AssignmentDetail /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><UserProfilePage /></ProtectedRoute>} />
       <Route path="/creditPurchase" element={<ProtectedRoute><CreditPurchasePage /></ProtectedRoute>} />
       <Route path="/ai-evaluation" element={<ProtectedRoute><AIEvaluationPage /></ProtectedRoute>} />

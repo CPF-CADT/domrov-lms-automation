@@ -274,7 +274,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
 
     if (loading) {
         return (
-            <div className="p-6 max-w-6xl mx-auto">
+            <div className="w-full p-5">
                 <BackButton />
                 <div className="flex items-center justify-center py-20">
                     <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
@@ -286,7 +286,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
 
     if (error || !assignment) {
         return (
-            <div className="p-6 max-w-6xl mx-auto">
+            <div className="w-full p-5">
                 <BackButton />
                 <p className="text-red-500 text-sm text-center py-8">{error ?? "Assignment not found."}</p>
             </div>
@@ -304,10 +304,10 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
         const isApproved = submissionDetail?.evaluation?.isApproved;
 
         return (
-            <div className="min-h-screen bg-slate-50">
+            <div className="min-h-full bg-slate-50">
                 {/* Evaluation Workflow Header */}
-                <div className="bg-white border-b border-slate-200">
-                    <div className="max-w-6xl mx-auto px-6 py-4">
+                <div className="sticky top-0 z-20 bg-white border-b border-slate-200">
+                    <div className="w-full px-5 py-4">
                         <button
                             onClick={() => {
                                 setSelectedStudentId(null);
@@ -374,16 +374,16 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                 </div>
 
                 {/* Main Content */}
-                <div className="max-w-6xl mx-auto px-6 py-8">
+                <div className="w-full px-5 py-5">
                     {submissionLoading ? (
                         <div className="flex items-center justify-center py-20 bg-white rounded-lg border border-slate-200">
                             <Loader2 className="w-6 h-6 animate-spin text-blue-600 mr-2" />
                             <span className="text-slate-600">Loading submission...</span>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-3 gap-6">
-                            {/* Left: Submission Code */}
-                            <div className="col-span-2">
+                        <div className="space-y-6">
+                            {/* Submission Code */}
+                            <div>
                                 <div className="bg-white rounded-lg border border-slate-200 p-6 mb-6">
                                     <h2 className="text-lg font-semibold text-slate-900 mb-4">Submitted Code</h2>
                                     {submissionDetail?.resources && submissionDetail.resources.length > 0 ? (
@@ -434,7 +434,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                                 )}
                             </div>
 
-                            {/* Right: Evaluation Summary & Actions */}
+                            {/* Evaluation Summary & Actions */}
                             <div>
                                 {/* AI Score Card */}
                                 {hasEvaluation && (
@@ -530,7 +530,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
     }
 
     return (
-        <div className="p-6 max-w-6xl mx-auto">
+        <div className="w-full p-5">
             <BackButton />
 
             <div className="bg-white rounded-lg border border-slate-200 p-8 mb-6">

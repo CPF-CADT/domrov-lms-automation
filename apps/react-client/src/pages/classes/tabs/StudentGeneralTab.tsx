@@ -150,7 +150,7 @@ const StudentGeneralTab = ({ classId }: StudentGeneralTabProps) => {
     }, [classIdNum]);
 
     return (
-        <div className="p-6 max-w-5xl mx-auto space-y-8">
+        <div className="w-full max-w-none space-y-8">
             <div className="bg-white rounded-2xl border border-slate-200 p-8">
                 <div className="flex items-center gap-3 mb-6">
                     <div className="p-2 bg-blue-100 rounded-lg">
