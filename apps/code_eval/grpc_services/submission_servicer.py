@@ -26,14 +26,27 @@ def _find_file(root: Path, requested: PurePosixPath) -> Path | None:
     direct = (root / Path(*requested.parts)).resolve()
     if direct.is_file() and root in direct.parents:
         return direct
-
-    for candidate in root.rglob("*"):
-        if not candidate.is_file() or candidate.is_symlink():
-            continue
-        relative = candidate.relative_to(root).as_posix()
-        if relative == requested.as_posix() or relative.endswith(f"/{requested.as_posix()}"):
-            return candidate
     return None
+
+
+def _relative_file_path(root: Path, file_path: Path) -> str:
+    """Return only a POSIX path relative to the displayed submission root."""
+    if root.is_file():
+        relative = PurePosixPath(root.name)
+    else:
+        relative = PurePosixPath(file_path.relative_to(root).as_posix())
+
+    if relative.is_absolute() or any(part in ("", ".", "..") for part in relative.parts):
+        raise ValueError("Resolved file path must be relative")
+    return relative.as_posix()
+
+
+def _submission_root(base_path: Path) -> Path:
+    """Use the same root for folder browsing and file lookup."""
+    if not base_path.is_dir():
+        return base_path
+    items = [item for item in base_path.iterdir() if not item.name.startswith(".")]
+    return items[0] if len(items) == 1 and items[0].is_dir() else base_path
 
 
 class SubmissionServicer(submission_pb2_grpc.SubmissionServiceServicer):
@@ -54,17 +67,16 @@ class SubmissionServicer(submission_pb2_grpc.SubmissionServiceServicer):
                 checksum=resource.get("checksum", ""),
                 external_url=resource.get("external_url", "") or resource.get("resource_url", ""),
             ) as base_path:
-                actual_root = base_path
-                items = [item for item in base_path.iterdir() if not item.name.startswith(".")] if base_path.is_dir() else []
-                if len(items) == 1 and items[0].is_dir():
-                    actual_root = items[0]
+                actual_root = _submission_root(base_path)
 
                 checker = IgnoreChecker(actual_root, user_exclude=None, user_include=None)
                 full_tree = build_directory_json(actual_root, checker) or {}
-                response_data = full_tree.get("children", full_tree)
                 return submission_pb2.SubmissionFolderStructureResponse(
-                    folder_structure=json.dumps(response_data)
+                    folder_structure=json.dumps(full_tree)
                 )
+        except FileNotFoundError as error:
+            context.set_code(grpc.StatusCode.NOT_FOUND)
+            return submission_pb2.SubmissionFolderStructureResponse(folder_structure="{}")
         except Exception as error:
             print(f"ERROR: {error}", flush=True)
             context.set_code(grpc.StatusCode.INTERNAL)
@@ -82,12 +94,13 @@ class SubmissionServicer(submission_pb2_grpc.SubmissionServiceServicer):
                 checksum=resource.get("checksum", ""),
                 external_url=resource.get("external_url", "") or resource.get("resource_url", ""),
             ) as base_path:
-                found_path = _find_file(base_path, requested)
+                actual_root = _submission_root(base_path)
+                found_path = _find_file(actual_root, requested)
                 if not found_path:
                     return submission_pb2.SubmissionResponse(success=False, message="File not found")
 
                 file_data = read_file_to_json(found_path, submission_id)
-                file_data["path"] = found_path.name if base_path.is_file() else found_path.relative_to(base_path).as_posix()
+                file_data["path"] = _relative_file_path(actual_root, found_path)
                 return submission_pb2.SubmissionResponse(
                     success=True, file=submission_pb2.FileContent(**file_data)
                 )

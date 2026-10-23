@@ -23,7 +23,7 @@ export async function getSubmissionFileContent(
     `/evaluations/submission/${submissionId}/file`,
     { params: { file_path: filePath } }
   )).data;
-  return response.data;
+  return { message: response.message, data: response.data };
 }
 
 /**
@@ -35,7 +35,7 @@ export async function getSubmissionFolderStructure(
   const response = (await axiosInstance.get(
     `/evaluations/submission/${submissionId}/folder-structure`
   )).data;
-  return response.data;
+  return { message: response.message, data: response.data };
 }
 
 /**

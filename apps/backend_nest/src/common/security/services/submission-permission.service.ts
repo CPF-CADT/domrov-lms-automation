@@ -47,6 +47,7 @@ export class SubmissionPermissionService {
                 'team.members',
                 'team.members.user',
                 'evaluation',
+                'evaluation.feedbacks',
                 'resources',
                 'resources.resource',
             ],

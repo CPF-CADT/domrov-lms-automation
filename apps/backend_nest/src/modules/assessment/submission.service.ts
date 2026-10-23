@@ -23,6 +23,7 @@ import { SubmissionContext } from '../../common/security/dtos/guard.dto';
 
 // Enums & DTOs
 import { SubmissionStatus } from '../../libs/enums/Status';
+import { UserRole } from '../../libs/enums/Role';
 import { ResourceType } from '../../libs/enums/Resource';
 import { GradeSubmissionDTO } from '../../libs/dtos/submission/grade-submission.dto';
 import {
@@ -100,13 +101,15 @@ export class SubmissionService {
       if (!assessmentData) throw new NotFoundException('Assessment not found');
 
       if (assessment.submissionType === SubmissionType.INDIVIDUAL) {
-        const enrollments = await this.enrollmentRepo
+        const enrollments = (await this.enrollmentRepo
           .createQueryBuilder('enrollment')
           .leftJoinAndSelect('enrollment.user', 'user')
           .where('enrollment.classId = :classId', {
             classId: assessmentData.class.id,
           })
-          .getMany();
+          .getMany()).filter(
+            (enrollment) => !enrollment.role || enrollment.role === UserRole.Student,
+          );
         const submissions: Submission[] = enrollments
           .filter((e): e is Enrollment & { user: any } => !!e.user)
           .map((e) => {
@@ -162,17 +165,25 @@ export class SubmissionService {
     try {
       const submission = await this.submissionRepo.findOne({
         where: { id: submissionId },
-        relations: ['team', 'team.members', 'team.members.user'],
+        relations: ['user', 'team', 'team.members', 'team.members.user'],
       });
       if (!submission) return false;
       if (submission.team) {
         return submission.team.members.some(m => m.user.id === userId);
       }
-      return false;
+      return submission.user?.id === userId;
     } catch (error) {
       console.error('Error checking submission access:', error);
       return false;
     }
+  }
+
+  async getSubmissionClassId(submissionId: number): Promise<number | null> {
+    const submission = await this.submissionRepo.findOne({
+      where: { id: submissionId },
+      relations: ['assessment', 'assessment.class'],
+    });
+    return submission?.assessment?.class?.id ?? null;
   }
   // Save or update draft assignment (PATCH)
   async saveDraftAssignment(
@@ -770,7 +781,7 @@ export class SubmissionService {
       });
     } else {
       const enrollments = await this.enrollmentRepo.find({
-        where: { class: { id: assessment.class.id } },
+        where: { class: { id: assessment.class.id }, role: UserRole.Student },
         relations: ['user'],
       });
 
@@ -877,7 +888,7 @@ export class SubmissionService {
   }
 
   async updateSingleFeedback(
-    userId: number,
+    context: SubmissionContext,
     feedbackId: string,
     dto: FeedbackItemDto,
   ): Promise<UpdateFeedbackResponseDto> {
@@ -893,10 +904,8 @@ export class SubmissionService {
     });
 
     if (!feedback) throw new NotFoundException('Feedback item not found');
-    if (feedback.evaluation.submission.assessment.class.owner.id !== userId) {
-      throw new BadRequestException(
-        'You do not have permission to update this feedback',
-      );
+    if (feedback.evaluation.submission.id !== context.submissionId) {
+      throw new NotFoundException('Feedback item not found');
     }
 
     feedback.filePath = dto.path;
@@ -1134,6 +1143,26 @@ export class SubmissionService {
           : null,
       })),
     };
+  }
+
+  async getSubmissionDownloadResource(submissionId: number): Promise<Resource> {
+    const submission = await this.submissionRepo.findOne({
+      where: { id: submissionId },
+      relations: ['resources', 'resources.resource'],
+    });
+
+    if (!submission) throw new NotFoundException('Submission not found');
+
+    const resources = submission.resources
+      ?.map((submissionResource) => submissionResource.resource)
+      .filter((candidate): candidate is Resource => Boolean(candidate && candidate.type !== ResourceType.URL));
+    const resource = resources?.find((candidate) => /\.(zip|tar|gz|tgz)$/i.test(candidate.title)) || resources?.[0];
+
+    if (!resource) {
+      throw new NotFoundException('No downloadable file is attached to this submission');
+    }
+
+    return resource;
   }
 
   async getSubmissionForStudent(

@@ -9,7 +9,7 @@ export class FileContentDto {
     @ApiProperty({ description: 'File name', example: 'main.cpp' })
     name: string;
 
-    @ApiProperty({ description: 'File path relative to submission root', example: '1a502673e8870d73/main.cpp' })
+    @ApiProperty({ description: 'POSIX file path relative to the displayed submission root', example: 'src/main.cpp' })
     path: string;
 
     @ApiProperty({ 

@@ -31,7 +31,8 @@ services:
       dockerfile: Dockerfile.dev
     container_name: domrov_client
     restart: unless-stopped
-    command: npm run dev -- --host 0.0.0.0
+    # Refresh the named node_modules volume when dependencies change.
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
     environment:
       VITE_API_URL: http://localhost:3000
       CHOKIDAR_USEPOLLING: "true"

@@ -286,7 +286,7 @@ export class AssessmentService {
         });
       } else {
         const enrollments = await this.enrollmentRepo.find({
-          where: { class: { id: assessment.class.id } },
+          where: { class: { id: assessment.class.id }, role: UserRole.Student },
           relations: ['user'],
         });
         return enrollments.map((enrollment) => {

@@ -16,26 +16,36 @@ interface CreateAssignmentData {
   instructions: string;
   startDate: string;
   dueDate: string;
-  maxScore: number;
+  maxScore: string;
   allowedSubmissionMethod: "GITHUB" | "UPLOAD" | "LINK";
   allowLateSubmissions: boolean;
   aiEvaluationEnabled: boolean;
   allowedTeamIds: number[];
 }
 
-const DEFAULT_FORM: CreateAssignmentData = {
+function toDateTimeLocal(date: Date): string {
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
+}
+
+function createDefaultForm(): CreateAssignmentData {
+  const start = new Date();
+  const due = new Date(start);
+  due.setDate(due.getDate() + 7);
+  return {
   title: "",
   session: "1",
   submissionType: "individual",
   instructions: "",
-  startDate: "",
-  dueDate: "",
-  maxScore: 100,
+  startDate: toDateTimeLocal(start),
+  dueDate: toDateTimeLocal(due),
+  maxScore: "100",
   allowedSubmissionMethod: "GITHUB",
   allowLateSubmissions: false,
   aiEvaluationEnabled: false,
   allowedTeamIds: [],
-};
+  };
+}
 
 /**
  * Maps form data to UpdateAssessmentDto — matching exact types the backend expects.
@@ -46,7 +56,7 @@ function mapToDto(data: CreateAssignmentData): UpdateAssessmentDto {
     instruction: data.instructions,
     startDate: data.startDate ? new Date(data.startDate) : undefined,
     dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
-    maxScore: data.maxScore,
+    maxScore: Number(data.maxScore),
     session: Number(data.session),
     allowLate: data.allowLateSubmissions,
     submissionType: data.submissionType === "team"
@@ -66,7 +76,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
   const { showToast } = useToast();
   const draftKey = `draft_assignment_${classId}`;
 
-  const [formData, setFormData] = useState<CreateAssignmentData>(DEFAULT_FORM);
+  const [formData, setFormData] = useState<CreateAssignmentData>(createDefaultForm);
   const [loading, setLoading] = useState<null | "draft" | "publish">(null);
   const [teams, setTeams] = useState<TeamResponseDto[]>([]);
   const [teamsError, setTeamsError] = useState<string | null>(null);
@@ -81,7 +91,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
     const saved = storage.get(draftKey);
     if (saved) {
       try {
-        setFormData({ ...DEFAULT_FORM, ...JSON.parse(saved) });
+        setFormData({ ...createDefaultForm(), ...JSON.parse(saved) });
       } catch {
         // ignore corrupt data
       }
@@ -131,7 +141,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
       // Step 3 intentionally skipped — stays as draft
       showToast("✅ Draft saved!", "success", 3000);
       storage.remove(draftKey);
-      setFormData(DEFAULT_FORM);
+      setFormData(createDefaultForm());
     } catch (err: any) {
       console.error("❌ Save draft error:", err);
       showToast(`❌ Failed to save draft: ${err?.message ?? "Unknown error"}`, "error", 4000);
@@ -176,16 +186,19 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value, type } = e.currentTarget;
+    const normalizedValue = ["session", "maxScore"].includes(name)
+      ? value.replace(/\D/g, "").replace(/^0+(?=\d)/, "")
+      : value;
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox"
         ? (e.currentTarget as HTMLInputElement).checked
-        : value,
+        : normalizedValue,
     }));
   };
 
   const handleReset = () => {
-    setFormData(DEFAULT_FORM);
+    setFormData(createDefaultForm());
     storage.remove(draftKey);
   };
 
@@ -327,6 +340,9 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                   name="maxScore"
                   value={formData.maxScore}
                   onChange={handleChange}
+                  min="1"
+                  max="100"
+                  step="1"
                   className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                 />
               </div>

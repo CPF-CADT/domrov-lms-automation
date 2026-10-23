@@ -88,6 +88,14 @@ export async function downloadFile(resourceId: number): Promise<Blob> {
     return response.data;
 }
 
+/** Download the original submitted archive through the teacher-authorized API. */
+export async function downloadSubmissionArchive(submissionId: number): Promise<Blob> {
+    const response = await axiosInstance.get<Blob>(`/file/submission/${submissionId}/download`, {
+        responseType: 'blob',
+    });
+    return response.data;
+}
+
 /**
  * Upload file to presigned URL
  */
@@ -108,6 +116,7 @@ const fileService = {
     uploadImage,
     notifyUpload,
     downloadFile,
+    downloadSubmissionArchive,
     uploadToPresignedUrl,
 };
 

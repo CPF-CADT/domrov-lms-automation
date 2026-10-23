@@ -14,12 +14,13 @@ import { User } from '../../libs/entities/user/user.entity';
 import { CreateClassDto } from '../../libs/dtos/class/create-class.dto';
 import { generateJoinCode } from '../../libs/utils/GenerateRandom';
 import { UserRole } from '../../libs/enums/Role';
-import { ClassStatus } from '../../libs/enums/Status';
+import { ClassStatus, SubmissionStatus } from '../../libs/enums/Status';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { MailerService } from '@nestjs-modules/mailer';
 import { UpdateClassDto } from '../../libs/dtos/class/update-class.dto';
 import { Submission } from '../../libs/entities/assessment/submission.entity';
+import { SubmissionType } from '../../libs/enums/Assessment';
 import { UserResponseDto } from '../../libs/dtos/user/user-response.dto';
 import { ClassResponseDto } from '../../libs/dtos/class/class-response.dto';
 import { JoinClassResponseDto } from '../../libs/dtos/class/join-class-response.dto';
@@ -179,6 +180,7 @@ export class ClassService {
         });
 
         await this.enrollmentRepository.save(enrollment);
+        await this.createMissingIndividualSubmissions(classToJoin.id, student.id);
         return {
             classId: classToJoin.id,
             className: classToJoin.name,
@@ -420,6 +422,7 @@ export class ClassService {
             role: UserRole.Student,
         });
         await this.enrollmentRepository.save(enrollment);
+        await this.createMissingIndividualSubmissions(classId, userId);
         return {
             classId,
             className: classToJoin.name,
@@ -437,6 +440,35 @@ export class ClassService {
                 user: { id: userId },
             },
         });
+    }
+
+    /** Create pending rows for published individual assignments after late enrollment. */
+    private async createMissingIndividualSubmissions(classId: number, studentId: number): Promise<void> {
+        const classEntity = await this.classRepository.findOne({
+            where: { id: classId },
+            relations: ['assessments'],
+        });
+        const assessments = (classEntity?.assessments ?? []).filter(
+            (assessment) => assessment.isPublic && assessment.submissionType === SubmissionType.INDIVIDUAL,
+        );
+
+        for (const assessment of assessments) {
+            const existing = await this.submissionRepository.findOne({
+                where: {
+                    assessment: { id: assessment.id },
+                    user: { id: studentId },
+                },
+                select: ['id'],
+            });
+            if (!existing) {
+                await this.submissionRepository.save({
+                    assessment: { id: assessment.id },
+                    user: { id: studentId },
+                    status: SubmissionStatus.PENDING,
+                    attemptNumber: 0,
+                });
+            }
+        }
     }
 
     async findClassAndVerifyMember(

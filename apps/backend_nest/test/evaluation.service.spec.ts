@@ -153,14 +153,19 @@ describe('EvaluationService', () => {
             const expectedResult = {
                 success: true,
                 message: 'Submission processed',
-                data: { extracted: 'content' },
+                file: {
+                    type: 'file',
+                    name: 'main.py',
+                    path: 'main.py',
+                    content: ['print(1)'],
+                },
             };
 
             mockSubmissionService.processSubmission.mockReturnValue(of(expectedResult));
 
             const result = await service.processSubmission(submission_id, file_path);
 
-            expect(result).toEqual(expectedResult);
+            expect(result).toEqual({ file: expectedResult.file });
             expect(mockSubmissionService.processSubmission).toHaveBeenCalledWith({
                 submission_id,
                 file_path,

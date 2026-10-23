@@ -81,8 +81,8 @@ export async function addFeedback(submissionId: number, data: FeedbackItemDto): 
 /**
  * Update a feedback item (Teacher)
  */
-export async function updateFeedback(feedbackId: string, data: FeedbackItemDto): Promise<UpdateFeedbackResponseDto> {
-    const response = (await axiosInstance.patch(`/submissions/feedback/${feedbackId}`, data)).data;
+export async function updateFeedback(submissionId: number, feedbackId: string, data: FeedbackItemDto): Promise<UpdateFeedbackResponseDto> {
+    const response = (await axiosInstance.patch(`/submissions/${submissionId}/feedback/${feedbackId}`, data)).data;
     return response.data;
 }
 

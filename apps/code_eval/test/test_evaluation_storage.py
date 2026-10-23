@@ -33,6 +33,21 @@ class SecureExtractionTests(unittest.TestCase):
         self.assertEqual((self.destination / "src/main.py").read_text(), "print(1)\n")
         self.assertTrue(archive.exists())
 
+    def test_zip_extraction_skips_macos_metadata(self):
+        archive = self.root / "macos.zip"
+        with zipfile.ZipFile(archive, "w") as source:
+            source.writestr("project/main.py", "print(1)\n")
+            source.writestr("__MACOSX/._main.py", "metadata")
+            source.writestr("project/.DS_Store", "metadata")
+            source.writestr("project/._main.py", "metadata")
+
+        extract_module.extract_file(str(archive), str(self.destination))
+
+        self.assertTrue((self.destination / "project/main.py").exists())
+        self.assertFalse((self.destination / "__MACOSX").exists())
+        self.assertFalse((self.destination / "project/.DS_Store").exists())
+        self.assertFalse((self.destination / "project/._main.py").exists())
+
     def test_tar_gz_extraction(self):
         archive = self.root / "submission.tar.gz"
         source_file = self.root / "main.py"
@@ -42,6 +57,26 @@ class SecureExtractionTests(unittest.TestCase):
 
         extract_module.extract_file(str(archive), str(self.destination))
         self.assertTrue((self.destination / "main.py").exists())
+
+    def test_tar_extraction_skips_macos_metadata(self):
+        archive = self.root / "macos.tar.gz"
+        with tarfile.open(archive, "w:gz") as source:
+            for name, content in (
+                ("project/main.py", b"print(1)\n"),
+                ("__MACOSX/._main.py", b"metadata"),
+                ("project/.DS_Store", b"metadata"),
+                ("project/._main.py", b"metadata"),
+            ):
+                info = tarfile.TarInfo(name)
+                info.size = len(content)
+                source.addfile(info, io.BytesIO(content))
+
+        extract_module.extract_file(str(archive), str(self.destination))
+
+        self.assertTrue((self.destination / "project/main.py").exists())
+        self.assertFalse((self.destination / "__MACOSX").exists())
+        self.assertFalse((self.destination / "project/.DS_Store").exists())
+        self.assertFalse((self.destination / "project/._main.py").exists())
 
     def test_rejects_zip_traversal_and_symlink(self):
         traversal = self.root / "traversal.zip"

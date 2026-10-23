@@ -38,12 +38,23 @@ def _check_limits(file_count: int, extracted_size: int, member_size: int) -> tup
     return file_count, extracted_size
 
 
+def _is_macos_metadata(name: str) -> bool:
+    member = PurePosixPath(name)
+    return (
+        "__MACOSX" in member.parts
+        or member.name == ".DS_Store"
+        or member.name.startswith("._")
+    )
+
+
 def _extract_zip(archive: Path, destination: Path) -> None:
     file_count = 0
     extracted_size = 0
     with zipfile.ZipFile(archive) as source:
         for info in source.infolist():
             target = _safe_member_path(info.filename, destination)
+            if _is_macos_metadata(info.filename):
+                continue
             is_directory = info.filename.endswith("/")
             mode = (info.external_attr >> 16) & 0o170000
             if stat.S_ISLNK(mode):
@@ -66,6 +77,8 @@ def _extract_tar(archive: Path, destination: Path) -> None:
     with tarfile.open(archive, "r:*") as source:
         for member in source.getmembers():
             target = _safe_member_path(member.name, destination)
+            if _is_macos_metadata(member.name):
+                continue
             if member.issym() or member.islnk():
                 raise ValueError("Archive links are not allowed")
             if member.isdir():

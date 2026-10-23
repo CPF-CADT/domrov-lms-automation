@@ -30,6 +30,7 @@ const ALLOWED_MIME_TYPES: Record<string, string[]> = {
   ppt: ['application/vnd.ms-powerpoint'],
   pptx: ['application/vnd.openxmlformats-officedocument.presentationml.presentation'],
   txt: ['text/plain'],
+  zip: ['application/zip', 'application/x-zip-compressed', 'multipart/x-zip', 'application/octet-stream'],
   java: ['text/plain', 'text/x-java-source'],
   js: ['text/javascript', 'application/javascript', 'text/plain'],
   py: ['text/plain', 'text/x-python'],
@@ -284,13 +285,31 @@ export class FileService {
     }
   }
 
+  async getSubmissionDownloadStream(userId: number, submissionId: number): Promise<{
+    stream: Readable;
+    filename: string;
+    contentType: string;
+  }> {
+    const classId = await this.submissionService.getSubmissionClassId(submissionId);
+    if (!classId || !(await this.classPermissionService.isInstructorOfClass(userId, classId))) {
+      throw new ForbiddenException('Only instructors can download submitted files');
+    }
+
+    const resource = await this.submissionService.getSubmissionDownloadResource(submissionId);
+    return this.getResourceStream(userId, resource.id);
+  }
+
   // Dummy permission check — implement your logic
   async canAccess(userId: number, resource: Resource): Promise<boolean> {
     resource.owner = resource.owner.trim();
     if (resource.owner === `${userId}`) return true;
     if (resource.url.includes('/submission/')) {
       const submissionId = parseInt(resource.url.split('/submission/')[1].split('/')[0]);
-      return await this.submissionService.isSubmissionAccessibleByUser(submissionId, userId);
+      const classId = await this.submissionService.getSubmissionClassId(submissionId);
+      const isInstructor = classId
+        ? await this.classPermissionService.isInstructorOfClass(userId, classId)
+        : false;
+      return isInstructor || await this.submissionService.isSubmissionAccessibleByUser(submissionId, userId);
     } else if (resource.url.includes('/assessment/')) {
       const assessmentId = parseInt(resource.url.split('/assessment/')[1].split('/')[0]);
       return await this.assessmentService.isAssessmentAccessibleByUser(assessmentId, userId);

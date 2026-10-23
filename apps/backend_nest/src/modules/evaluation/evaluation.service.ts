@@ -102,13 +102,19 @@ export class EvaluationService implements OnModuleInit {
       const result = await lastValueFrom(
         this.submissionService.processSubmission({ submission_id, file_path }),
       );
-      return result;
+      if (!result?.success || !result.file) {
+        throw new NotFoundException(`File not found or empty: ${file_path}`);
+      }
+      return { file: result.file };
     } catch (err: unknown) {
       const grpcError = err as { code?: number; message?: string };
       console.error('gRPC error:', grpcError.message);
 
       if (grpcError.code === 5) {
         throw new NotFoundException(`File not found or empty: ${file_path}`);
+      }
+      if (grpcError.code === 3) {
+        throw new BadRequestException('Invalid file path');
       }
 
       throw err;

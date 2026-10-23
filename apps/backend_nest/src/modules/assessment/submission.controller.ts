@@ -787,13 +787,15 @@ export class SubmissionController {
     }
 
     // ==================== UPDATE SINGLE FEEDBACK ====================
-    @Patch('feedback/:feedbackId')
-    @UseGuards(SubmissionOwnerGuard)
+    @Patch(':submissionId/feedback/:feedbackId')
+    @UseGuards(SubmissionInstructorGuard)
+    @SubmissionIdParam('submissionId')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({
         summary: 'Update a feedback item (Teacher)',
-        description: 'Updates an existing code review feedback item. Only the class owner can update feedback.'
+        description: 'Updates an existing code review feedback item. Class teachers and teaching assistants can update feedback.'
     })
+    @ApiParam({ name: 'submissionId', type: Number, description: 'Submission ID', example: 1 })
     @ApiParam({ name: 'feedbackId', type: String, description: 'Feedback UUID', example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' })
     @ApiBody({
         type: FeedbackItemDto,
@@ -848,11 +850,11 @@ export class SubmissionController {
         }
     })
     async updateSingleFeedback(
-        @UserId() userId: number,
+        @GetSubmissionContext() context: SubmissionContext,
         @Param('feedbackId') feedbackId: string,
         @Body() dto: FeedbackItemDto,
     ) {
-        const data = await this.submissionService.updateSingleFeedback(userId, feedbackId, dto);
+        const data = await this.submissionService.updateSingleFeedback(context, feedbackId, dto);
         return { success: true, data };
     }
 }

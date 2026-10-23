@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ArrowLeft, Loader2, ChevronUp, ChevronDown, File, Download, RefreshCw, Sparkles, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Loader2, ChevronUp, ChevronDown, RefreshCw, Sparkles, CheckCircle2, Download } from "lucide-react";
 import assessmentService from "@/services/AssessmentService";
 import submissionService from "@/services/SubmissionService";
+import fileService from "@/services/FileService";
 import { useToast } from "@/components/Toast";
 import type { AssessmentListItemDto, TeamTrackingItemDto, IndividualTrackingItemDto } from "@/types/Assessment";
 import type { TeamRosterItemDto, IndividualRosterItemDto, SubmissionViewerResponseDto } from "@/types/Submission";
+import SubmissionCodeViewer from "./SubmissionCodeViewer";
 
 interface GradeStudentsDetailProps {
     assignmentId: number | string;
@@ -36,6 +38,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
     const [isApproving, setIsApproving] = useState(false);
     const [manualScore, setManualScore] = useState<number>(0);
     const [manualFeedback, setManualFeedback] = useState<string>("");
+    const [isDownloading, setIsDownloading] = useState(false);
 
     const setSelectedStudentId = (studentId: number | null) => {
         const next = new URLSearchParams(searchParams);
@@ -122,11 +125,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
     const filteredData = trackingData.filter((item) => {
         const name = "studentId" in item ? item.name : item.name;
         const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase());
-
-        // Only show students, filter out teachers
-        const isStudent = !name.toLowerCase().includes("_teacher");
-
-        return matchesSearch && isStudent;
+        return matchesSearch;
     });
 
     const sortedData = [...filteredData].sort((a, b) => {
@@ -200,6 +199,11 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
 
     const handleSaveGrade = async () => {
         try {
+            if (submissionDetail?.evaluation?.isApproved) {
+                showToast("Approved evaluations cannot be edited.", "error");
+                return;
+            }
+
             const rosterItem = rosterData.find(item => {
                 const id = "userId" in item ? item.userId : item.id;
                 return id === selectedStudentId;
@@ -262,6 +266,25 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
         }
     };
 
+    const handleDownloadSubmission = async (submissionId: number) => {
+        try {
+            setIsDownloading(true);
+            const blob = await fileService.downloadSubmissionArchive(submissionId);
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = submissionDetail?.resources.find((item) => item.resource?.type !== "URL")?.resource?.title || `submission-${submissionId}.zip`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(url);
+        } catch (err: any) {
+            showToast(err?.response?.data?.message || "Could not download the submitted archive.", "error");
+        } finally {
+            setIsDownloading(false);
+        }
+    };
+
     const BackButton = () => (
         <button
             onClick={onBack}
@@ -300,14 +323,20 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
             return id === selectedStudentId;
         });
 
-        const hasEvaluation = submissionDetail?.evaluation;
+        const currentEvaluation = submissionDetail?.evaluation;
+        const hasEvaluation = Boolean(currentEvaluation);
         const isApproved = submissionDetail?.evaluation?.isApproved;
+        const selectedRosterItem = rosterData.find(item => {
+            const id = "userId" in item ? item.userId : item.id;
+            return id === selectedStudentId;
+        });
+        const selectedSubmissionId = selectedRosterItem?.submissionId ?? submissionDetail?.id;
 
         return (
             <div className="min-h-full bg-slate-50">
                 {/* Evaluation Workflow Header */}
                 <div className="sticky top-0 z-20 bg-white border-b border-slate-200">
-                    <div className="w-full px-5 py-4">
+                    <div className="mx-auto w-full max-w-[1440px] px-4 py-3">
                         <button
                             onClick={() => {
                                 setSelectedStudentId(null);
@@ -325,13 +354,13 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                             </div>
                             <div className="text-right">
                                 <p className="text-xs font-medium text-slate-500 uppercase mb-1">Current Score</p>
-                                <p className="text-3xl font-bold text-slate-900">{selectedItem?.score ?? "—"}/{assignment.maxScore}</p>
+                                <p className="text-3xl font-bold text-slate-900">{submissionDetail?.evaluation?.score ?? selectedItem?.score ?? "—"}/{assignment.maxScore}</p>
                             </div>
                         </div>
 
                         {/* Evaluation Workflow Steps */}
                         <div className="flex items-center justify-between mt-6">
-                            <div className="flex items-center gap-8">
+                            <div className="flex items-center gap-6">
                                 {/* Step 1: Submitted */}
                                 <div className="flex items-center gap-2">
                                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-700 font-semibold">✓</div>
@@ -350,7 +379,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                                         {hasEvaluation ? <Sparkles className="w-4 h-4" /> : '○'}
                                     </div>
                                     <div>
-                                        <p className="text-xs font-semibold text-slate-600">AI Evaluated</p>
+                                        <p className="text-xs font-semibold text-slate-600">{submissionDetail?.evaluation?.evaluationType === 'AI' ? 'AI Evaluated' : 'Teacher Evaluated'}</p>
                                         <p className="text-xs text-slate-500">{hasEvaluation ? 'Feedback ready' : 'Pending...'}</p>
                                     </div>
                                 </div>
@@ -374,89 +403,72 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                 </div>
 
                 {/* Main Content */}
-                <div className="w-full px-5 py-5">
+                <div className="mx-auto w-full max-w-[1440px] px-4 py-4">
                     {submissionLoading ? (
                         <div className="flex items-center justify-center py-20 bg-white rounded-lg border border-slate-200">
                             <Loader2 className="w-6 h-6 animate-spin text-blue-600 mr-2" />
                             <span className="text-slate-600">Loading submission...</span>
                         </div>
                     ) : (
-                        <div className="space-y-6">
-                            {/* Submission Code */}
-                            <div>
-                                <div className="bg-white rounded-lg border border-slate-200 p-6 mb-6">
-                                    <h2 className="text-lg font-semibold text-slate-900 mb-4">Submitted Code</h2>
-                                    {submissionDetail?.resources && submissionDetail.resources.length > 0 ? (
-                                        <div className="space-y-3">
-                                            {submissionDetail.resources.map((resource) => (
-                                                <div
-                                                    key={resource.id}
-                                                    className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors"
-                                                >
-                                                    <div className="flex items-center gap-3 flex-1">
-                                                        <File className="w-5 h-5 text-slate-500" />
-                                                        <div className="flex-1">
-                                                            <p className="font-medium text-slate-900">{resource.resource?.title || "Unnamed"}</p>
-                                                            <p className="text-xs text-slate-500">{resource.resource?.type || "File"}</p>
-                                                        </div>
-                                                    </div>
-                                                    {resource.resource?.url && (
-                                                        <a
-                                                            href={resource.resource.url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
-                                                        >
-                                                            <Download className="w-4 h-4 inline mr-1" />
-                                                            View
-                                                        </a>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
+                        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+                            {/* Submitted code stays in the primary workspace. */}
+                            <main className="min-w-0 space-y-4">
+                                <div className="bg-white rounded-xl border border-slate-200 p-4">
+                                    <div className="mb-3 flex items-center justify-between gap-3">
+                                        <h2 className="text-base font-semibold text-slate-900">Submitted Code</h2>
+                                        {selectedSubmissionId ? <button type="button" onClick={() => handleDownloadSubmission(selectedSubmissionId)} disabled={isDownloading} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-400 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"><Download className="h-4 w-4" />{isDownloading ? "Downloading..." : "Download ZIP"}</button> : null}
+                                    </div>
+                                    {selectedSubmissionId ? (
+                                        <SubmissionCodeViewer
+                                            submissionId={selectedSubmissionId}
+                                            feedbacks={submissionDetail?.evaluation?.feedbacks}
+                                            canComment
+                                            showFeedback
+                                            onFeedbackChanged={setRefreshCurrent}
+                                        />
                                     ) : (
                                         <p className="text-slate-600 text-sm">No code submitted yet.</p>
                                     )}
                                 </div>
 
-                                {/* AI Feedback Section */}
+                                {/* Evaluation feedback */}
                                 {hasEvaluation && (
-                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                                         <div className="flex items-center gap-2 mb-4">
                                             <Sparkles className="w-5 h-5 text-blue-600" />
-                                            <h3 className="text-lg font-semibold text-slate-900">AI Feedback</h3>
-                                            <span className={`ml-auto text-xs font-semibold px-2 py-1 rounded-full ${submissionDetail.evaluation?.evaluationType === 'AI' ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-700'}`}>
-                                                {submissionDetail.evaluation?.evaluationType || 'Manual'}
+                                            <h3 className="text-lg font-semibold text-slate-900">{currentEvaluation?.evaluationType === 'AI' ? 'AI Feedback' : 'Teacher Feedback'}</h3>
+                                            <span className={`ml-auto text-xs font-semibold px-2 py-1 rounded-full ${currentEvaluation?.evaluationType === 'AI' ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-700'}`}>
+                                                {currentEvaluation?.evaluationType || 'Manual'}
                                             </span>
                                         </div>
-                                        <p className="text-slate-700 whitespace-pre-wrap">{submissionDetail.evaluation?.aiOutput || submissionDetail.evaluation?.feedback || 'No feedback provided'}</p>
+                                        <p className="text-slate-700 whitespace-pre-wrap">{currentEvaluation?.aiOutput || currentEvaluation?.feedback || 'No feedback provided'}</p>
                                     </div>
                                 )}
-                            </div>
+                            </main>
 
-                            {/* Evaluation Summary & Actions */}
-                            <div>
-                                {/* AI Score Card */}
+                            {/* Evaluation summary and actions */}
+                            <aside className="space-y-4 lg:sticky lg:top-20">
+                                {/* Evaluation score */}
                                 {hasEvaluation && (
-                                    <div className="bg-white rounded-lg border border-slate-200 p-6 mb-6">
+                                    <div className="bg-white rounded-xl border border-slate-200 p-4">
                                         <div className="flex items-center gap-2 mb-4">
                                             <Sparkles className="w-5 h-5 text-amber-500" />
-                                            <h3 className="font-semibold text-slate-900">AI Score</h3>
+                                            <h3 className="font-semibold text-slate-900">{currentEvaluation?.evaluationType === 'AI' ? 'AI Score' : 'Teacher Score'}</h3>
                                         </div>
                                         <div className="mb-4">
-                                            <div className="text-4xl font-bold text-slate-900">{submissionDetail.evaluation?.score}</div>
+                                            <div className="text-4xl font-bold text-slate-900">{currentEvaluation?.score}</div>
                                             <p className="text-sm text-slate-600">out of {assignment.maxScore} points</p>
                                         </div>
-                                        {submissionDetail.evaluation?.penaltyScore && submissionDetail.evaluation.penaltyScore > 0 && (
+                                        {currentEvaluation?.penaltyScore && currentEvaluation.penaltyScore > 0 && (
                                             <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                                                <p className="text-xs font-semibold text-red-700">Penalty: -{submissionDetail.evaluation.penaltyScore}</p>
+                                                <p className="text-xs font-semibold text-red-700">Penalty: -{currentEvaluation.penaltyScore}</p>
                                             </div>
                                         )}
                                     </div>
                                 )}
 
                                 {/* Status Card */}
-                                <div className="bg-white rounded-lg border border-slate-200 p-6 mb-6">
+                                <div className="bg-white rounded-xl border border-slate-200 p-4">
                                     <h3 className="font-semibold text-slate-900 mb-3 text-sm uppercase tracking-wider">Override Score</h3>
                                     <div className="space-y-4">
                                         <div>
@@ -485,7 +497,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                                     </div>
                                     <button
                                         onClick={handleSaveGrade}
-                                        disabled={isApproving}
+                                        disabled={isApproving || Boolean(submissionDetail?.evaluation?.isApproved)}
                                         className="w-full px-4 py-3 bg-amber-600 text-white rounded-lg font-semibold hover:bg-amber-700 disabled:opacity-50 transition-colors"
                                     >
                                         {isApproving ? 'Saving...' : 'Save Score Changes'}
@@ -521,7 +533,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                                         </div>
                                     )}
                                 </div>
-                            </div>
+                            </aside>
                         </div>
                     )}
                 </div>
@@ -533,10 +545,10 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
         <div className="w-full p-5">
             <BackButton />
 
-            <div className="bg-white rounded-lg border border-slate-200 p-8 mb-6">
+            <div className="bg-white rounded-xl border border-slate-200 p-5 mb-4">
                 <div className="flex items-start justify-between mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-slate-900 mb-2">{assignment.title}</h1>
+                        <h1 className="text-2xl font-bold text-slate-900 mb-1">{assignment.title}</h1>
                         <p className="text-sm text-slate-600">Max Score: {assignment.maxScore} points</p>
                     </div>
                 </div>
@@ -545,19 +557,14 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                     <div>
                         <p className="text-xs font-medium text-slate-500 uppercase mb-1">Total Students</p>
                         <p className="text-sm font-semibold text-slate-900">
-                            {trackingData.filter((item) => {
-                                const name = "studentId" in item ? item.name : item.name;
-                                return !name.toLowerCase().includes("_teacher");
-                            }).length}
+                            {trackingData.length}
                         </p>
                     </div>
                     <div>
                         <p className="text-xs font-medium text-slate-500 uppercase mb-1">Submitted</p>
                         <p className="text-sm font-semibold text-slate-900">
                             {trackingData.filter((item) => {
-                                const name = "studentId" in item ? item.name : item.name;
-                                const isStudent = !name.toLowerCase().includes("_teacher");
-                                return isStudent && item.status !== "NOT_SUBMITTED";
+                                return item.status !== "NOT_SUBMITTED";
                             }).length}
                         </p>
                     </div>
@@ -565,9 +572,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                         <p className="text-xs font-medium text-slate-500 uppercase mb-1">Graded</p>
                         <p className="text-sm font-semibold text-slate-900">
                             {trackingData.filter((item) => {
-                                const name = "studentId" in item ? item.name : item.name;
-                                const isStudent = !name.toLowerCase().includes("_teacher");
-                                return isStudent && item.status === "GRADED";
+                                return item.status === "GRADED";
                             }).length}
                         </p>
                     </div>
@@ -575,10 +580,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                         <p className="text-xs font-medium text-slate-500 uppercase mb-1">Average Score</p>
                         <p className="text-sm font-semibold text-slate-900">
                             {(() => {
-                                const students = trackingData.filter((item) => {
-                                    const name = "studentId" in item ? item.name : item.name;
-                                    return !name.toLowerCase().includes("_teacher");
-                                });
+                                const students = trackingData;
                                 const gradedStudents = students.filter((item) => item.score !== null);
                                 return students.length > 0 && gradedStudents.length > 0
                                     ? (
@@ -591,8 +593,8 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                 </div>
             </div>
 
-            <div className="bg-white rounded-lg border border-slate-200 p-6">
-                <div className="mb-6">
+            <div className="bg-white rounded-xl border border-slate-200 p-4">
+                <div className="mb-4">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-lg font-semibold text-slate-900">Student Grades</h2>
                         <button

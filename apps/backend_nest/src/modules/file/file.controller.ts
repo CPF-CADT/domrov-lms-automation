@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Res, UploadedFile, UseGuards, UseInterceptors, NotFoundException } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Res, UploadedFile, UseGuards, UseInterceptors, NotFoundException, ParseIntPipe } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags, ApiBody, ApiOkResponse, ApiParam } from '@nestjs/swagger';
@@ -9,6 +9,7 @@ import express from 'express';
 import { NotifyUploadDto, PresignedUrlResponseDto, NotifyUploadResponseDto } from '../../libs/dtos/file/file-response.dto';
 import type { FileParentType } from './file.service';
 import { MAX_FILE_SIZE } from '../../libs/const/system';
+import { SubmissionIdParam, SubmissionInstructorGuard } from '../../common/security';
 
 @ApiTags('Files')
 @ApiBearerAuth('JWT-auth')
@@ -160,6 +161,27 @@ export class FileController {
       stream.pipe(res)
         .on('finish', resolve)
         .on('error', reject);
+    });
+  }
+
+  @Get('submission/:submissionId/download')
+  @UseGuards(SubmissionInstructorGuard)
+  @SubmissionIdParam('submissionId')
+  @ApiOperation({ summary: 'Download the submitted archive (Teacher)' })
+  @ApiParam({ name: 'submissionId', type: Number, description: 'Submission ID' })
+  async downloadSubmission(
+    @Param('submissionId', ParseIntPipe) submissionId: number,
+    @Res() res: express.Response,
+    @UserId() userId: number,
+  ) {
+    const { stream, filename, contentType } = await this.fileService.getSubmissionDownloadStream(userId, submissionId);
+    const encodedFileName = encodeURIComponent(filename);
+    const safeFileName = encodedFileName.replace(/%20/g, ' ');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFileName}"; filename*=UTF-8''${encodedFileName}`);
+    res.setHeader('Content-Type', contentType || 'application/octet-stream');
+
+    return new Promise<void>((resolve, reject) => {
+      stream.pipe(res).on('finish', resolve).on('error', reject);
     });
   }
 
