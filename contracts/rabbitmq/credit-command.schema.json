@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://domrov.example/contracts/rabbitmq/credit-command.schema.json",
+  "title": "Credit command payload",
+  "type": "object",
+  "required": ["operation", "userId", "evaluationId", "amount"],
+  "properties": {
+    "operation": {"enum": ["reserve", "commit", "release"]},
+    "userId": {"type": "string", "minLength": 1},
+    "evaluationId": {"type": "string", "minLength": 1},
+    "amount": {"type": "integer", "minimum": 0},
+    "reason": {"type": "string"}
+  },
+  "additionalProperties": false
+}

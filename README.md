@@ -118,7 +118,8 @@ DOMROV uses a modern, distributed cloud architecture to deliver scalable, secure
 - Node.js (NestJS) for the API Gateway and business logic  
 - Python (FastAPI/Flask) for orchestration and AI task management  
 - Amazon EC2 for scalable compute resources  
-- Secure gRPC protocol for backend-to-backend communication  
+- RabbitMQ for durable backend-to-backend events and commands; gRPC remains only
+  as a legacy compatibility contract during migration
 
 ### Task Processing & Automation
 
@@ -146,44 +147,46 @@ DOMROV uses a modern, distributed cloud architecture to deliver scalable, secure
 
 ### 1. System Architecture & Internal Communication
 
-#### gRPC-Based Distributed Architecture
+#### RabbitMQ-Based Distributed Architecture
 
 The system follows a distributed architecture composed of:
 
 - NestJS Backend – Handles business logic, APIs, authentication, and database operations  
-- Python Evaluation Service – Runs a gRPC server and manages multiple worker processes  
-- Redis Queue (RQ) – Handles asynchronous job scheduling  
+- Python Evaluation Service – Consumes RabbitMQ evaluation jobs and manages worker processes
+- RabbitMQ – Handles durable service events, commands, retries, and dead-letter queues
+- Redis Queue (RQ) – Retained for evaluator-local temporary execution state during migration
 - LLM Provider – Performs rubric-based evaluation  
 - Database – Stores submissions, scores, and feedback  
 
-#### Why gRPC Instead of REST (Internal Communication)
+#### Why RabbitMQ for Internal Communication
 
-- Single entry point for all evaluation requests  
-- Binary Protobuf messages (smaller and faster than JSON)  
-- Strong schema enforcement to prevent contract mismatch  
-- Built-in streaming support  
-- Better concurrency handling for high-throughput evaluation  
+- Durable queues allow services to process work asynchronously
+- Topic routing supports independent consumers without direct service coupling
+- Manual acknowledgements, retries, and dead-letter queues isolate failures
+- Correlation IDs make an evaluation traceable across services and workers
+- NestJS `Transport.RMQ` provides `@MessagePattern()` and `@EventPattern()` contracts
 
 ---
 
 ### 2. Asynchronous Task Queue
 
-- Redis Queue (RQ) for asynchronous job handling  
+- RabbitMQ for cross-service evaluation events and commands
+- Redis Queue (RQ) for evaluator-local asynchronous job handling during migration
 - Multiple Python workers for parallel evaluation  
 
 **Workflow:**
 
 ![AI Evaluation](https://res.cloudinary.com/dgnugtetz/image/upload/v1772225042/mermaid-diagram-2026-02-28-034330_yq6xlr.png)
 
-1. NestJS triggers evaluation via gRPC  
-2. Python service enqueues the job into Redis  
+1. Academic Service publishes `evaluation.requested` to RabbitMQ
+2. AI service enqueues the job into its worker queue
 3. Worker consumes the job asynchronously:  
    - Fetches submission files  
    - Estimates token size  
    - Sends request to LLM  
    - Normalizes output  
-4. Result is sent back to NestJS via gRPC  
-5. NestJS stores the final score and feedback in the database  
+4. AI service publishes `evaluation.completed` or `evaluation.failed` to RabbitMQ
+5. Academic Service stores the final score and feedback in its database
 
 **Reliability Features:**
 

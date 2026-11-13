@@ -26,6 +26,8 @@ services:
         condition: service_started
       ai-service:
         condition: service_started
+      rabbitmq:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost/health | grep -q 'gateway'"]
       interval: 10s
@@ -45,8 +47,12 @@ services:
       DATABASE_URL: postgresql://domrov:domrov@auth-db:5432/auth_db
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-local-access-secret}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-local-refresh-secret}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://domrov:domrov@rabbitmq:5672/%2f}
+      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}
     depends_on:
       auth-db:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health/ready || exit 1"]
@@ -67,10 +73,15 @@ services:
       DATABASE_URL: postgresql://domrov:domrov@academic-db:5432/academic_db
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-local-access-secret}
       AI_SERVICE_GRPC_ADDRESS: ai-service:50051
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://domrov:domrov@rabbitmq:5672/%2f}
+      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}
+      RABBITMQ_COMMANDS_EXCHANGE: ${RABBITMQ_COMMANDS_EXCHANGE:-domrov.commands}
     depends_on:
       academic-db:
         condition: service_healthy
       ai-service:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3002/health/ready || exit 1"]
@@ -91,8 +102,13 @@ services:
       DATABASE_URL: postgresql://domrov:domrov@payment-db:5432/payment_db
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-local-access-secret}
       SERVICE_AUTH_TOKEN: ${SERVICE_AUTH_TOKEN:-local-service-token}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://domrov:domrov@rabbitmq:5672/%2f}
+      RABBITMQ_COMMANDS_EXCHANGE: ${RABBITMQ_COMMANDS_EXCHANGE:-domrov.commands}
+      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}
     depends_on:
       payment-db:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3003/health/ready || exit 1"]
@@ -116,10 +132,15 @@ services:
       REDIS_URL: redis://redis:6379/0
       PAYMENT_SERVICE_URL: http://payment-service:3003
       PAYMENT_SERVICE_TOKEN: ${SERVICE_AUTH_TOKEN:-local-service-token}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://domrov:domrov@rabbitmq:5672/%2f}
+      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}
+      RABBITMQ_COMMANDS_EXCHANGE: ${RABBITMQ_COMMANDS_EXCHANGE:-domrov.commands}
     depends_on:
       ai-db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/ready', timeout=3)"]
@@ -139,6 +160,9 @@ services:
       REDIS_URL: redis://redis:6379/0
       PAYMENT_SERVICE_URL: http://payment-service:3003
       PAYMENT_SERVICE_TOKEN: ${SERVICE_AUTH_TOKEN:-local-service-token}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://domrov:domrov@rabbitmq:5672/%2f}
+      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}
+      RABBITMQ_COMMANDS_EXCHANGE: ${RABBITMQ_COMMANDS_EXCHANGE:-domrov.commands}
     depends_on:
       ai-service:
         condition: service_healthy
@@ -146,6 +170,27 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    restart: unless-stopped
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-domrov}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-domrov}
+      RABBITMQ_LOAD_DEFINITIONS: /etc/rabbitmq/definitions.json
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
   auth-db:
     image: postgres:16-alpine
@@ -215,3 +260,4 @@ volumes:
   payment_db_data:
   ai_db_data:
   redis_data:
+  rabbitmq_data:

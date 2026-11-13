@@ -10,3 +10,8 @@ data:
   AI_SERVICE_URL: http://ai-service:8080
   AI_SERVICE_GRPC_ADDRESS: ai-service:50051
   REDIS_URL: redis://redis:6379/0
+  RABBITMQ_EVENTS_EXCHANGE: domrov.events
+  RABBITMQ_COMMANDS_EXCHANGE: domrov.commands
+  RABBITMQ_RETRY_EXCHANGE: domrov.retry
+  RABBITMQ_DLX: domrov.dlx
+  RABBITMQ_PREFETCH_COUNT: "10"

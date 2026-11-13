@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://domrov.example/contracts/rabbitmq/envelope.schema.json",
+  "title": "DOMROV RabbitMQ message envelope",
+  "type": "object",
+  "required": ["messageId", "correlationId", "eventType", "producer", "occurredAt", "schemaVersion", "payload"],
+  "properties": {
+    "messageId": {"type": "string", "minLength": 1},
+    "correlationId": {"type": "string", "minLength": 1},
+    "causationId": {"type": "string", "minLength": 1},
+    "eventType": {"type": "string", "minLength": 1},
+    "producer": {"type": "string", "minLength": 1},
+    "occurredAt": {"type": "string", "format": "date-time"},
+    "schemaVersion": {"type": "integer", "minimum": 1},
+    "payload": {"type": "object"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,15 @@
+{
+  "eventsExchange": "domrov.events",
+  "commandsExchange": "domrov.commands",
+  "retryExchange": "domrov.retry",
+  "deadLetterExchange": "domrov.dlx",
+  "keys": {
+    "evaluationRequested": "evaluation.requested",
+    "evaluationCompleted": "evaluation.completed",
+    "evaluationFailed": "evaluation.failed",
+    "creditReserve": "credit.reserve",
+    "creditCommit": "credit.commit",
+    "creditRelease": "credit.release",
+    "notificationRequested": "notification.requested"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://domrov.example/contracts/rabbitmq/evaluation-requested.schema.json",
+  "title": "Evaluation requested payload",
+  "type": "object",
+  "required": ["evaluationId", "submissionId", "assignmentId", "userId", "language"],
+  "properties": {
+    "evaluationId": {"type": "string", "minLength": 1},
+    "submissionId": {"type": "string", "minLength": 1},
+    "assignmentId": {"type": "string", "minLength": 1},
+    "userId": {"type": "string", "minLength": 1},
+    "language": {"type": "string", "minLength": 1},
+    "resourceIds": {"type": "array", "items": {"type": "string"}},
+    "rubricId": {"type": "string"}
+  },
+  "additionalProperties": false
+}
