@@ -17,6 +17,7 @@ npm start
 ```
 
 The REST base path is `/api/academic`. A submission is persisted before the
-optional asynchronous AI client is invoked. Configure `AI_SERVICE_URL` only
+optional asynchronous evaluation event is published. Configure the RabbitMQ
+connection and event exchange instead of a direct AI service URL.
 when the AI service endpoint is available; otherwise an AI-enabled submission
 remains `pending` with a generated evaluation ID.
