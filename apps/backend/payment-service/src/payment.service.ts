@@ -2,6 +2,8 @@ import { ConflictException, Injectable, NotFoundException, BadRequestException, 
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { CreditPackage, CreditReservation, IdempotencyRecord, Payment, WalletBalance, WalletTransaction } from './entities';
+import { BakongProvider, PaymentCurrency } from './bakong.provider';
+import { PaymentGateway } from './payment.gateway';
 
 @Injectable()
 export class PaymentService {
@@ -13,6 +15,8 @@ export class PaymentService {
     @InjectRepository(WalletTransaction) private readonly transactions: Repository<WalletTransaction>,
     @InjectRepository(IdempotencyRecord) private readonly idempotency: Repository<IdempotencyRecord>,
     @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly provider: BakongProvider,
+    private readonly gateway: PaymentGateway,
   ) {}
 
   async wallet(userId: string) { const wallet = await this.wallets.findOne({ where: { userId } }); return wallet ?? this.wallets.save(this.wallets.create({ userId, availableCredits: 0, reservedCredits: 0 })); }
@@ -22,7 +26,25 @@ export class PaymentService {
     const existing = await this.idempotency.findOne({ where: { key } }); if (existing) return existing.response;
     const pkg = await this.packages.findOne({ where: { id: packageId, isActive: true } }); if (!pkg) throw new NotFoundException('Credit package not found');
     const payment = await this.payments.save(this.payments.create({ userId, creditPackageId: packageId, amount: pkg.price, currency: pkg.currency, status: 'pending' }));
-    return this.saveIdempotency(key, 'create-payment', { id: payment.id, status: payment.status });
+    const qr = this.provider.createPaymentQr({ paymentId: payment.id, amount: Number(pkg.price), currency: pkg.currency as PaymentCurrency });
+    payment.providerReference = qr.md5;
+    payment.providerMetadata = { mode: this.provider.currentMode, qr: qr.qr };
+    await this.payments.save(payment);
+    this.gateway.sendQr(userId, qr.qr);
+    return this.saveIdempotency(key, 'create-payment', { id: payment.id, status: payment.status, qr: qr.qr, providerMode: this.provider.currentMode });
+  }
+
+  async verifyPayment(userId: string, paymentId: string) {
+    const payment = await this.payments.findOne({ where: { id: paymentId, userId } });
+    if (!payment) throw new NotFoundException('Payment not found');
+    if (payment.status === 'completed') return { paymentId, status: 'PAID' };
+    if (!payment.providerReference) throw new ConflictException('Payment provider reference is missing');
+    const result = await this.provider.checkPaymentByMd5(payment.providerReference);
+    if (result.responseCode !== 0 || !result.data) { this.gateway.sendStatus(userId, 'UNPAID'); return { paymentId, status: 'UNPAID' }; }
+    if (Number(result.data.amount) !== Number(payment.amount) || result.data.currency !== payment.currency) throw new ConflictException('Payment amount or currency mismatch');
+    await this.creditSuccessfulPayment(payment, result.data as unknown as Record<string, unknown>);
+    this.gateway.sendStatus(userId, 'PAID');
+    return { paymentId, status: 'PAID' };
   }
 
   async reserve(input: { userId: string; amount: number; referenceId: string }, key: string) {
@@ -55,6 +77,25 @@ export class PaymentService {
 
   async refund(userId: string, amount: number, referenceId: string, key: string) { if (amount <= 0) throw new BadRequestException('Amount must be positive'); const existing = await this.idempotency.findOne({ where: { key } }); if (existing) return existing.response; const wallet = await this.wallet(userId); wallet.availableCredits = Number(wallet.availableCredits) + amount; await this.wallets.save(wallet); const response = { userId, amount, status: 'refunded', referenceId }; await this.idempotency.save(this.idempotency.create({ key, operation: 'refund', statusCode: 200, response })); return response; }
   private async saveIdempotency(key: string, operation: string, response: Record<string, unknown>) { await this.idempotency.save(this.idempotency.create({ key, operation, statusCode: 201, response })); return response; }
+
+  private async creditSuccessfulPayment(payment: Payment, transaction: Record<string, unknown>) {
+    await this.dataSource.transaction(async manager => {
+      const locked = await manager.findOne(Payment, { where: { id: payment.id }, lock: { mode: 'pessimistic_write' } });
+      if (!locked || locked.status === 'completed') return;
+      const pkg = await manager.findOne(CreditPackage, { where: { id: locked.creditPackageId } });
+      if (!pkg) throw new NotFoundException('Credit package not found');
+      let wallet = await manager.findOne(WalletBalance, { where: { userId: locked.userId }, lock: { mode: 'pessimistic_write' } });
+      if (!wallet) wallet = await manager.save(manager.create(WalletBalance, { userId: locked.userId, availableCredits: 0, reservedCredits: 0 }));
+      const credits = Number(pkg.credits) + Number(pkg.bonusCredits ?? 0);
+      wallet.availableCredits = Number(wallet.availableCredits) + credits;
+      await manager.save(wallet);
+      await manager.save(manager.create(WalletTransaction, { userId: locked.userId, amount: credits, type: 'credit', reason: 'purchase', referenceId: locked.id, metadata: { paymentId: locked.id, providerTransaction: transaction } }));
+      locked.status = 'completed';
+      locked.providerMetadata = { ...(locked.providerMetadata ?? {}), transaction };
+      locked.providerReference = String(transaction.hash ?? locked.providerReference);
+      await manager.save(locked);
+    });
+  }
 }
 
 export function assertUser(requestUser: { sub?: string } | undefined): string { if (!requestUser?.sub) throw new UnauthorizedException('Invalid authenticated user'); return String(requestUser.sub); }
