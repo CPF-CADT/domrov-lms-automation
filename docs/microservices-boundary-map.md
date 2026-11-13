@@ -9,9 +9,9 @@ connections.
 
 | Current location | Target service | Ownership after extraction |
 | --- | --- | --- |
-| `src/modules/auth` | Auth Service | Registration, login, refresh/logout, password reset, OAuth |
-| `src/modules/user` | Auth Service | User profile and identity data |
-| `src/libs/entities/user` | Auth Service | `users`, OAuth accounts, refresh tokens, email OTPs |
+| `src/modules/auth` | User Service | Registration, login, refresh/logout, password reset, OAuth |
+| `src/modules/user` | User Service | User profile and identity data |
+| `src/libs/entities/user` | User Service | `users`, OAuth accounts, refresh tokens, email OTPs |
 | `src/modules/class` | Academic Service | Classes, enrollment, invitations |
 | `src/modules/team` | Academic Service | Teams and team membership |
 | `src/modules/assessment` | Academic Service | Assignments, rubrics, submissions, academic feedback |
@@ -37,7 +37,7 @@ The current `src/database/data-source.ts` is shared by the monolith. During
 extraction, each target service receives its own connection and migrations:
 
 ```text
-Auth Service      -> auth_db
+User Service      -> auth_db
 Academic Service  -> academic_db
 Payment Service   -> payment_db
 AI Service        -> ai_db plus Redis for queue state
@@ -53,7 +53,7 @@ The current public route groups are mapped as follows:
 
 | Current route group | Target owner |
 | --- | --- |
-| `/auth/*`, `/users/*` | Auth Service |
+| `/auth/*`, `/users/*` | User Service |
 | `/class/*`, `/team/*`, `/assessments/*`, `/submissions/*`, `/file/*` | Academic Service |
 | `/wallet/*`, `/payment/*`, `/admin/wallet/*` | Payment Service |
 | `/evaluations/*`, internal evaluation gRPC | AI Service; result projection remains Academic Service |

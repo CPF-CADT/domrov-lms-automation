@@ -8,14 +8,14 @@ services:
     volumes: [./gateway/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro]
     extra_hosts: ["host.docker.internal:host-gateway"]
     depends_on:
-      auth-service: {condition: service_started}
+      user: {condition: service_started}
       academic-service: {condition: service_started}
       payment-service: {condition: service_started}
       evaluation-service: {condition: service_started}
       rabbitmq: {condition: service_healthy}
-  auth-service:
-    image: ${AUTH_SERVICE_IMAGE:-phyvathanak/domrov-auth-service:dev}
-    build: {context: ../apps/backend/auth-service, dockerfile: Dockerfile}
+  user:
+    image: ${USER_IMAGE:-phyvathanak/domrov-user:dev}
+    build: {context: ../apps/backend/user, dockerfile: Dockerfile}
     ports: ["3001:3001"]
     environment: {PORT: "3001", DATABASE_URL: "postgresql://domrov:domrov@auth-db:5432/auth_db", JWT_ACCESS_SECRET: "${JWT_ACCESS_SECRET:-local-access-secret}", JWT_REFRESH_SECRET: "${JWT_REFRESH_SECRET:-local-refresh-secret}", RABBITMQ_URL: "${RABBITMQ_URL:-amqp://domrov:domrov@rabbitmq:5672/%2f}", RABBITMQ_EVENTS_EXCHANGE: "${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}"}
     depends_on: {auth-db: {condition: service_healthy}, rabbitmq: {condition: service_healthy}}

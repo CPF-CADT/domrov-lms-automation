@@ -6,7 +6,7 @@ until each work package is migrated.
 
 | Contract | Owner | Purpose |
 | --- | --- | --- |
-| `auth/openapi.yaml` | Auth Service | Identity and user profile APIs |
+| `auth/openapi.yaml` | User Service | Identity and user profile APIs |
 | `academic/openapi.yaml` | Academic Service | Classes, assignments, and submissions |
 | `payment/openapi.yaml` | Payment Service | Wallet and credit reservation APIs |
 | `rabbitmq/` | Evaluation/Payment/Auth services | Internal RabbitMQ events, commands, and payload schemas |

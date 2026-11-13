@@ -6,7 +6,7 @@ describe('Auth RabbitMQ integration', () => {
     const emit = jest.fn().mockReturnValue(of(undefined));
     const publisher = new AuthEventsPublisher({ emit } as any);
     await publisher.publish('user.created', { userId: 7, email: 'user@example.com' }, '7');
-    expect(emit).toHaveBeenCalledWith('user.created', expect.objectContaining({ eventType: 'user.created', correlationId: '7', idempotencyKey: 'auth-event:7:user.created' }));
+    expect(emit).toHaveBeenCalledWith('user.created', expect.objectContaining({ eventType: 'user.created', correlationId: '7', idempotencyKey: 'user-event:7:user.created' }));
     expect(AUTH_EVENTS_CLIENT).toBe('AUTH_EVENTS_CLIENT');
   });
 });

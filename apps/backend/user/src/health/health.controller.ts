@@ -6,7 +6,7 @@ export class HealthController {
   constructor(private readonly dataSource: DataSource) {}
 
   @Get('live')
-  live() { return { status: 'ok', service: 'auth-service' }; }
+  live() { return { status: 'ok', service: 'user' }; }
 
   @Get('ready')
   @HttpCode(HttpStatus.OK)

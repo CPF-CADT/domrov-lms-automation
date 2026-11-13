@@ -462,7 +462,7 @@ domrov-lms-automation/
 
 Refactor the backend into four independently deployable microservices while preserving the existing DOMROV product behavior:
 
-1. Auth Service
+1. User Service
 2. Academic Service
 3. Payment Service
 4. AI Evaluation Service
@@ -484,7 +484,7 @@ The frontend remains outside this refactoring. It should access backend function
 
 | Service | Responsibility | Database |
 |---|---|---|
-| Auth Service | Registration, login, JWT, users, roles, OAuth, password recovery | `auth_db` |
+| User Service | Registration, login, JWT, users, roles, OAuth, password recovery | `auth_db` |
 | Academic Service | Classes, teams, assignments, rubrics, submissions, academic results | `academic_db` |
 | Payment Service | Wallets, credit packages, KHQR payments, transactions, credit reservations | `payment_db` |
 | AI Service | Code execution, evaluation jobs, AI feedback, evaluation results and workers | `ai_db` plus Redis |
@@ -517,7 +517,7 @@ Academic Service stores submission
 
 ```text
 apps/backend/
-├── auth-service/
+├── user/
 ├── academic-service/
 ├── payment-service/
 └── evaluation-service/
@@ -531,7 +531,7 @@ contracts/
 infra/
 ├── docker-compose.yml
 └── k8s/
-    ├── auth-service/
+    ├── user/
     ├── academic-service/
     ├── payment-service/
     ├── evaluation-service/
@@ -541,7 +541,7 @@ infra/
 
 ### Service scopes
 
-- **Auth Service:** registration, login, refresh tokens, logout, email verification, password reset, OAuth, user profiles, and roles. It owns identity data in `auth_db`. Other services validate JWTs and must not read `auth_db`.
+- **User Service:** registration, login, refresh tokens, logout, email verification, password reset, OAuth, user profiles, and roles. It owns identity data in `auth_db`. Other services validate JWTs and must not read `auth_db`.
 - **Academic Service:** classes, enrollments, teams, assignments, rubrics, resources, submissions, evaluation status, and academic feedback in `academic_db`.
 - **Payment Service:** credit packages, wallet balances, payments, KHQR verification, transactions, refunds, and credit reservations in `payment_db`. Credit operations require idempotency keys.
 - **Evaluation Service:** evaluation requests, local NestJS runner, results, retries, and status in `evaluation_db`. Internal communication uses RabbitMQ; it has no gRPC, Python, Redis, or shared database dependency.

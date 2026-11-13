@@ -1,4 +1,4 @@
-# Auth Service
+# User Service
 
 This is the first independently buildable service extracted from the original
 NestJS backend. It owns `auth_db` and the identity data required for login and

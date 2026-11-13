@@ -1,7 +1,7 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
-metadata: {name: auth-service, namespace: domrov}
-spec: {minAvailable: 1, selector: {matchLabels: {app: auth-service}}}
+metadata: {name: user, namespace: domrov}
+spec: {minAvailable: 1, selector: {matchLabels: {app: user}}}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget

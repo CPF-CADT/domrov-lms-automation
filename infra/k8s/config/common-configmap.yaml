@@ -4,7 +4,7 @@ metadata:
   name: domrov-common
   namespace: domrov
 data:
-  AUTH_SERVICE_URL: http://auth-service:3001
+  USER_SERVICE_URL: http://user:3001
   ACADEMIC_SERVICE_URL: http://academic-service:3002
   PAYMENT_SERVICE_URL: http://payment-service:3003
   EVALUATION_SERVICE_URL: http://evaluation-service:3004

@@ -14,12 +14,12 @@ directly at individual service ports.
 
 | Frontend path | Destination |
 |---|---|
-| `/auth`, `/users` | Auth Service |
+| `/auth`, `/users` | User Service |
 | `/class`, `/team`, `/assessments`, `/submissions`, `/file` | Academic Service, rewritten to `/api/academic/...` |
 | `/wallet`, `/payment` | Payment Service |
 | `/evaluations` | AI Service HTTP API |
-| `/notifications` | Auth Service |
-| `/admin/users` | Auth Service |
+| `/notifications` | User Service |
+| `/admin/users` | User Service |
 | `/admin/wallet` | Payment Service |
 | `/admin/dashboard` | Academic Service |
 | `/admin/evaluations`, `/admin/usage`, `/admin/logs` | AI Service |

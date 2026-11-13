@@ -1,15 +1,15 @@
 apiVersion: apps/v1
 kind: Deployment
-metadata: {name: auth-service, namespace: domrov}
+metadata: {name: user, namespace: domrov}
 spec:
   replicas: 2
-  selector: {matchLabels: {app: auth-service}}
+  selector: {matchLabels: {app: user}}
   template:
-    metadata: {labels: {app: auth-service}}
+    metadata: {labels: {app: user}}
     spec:
       containers:
-        - name: auth-service
-          image: phyvathanak/domrov-auth-service:dev
+        - name: user
+          image: phyvathanak/domrov-user:dev
           ports: [{name: http, containerPort: 3001}]
           envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
           env: [{name: PORT, value: "3001"}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: AUTH_DATABASE_URL}}}]

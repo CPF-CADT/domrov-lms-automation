@@ -1,7 +1,7 @@
 events {}
 
 http {
-  upstream auth_service { server auth-service:3001; }
+  upstream user_service { server user:3001; }
   upstream academic_service { server academic-service:3002; }
   upstream payment_service { server payment-service:3003; }
   upstream evaluation_service { server evaluation-service:3004; }
@@ -41,8 +41,8 @@ http {
     proxy_read_timeout 120s;
     proxy_send_timeout 120s;
 
-    location ^~ /auth { proxy_pass http://auth_service; }
-    location ^~ /users { proxy_pass http://auth_service; }
+    location ^~ /auth { proxy_pass http://user_service; }
+    location ^~ /users { proxy_pass http://user_service; }
 
     location ~ ^/(class|team|assessments|submissions|file)(/|$) {
       rewrite ^/(class|team|assessments|submissions|file)(/|$)(.*)$ /api/academic/$1/$3 break;
@@ -53,8 +53,8 @@ http {
     location ^~ /payment { proxy_pass http://payment_service; }
     location ^~ /evaluations { proxy_pass http://evaluation_service; }
 
-    location ^~ /notifications { proxy_pass http://auth_service; }
-    location ^~ /admin/users { proxy_pass http://auth_service; }
+    location ^~ /notifications { proxy_pass http://user_service; }
+    location ^~ /admin/users { proxy_pass http://user_service; }
     location ^~ /admin/wallet { proxy_pass http://payment_service; }
     location ^~ /admin/dashboard { proxy_pass http://academic_service; }
     location ^~ /admin/evaluations { proxy_pass http://evaluation_service; }
@@ -63,8 +63,8 @@ http {
     # Keep unmatched admin routes available during the remaining extraction.
     location ^~ /admin { proxy_pass http://legacy_backend; }
 
-    location ^~ /api/auth { proxy_pass http://auth_service; }
-    location ^~ /api/users { proxy_pass http://auth_service; }
+    location ^~ /api/auth { proxy_pass http://user_service; }
+    location ^~ /api/users { proxy_pass http://user_service; }
     location ^~ /api/academic { proxy_pass http://academic_service; }
     location ^~ /api/payment { proxy_pass http://payment_service; }
     location ^~ /api/ai { proxy_pass http://evaluation_service; }
