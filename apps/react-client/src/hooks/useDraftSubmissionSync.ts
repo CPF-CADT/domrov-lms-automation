@@ -45,12 +45,12 @@ export function useDraftSubmissionSync(
 
                 // Save draft to backend
                 await submissionService.saveDraftAssignment(
-                    Number(assessmentId),
+                    assessmentId,
                     draftData
                 );
 
                 // Fetch full submission to get updated resources from backend
-                const fullSubmission = await submissionService.getMySubmissionStatus(Number(assessmentId));
+                const fullSubmission = await submissionService.getMySubmissionStatus(assessmentId);
 
                 // Update lastValidState with full submission data
                 const newValidState: DraftSyncState = {

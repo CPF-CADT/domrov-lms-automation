@@ -14,4 +14,4 @@ RUN npm install --omit=dev --ignore-scripts && npm cache clean --force
 COPY --from=build /app/dist ./dist
 USER node
 EXPOSE 3003
-CMD ["node", "dist/src/main.js"]
+CMD ["sh", "-c", "npm run migration:run && node dist/src/main.js"]

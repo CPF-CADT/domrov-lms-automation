@@ -47,7 +47,7 @@ export default function StudentAssignmentDetail() {
 
     try {
       // Save resources to backend
-      await submissionService.saveDraftAssignment(Number(id), {
+      await submissionService.saveDraftAssignment(id, {
         resources,
       });
 
@@ -89,11 +89,11 @@ export default function StudentAssignmentDetail() {
         setError(null);
 
         // Fetch assignment details
-        const assignmentData = await assessmentService.getAssessmentDetails(Number(id));
+        const assignmentData = await assessmentService.getAssessmentDetails(id);
         setAssignment(assignmentData);
 
         // Fetch submission status
-        const submissionData = await submissionService.getMySubmissionStatus(Number(id));
+        const submissionData = await submissionService.getMySubmissionStatus(id);
 
         if (submissionData) {
           // Merge basic status data immediately
@@ -323,7 +323,7 @@ export default function StudentAssignmentDetail() {
                       onSubmissionStateChange={() => {
                         // Refresh submission data after unsubmit
                         const refreshSubmission = async () => {
-                          const submissionData = await submissionService.getMySubmissionStatus(Number(id));
+                          const submissionData = await submissionService.getMySubmissionStatus(id);
                           if (submissionData?.id) {
                             try {
                               // Fetch detailed submission to get actual resources

@@ -1,20 +1,20 @@
 import type { ClassStatus, UserRole } from './Enums';
 
 export interface Class {
-  class_id: number;
+  class_id: string;
   name: string;
   group: string;
   generation: string;
   description: string;
   join_code: string;
-  owner_id: number;
+  owner_id: string;
   cover_image_url: string;
   status: string;
 }
 
 // API DTOs
 export interface ClassOwnerDto {
-  id: number;
+  id: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -30,7 +30,7 @@ export interface ClassMemberDto {
 }
 
 export interface ClassResponseDto {
-  id: number;
+  id: string;
   name: string;
   description?: string;
   coverImageUrl?: string;
@@ -67,13 +67,13 @@ export interface JoinClassByTokenDto {
 }
 
 export interface JoinClassResponseDto {
-  classId: number;
+  classId: string;
   className: string;
   joinedAt: Date;
 }
 
 export interface ClassMembersDto {
-  classId: number;
+  classId: string;
   members: ClassMemberDto[];
   totalMembers: number;
 }

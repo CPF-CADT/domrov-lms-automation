@@ -12,8 +12,8 @@ import type {
  * Get user's current wallet balance
  */
 export async function getWalletBalance(): Promise<WalletBalanceResponseDto> {
-  const response = (await axiosInstance.get("/wallet/balance")).data;
-  return response.data;
+  const response = (await axiosInstance.get("/wallet")).data;
+  return { ...response, credits: Number(response.availableCredits ?? response.credits ?? 0) };
 }
 
 /**
@@ -23,23 +23,14 @@ export async function getTransactionHistory(
   page: number = 1,
   limit: number = 10,
 ): Promise<TransactionHistoryResponseDto> {
-  const response = (await axiosInstance.get(
-    "/wallet/transactions",
-    {
-      params: { page, limit },
-    },
-  )).data;
-  return response.data;
+  return (await axiosInstance.get("/wallet/transactions", { params: { page, limit } })).data;
 }
 
 /**
  * Get available credit packages for purchase
  */
 export async function getCreditPackages(): Promise<CreditPackageResponseDto[]> {
-  const response = (await axiosInstance.get(
-    "/wallet/packages"
-  )).data;
-  return response.data;
+  return (await axiosInstance.get("/credit-packages")).data;
 }
 
 const walletService = {

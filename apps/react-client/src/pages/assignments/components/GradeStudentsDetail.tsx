@@ -10,6 +10,7 @@ import { useToast } from "@/components/Toast";
 import type { AssessmentListItemDto, TeamTrackingItemDto, IndividualTrackingItemDto } from "@/types/Assessment";
 import type { TeamRosterItemDto, IndividualRosterItemDto, SubmissionViewerResponseDto } from "@/types/Submission";
 import SubmissionCodeViewer from "./SubmissionCodeViewer";
+import ExecutionTerminal from "./ExecutionTerminal";
 
 interface GradeStudentsDetailProps {
     assignmentId: number | string;
@@ -39,6 +40,7 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
     const [manualScore, setManualScore] = useState<number>(0);
     const [manualFeedback, setManualFeedback] = useState<string>("");
     const [isDownloading, setIsDownloading] = useState(false);
+    const [executionFiles, setExecutionFiles] = useState<{ path: string; content: string }[]>([]);
 
     const setSelectedStudentId = (studentId: number | null) => {
         const next = new URLSearchParams(searchParams);
@@ -54,9 +56,9 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
             setError(null);
 
             const [details, tracking, roster] = await Promise.all([
-                assessmentService.getAssessmentDetails(Number(assignmentId)),
-                assessmentService.getAssessmentTracking(Number(assignmentId)),
-                submissionService.getSubmissionRoster(Number(assignmentId)),
+                assessmentService.getAssessmentDetails(assignmentId),
+                assessmentService.getAssessmentTracking(assignmentId),
+                submissionService.getSubmissionRoster(assignmentId),
             ]);
 
             setAssignment(details);
@@ -419,13 +421,17 @@ export default function GradeStudentsDetail({ assignmentId, onBack }: GradeStude
                                         {selectedSubmissionId ? <button type="button" onClick={() => handleDownloadSubmission(selectedSubmissionId)} disabled={isDownloading} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-400 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"><Download className="h-4 w-4" />{isDownloading ? "Downloading..." : "Download ZIP"}</button> : null}
                                     </div>
                                     {selectedSubmissionId ? (
-                                        <SubmissionCodeViewer
-                                            submissionId={selectedSubmissionId}
-                                            feedbacks={submissionDetail?.evaluation?.feedbacks}
-                                            canComment
-                                            showFeedback
-                                            onFeedbackChanged={setRefreshCurrent}
-                                        />
+                                        <>
+                                            <SubmissionCodeViewer
+                                                submissionId={selectedSubmissionId}
+                                                feedbacks={submissionDetail?.evaluation?.feedbacks}
+                                                canComment
+                                                showFeedback
+                                                onFeedbackChanged={setRefreshCurrent}
+                                                onSnapshotReady={setExecutionFiles}
+                                            />
+                                            <div className="mt-4"><ExecutionTerminal submissionId={selectedSubmissionId} files={executionFiles} /></div>
+                                        </>
                                     ) : (
                                         <p className="text-slate-600 text-sm">No code submitted yet.</p>
                                     )}

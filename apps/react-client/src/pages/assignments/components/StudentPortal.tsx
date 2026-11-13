@@ -89,7 +89,7 @@ export default function StudentPortal({
     setSuccessMessage(null);
 
     try {
-      const result = await submissionService.submitSubmission(Number(assignmentId));
+      const result = await submissionService.submitSubmission(assignmentId);
       console.log("Submission successful:", result);
       setSuccessMessage("Assignment submitted successfully!");
 

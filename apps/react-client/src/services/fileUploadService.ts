@@ -41,7 +41,7 @@ function getContentType(fileType?: string): string {
 export async function getPresignedUrl(
     filename: string,
     resourceType?: string,
-    resourceId?: number
+    resourceId?: string | number
 ): Promise<PresignedUrlResponse> {
 
     const finalContentType = getContentType(filename);
@@ -119,7 +119,7 @@ export async function uploadFileToR2(
 export async function uploadFileToLocal(
     file: File,
     resourceType: string,
-    resourceId: number,
+    resourceId: string | number,
     onProgress?: (progress: number) => void
 ): Promise<UploadResponse> {
     const formData = new FormData();
@@ -171,7 +171,7 @@ export async function createExternalResource(
 export async function uploadFileFlow(
     file: File,
     resourceType?: string,
-    resourceId?: number,
+    resourceId?: string | number,
     onProgress?: (progress: number) => void
 ): Promise<UploadResponse> {
     console.log('🚀 Starting file upload flow:', {

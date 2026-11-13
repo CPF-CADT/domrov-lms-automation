@@ -16,7 +16,7 @@ import type {
  * Get the content of a file in a submission
  */
 export async function getSubmissionFileContent(
-  submissionId: number,
+  submissionId: number | string,
   filePath: string
 ): Promise<{ message: string; data: ProcessSubmissionResponseDto }> {
   const response = (await axiosInstance.get(
@@ -30,7 +30,7 @@ export async function getSubmissionFileContent(
  * Get the folder structure of a submission
  */
 export async function getSubmissionFolderStructure(
-  submissionId: number
+  submissionId: number | string
 ): Promise<{ message: string; data: FolderStructureResponseDto }> {
   const response = (await axiosInstance.get(
     `/evaluations/submission/${submissionId}/folder-structure`

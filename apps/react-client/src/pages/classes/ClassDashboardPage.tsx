@@ -32,7 +32,7 @@ export default function ClassDashboard() {
     }
 
     if (!classesLoading) {
-      setRole(classes.find((currentClass) => currentClass.id === Number(classId))?.role);
+      setRole(classes.find((currentClass) => currentClass.id === classId)?.role);
     }
   }, [classId, classes, classesLoading, navigate]);
 

@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { Submission } from '../entities';
 
 export const AI_RABBITMQ_CLIENT = 'AI_RABBITMQ_CLIENT';
+export const EXECUTION_RABBITMQ_CLIENT = 'EXECUTION_RABBITMQ_CLIENT';
 
 export interface RabbitEnvelope<T> {
   messageId: string;
@@ -36,11 +37,27 @@ export interface EvaluationCompleted {
   result?: { score?: number; feedback?: string };
 }
 
+export interface CodeExecutionFile { path: string; content: string; }
+export interface CodeExecutionRequested {
+  executionId: string;
+  submissionId: string;
+  snapshotId?: string;
+  teacherId: string;
+  language: string;
+  command: string;
+  stdin?: string;
+  files: CodeExecutionFile[];
+  limits?: { timeoutMs?: number; memoryMb?: number; cpuLimit?: string; maxOutputBytes?: number };
+}
+
 @Injectable()
 export class EvaluationPublisher {
   private readonly logger = new Logger(EvaluationPublisher.name);
 
-  constructor(@Optional() @Inject(AI_RABBITMQ_CLIENT) private readonly client?: ClientProxy) {}
+  constructor(
+    @Optional() @Inject(AI_RABBITMQ_CLIENT) private readonly client?: ClientProxy,
+    @Optional() @Inject(EXECUTION_RABBITMQ_CLIENT) private readonly executionClient?: ClientProxy,
+  ) {}
 
   async publishRequested(payload: EvaluationRequested): Promise<void> {
     if (!this.client) throw new Error('RabbitMQ AI client is not configured');
@@ -55,6 +72,21 @@ export class EvaluationPublisher {
       payload,
     };
     await firstValueFrom(this.client.emit('evaluation.requested', message).pipe(timeout(5000)));
+  }
+
+  async publishCodeExecution(payload: CodeExecutionRequested): Promise<void> {
+    if (!this.executionClient) throw new Error('RabbitMQ execution client is not configured');
+    const message: RabbitEnvelope<CodeExecutionRequested> = {
+      messageId: payload.executionId,
+      correlationId: payload.executionId,
+      idempotencyKey: `code-execution:${payload.executionId}`,
+      eventType: 'code.execution.requested',
+      schemaVersion: 1,
+      occurredAt: new Date().toISOString(),
+      producer: 'academic-service',
+      payload,
+    };
+    await firstValueFrom(this.executionClient.emit('code.execution.requested', message).pipe(timeout(5000)));
   }
 
   reportPublishFailure(error: unknown) {

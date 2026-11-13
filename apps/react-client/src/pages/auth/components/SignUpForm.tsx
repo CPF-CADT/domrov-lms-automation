@@ -143,7 +143,7 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
 
               <div className="text-xs text-gray-400 text-center">or sign up with</div>
               <div className="scale-90 origin-top">
-                <GoogleOAuthButton redirectUrl="https://api.domrov.app/auth/google/login/" />
+                <GoogleOAuthButton />
               </div>
 
               <div className="flex items-center justify-between pt-2">

@@ -10,6 +10,7 @@ async function bootstrap() {
   const config = app.get(ConfigService);
   app.connectMicroservice<MicroserviceOptions>({ transport: Transport.RMQ, options: { urls: [config.getOrThrow<string>('RABBITMQ_URL')], queue: config.get<string>('RABBITMQ_ACADEMIC_QUEUE', 'domrov.academic.evaluation.completed'), exchange: config.get<string>('RABBITMQ_EVENTS_EXCHANGE', 'domrov.events'), exchangeType: 'topic', wildcards: true, queueOptions: { durable: true }, noAck: false, prefetchCount: 10 } });
   app.setGlobalPrefix('api/academic');
+  app.enableCors({ origin: process.env.AUTH_CORS_ORIGIN ?? 'http://localhost:5173', credentials: true });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   await app.startAllMicroservices();
   await app.listen(Number(process.env.PORT ?? 3002));

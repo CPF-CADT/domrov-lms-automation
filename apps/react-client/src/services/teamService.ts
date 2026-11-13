@@ -46,7 +46,7 @@ export async function joinTeamByToken(data: JoinTeamByTokenDto): Promise<JoinTea
 /**
  * Get teams by class ID
  */
-export async function getTeamsByClass(classId: number): Promise<TeamResponseDto[]> {
+export async function getTeamsByClass(classId: string | number): Promise<TeamResponseDto[]> {
     const response = (await axiosInstance.get(`/team/class/${classId}`)).data;
     return response.data;
 }

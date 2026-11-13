@@ -49,7 +49,7 @@ export default function StudentsTab({ classId }: StudentsTabProps) {
     setLoading(true);
     setError(null);
     try {
-      const raw = await getClassStudents(Number(classId));
+    const raw = await getClassStudents(classId);
       setStudents(Array.isArray(raw) ? raw : []);
     } catch {
       setError("Could not load students. Please try again.");

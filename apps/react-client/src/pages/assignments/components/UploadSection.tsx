@@ -113,7 +113,7 @@ export default function UploadSection({
     setError(null);
     setSuccessMessage(null);
     try {
-      const result = await submissionService.unsubmitSubmission(Number(assignmentId));
+        const result = await submissionService.unsubmitSubmission(assignmentId);
       console.log("Unsubmit successful:", result);
 
       // Notify parent to refresh submission data

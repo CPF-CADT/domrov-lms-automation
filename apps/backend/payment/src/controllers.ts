@@ -1,7 +1,21 @@
-import { Body, Controller, Get, Headers, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtBoundaryGuard, ServiceAuthGuard } from './auth.guard';
 import { PaymentService, assertUser } from './payment.service';
 
 @Controller()
-export class WalletController { constructor(private readonly service: PaymentService) {} @Get('wallet') @UseGuards(JwtBoundaryGuard) wallet(@Req() req: any) { return this.service.wallet(assertUser(req.user)); } @Get('credit-packages') packages() { return this.service.packagesList(); } @Post('payments') @UseGuards(JwtBoundaryGuard) payment(@Req() req: any, @Headers('idempotency-key') key: string, @Body() body: { creditPackageId: string }) { const userId = assertUser(req.user); return this.service.createPayment(userId, body.creditPackageId, key || `payment:${userId}:${body.creditPackageId}`); } @Post('payments/:id/verify') @UseGuards(JwtBoundaryGuard) verify(@Req() req: any, @Param('id') id: string) { return this.service.verifyPayment(assertUser(req.user), id); } @Post('payments/:id/poll') @UseGuards(JwtBoundaryGuard) poll(@Req() req: any, @Param('id') id: string) { return this.service.verifyPayment(assertUser(req.user), id); } @Post('wallet/refund') @UseGuards(ServiceAuthGuard) refund(@Headers('idempotency-key') key: string, @Body() body: { userId: string; amount: number; referenceId: string }) { return this.service.refund(body.userId, body.amount, body.referenceId, key); } }
+export class WalletController {
+  constructor(private readonly service: PaymentService) {}
+  @Get('wallet') @UseGuards(JwtBoundaryGuard)
+  wallet(@Req() req: any) { return this.service.wallet(assertUser(req.user)); }
+  @Get('wallet/balance') @UseGuards(JwtBoundaryGuard)
+  balance(@Req() req: any) { return this.service.wallet(assertUser(req.user)); }
+  @Get('wallet/transactions') @UseGuards(JwtBoundaryGuard)
+  transactions(@Req() req: any, @Query('page') page?: string, @Query('limit') limit?: string) { return this.service.userTransactions(assertUser(req.user), Number(page) || 1, Number(limit) || 10); }
+  @Get('credit-packages') packages() { return this.service.packagesList(); }
+  @Get('wallet/packages') packagesAlias() { return this.service.packagesList(); }
+  @Post('payments') @UseGuards(JwtBoundaryGuard) payment(@Req() req: any, @Headers('idempotency-key') key: string, @Body() body: { creditPackageId: string }) { const userId = assertUser(req.user); return this.service.createPayment(userId, body.creditPackageId, key || `payment:${userId}:${body.creditPackageId}`); }
+  @Post('payments/:id/verify') @UseGuards(JwtBoundaryGuard) verify(@Req() req: any, @Param('id') id: string) { return this.service.verifyPayment(assertUser(req.user), id); }
+  @Post('payments/:id/poll') @UseGuards(JwtBoundaryGuard) poll(@Req() req: any, @Param('id') id: string) { return this.service.verifyPayment(assertUser(req.user), id); }
+  @Post('wallet/refund') @UseGuards(ServiceAuthGuard) refund(@Headers('idempotency-key') key: string, @Body() body: { userId: string; amount: number; referenceId: string }) { return this.service.refund(body.userId, body.amount, body.referenceId, key); }
+}
 @Controller('credits/reservations') export class ReservationController { constructor(private readonly service: PaymentService) {} @Post() @UseGuards(ServiceAuthGuard) reserve(@Headers('idempotency-key') key: string, @Body() body: { userId: string; amount: number; referenceId: string }) { return this.service.reserve(body, key); } @Post(':id/commit') @UseGuards(ServiceAuthGuard) commit(@Param('id') id: string, @Headers('idempotency-key') key: string) { return this.service.transition(id, 'committed', key); } @Post(':id/release') @UseGuards(ServiceAuthGuard) release(@Param('id') id: string, @Headers('idempotency-key') key: string) { return this.service.transition(id, 'released', key); } }

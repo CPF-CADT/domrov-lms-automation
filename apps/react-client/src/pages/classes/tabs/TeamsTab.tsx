@@ -386,7 +386,7 @@ const StudentPanel = ({
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function TeamsTab({ classId }: TeamsTabProps) {
-  const classIdNum = Number(classId);
+  const classIdNum = classId;
 
   const [teams, setTeams] = useState<TeamResponseDto[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(true);
@@ -422,7 +422,7 @@ export default function TeamsTab({ classId }: TeamsTabProps) {
   const fetchStudents = async () => {
     setStudentsLoading(true);
     try {
-      const raw = await getClassStudents(Number(classId));
+      const raw = await getClassStudents(classId);
       setStudents(Array.isArray(raw) ? raw : []);
     } catch {
       // silently fail — panel will show empty

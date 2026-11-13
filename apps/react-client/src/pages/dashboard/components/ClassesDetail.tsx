@@ -98,7 +98,7 @@ export default function ClassesDetail({ onBack }: ClassesDetailProps) {
   const handleDeleteConfirm = useCallback(async () => {
     if (!deleteModalState.classId) return;
     try {
-      await classService.deleteClass(parseInt(deleteModalState.classId));
+      await classService.deleteClass(deleteModalState.classId);
       setClassList(prev => prev.filter(c => c.id.toString() !== deleteModalState.classId));
       setDeleteModalState({ isOpen: false, classId: null, className: "" });
     } catch (err) {

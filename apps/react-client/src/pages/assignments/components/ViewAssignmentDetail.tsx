@@ -20,7 +20,7 @@ export default function ViewAssignmentDetail({ assignmentId, onBack }: ViewAssig
     setLoading(true);
     setError(null);
 
-    assessmentService.getAssessmentDetails(Number(assignmentId))
+    assessmentService.getAssessmentDetails(assignmentId)
       .then((data) => {
         if (!cancelled) setAssignment(data);
       })

@@ -18,7 +18,7 @@ export default function EditAssignmentForm({ classId, assignmentId }: EditAssign
     <div className="min-h-full bg-slate-50">
       <div className="w-full p-5">
         <EditAssignmentDetail
-          assignmentId={assignmentId ? Number(assignmentId) : undefined}
+          assignmentId={assignmentId || undefined}
           classId={classId}
           onBack={handleBack}
         />

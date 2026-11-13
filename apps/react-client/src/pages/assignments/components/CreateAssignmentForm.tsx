@@ -40,13 +40,13 @@ function mapToFormData(data: CreateAssignmentData): FormData {
   const form = new FormData();
   form.append("title", data.title);
   form.append("instruction", data.instructions);
-  if (data.startDate) form.append("startDate", new Date(data.startDate).toISOString());
-  if (data.dueDate) form.append("dueDate", new Date(data.dueDate).toISOString());
+  if (data.startDate) form.append("startAt", new Date(data.startDate).toISOString());
+  if (data.dueDate) form.append("dueAt", new Date(data.dueDate).toISOString());
   form.append("maxScore", String(data.maxScore));
   form.append("session", String(Number(data.session)));
   form.append("allowLate", String(data.allowLateSubmissions));
   form.append("submissionType", data.submissionType.toUpperCase());
-  form.append("aiEvaluationEnable", String(data.aiEvaluationEnabled));
+  form.append("aiEvaluationEnabled", String(data.aiEvaluationEnabled));
   form.append("allowedSubmissionMethod", data.allowedSubmissionMethod);
   return form;
 }
@@ -116,7 +116,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const uploadLearningResources = async (assessmentId: number) => {
+  const uploadLearningResources = async (assessmentId: string) => {
     if (formData.learningResources.length === 0) return;
 
     const resourceIds: { resourceId: number }[] = [];
@@ -155,7 +155,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
       console.log("[Draft] Creating draft for classId:", classId, "session:", formData.session);
       // 1. Create draft
       const draftRes = await assessmentService.createAssessmentDraft(
-        Number(classId),
+        classId,
         Number(formData.session)
       );
       const draftId = draftRes.assessmentId;
@@ -189,7 +189,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
       console.log("[Publish] Creating draft for classId:", classId, "session:", formData.session);
       // 1. Create draft
       const draftRes = await assessmentService.createAssessmentDraft(
-        Number(classId),
+        classId,
         Number(formData.session)
       );
       const draftId = draftRes.assessmentId;

@@ -6,7 +6,7 @@ export class AcademicClass {
   @Column({ length: 300 }) name!: string;
   @Column({ type: 'text', nullable: true }) description?: string;
   @Column({ name: 'cover_image_url', type: 'text', nullable: true }) coverImageUrl?: string;
-  @Column({ name: 'owner_id', type: 'uuid' }) ownerId!: string;
+  @Column({ name: 'owner_id', type: 'varchar' }) ownerId!: string;
   @Column({ name: 'join_code', length: 6, unique: true }) joinCode!: string;
   @Column({ length: 20, default: 'active' }) status!: string;
   @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;
@@ -18,7 +18,7 @@ export class AcademicClass {
 export class Enrollment {
   @PrimaryGeneratedColumn('uuid') id!: string;
   @Column({ name: 'class_id', type: 'uuid' }) classId!: string;
-  @Column({ name: 'user_id', type: 'uuid' }) userId!: string;
+  @Column({ name: 'user_id', type: 'varchar' }) userId!: string;
   @Column({ length: 30, default: 'active' }) status!: string;
   @Column({ length: 30, default: 'student' }) role!: string;
   @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;
@@ -30,7 +30,7 @@ export class Team {
   @PrimaryGeneratedColumn('uuid') id!: string;
   @Column({ name: 'class_id', type: 'uuid' }) classId!: string;
   @Column({ length: 300 }) name!: string;
-  @Column({ name: 'leader_id', type: 'uuid', nullable: true }) leaderId?: string;
+  @Column({ name: 'leader_id', type: 'varchar', nullable: true }) leaderId?: string;
   @Column({ name: 'join_code', length: 6, unique: true }) joinCode!: string;
   @Column({ name: 'max_members', default: 5 }) maxMembers!: number;
   @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;
@@ -41,7 +41,7 @@ export class Team {
 export class TeamMember {
   @PrimaryGeneratedColumn('uuid') id!: string;
   @Column({ name: 'team_id', type: 'uuid' }) teamId!: string;
-  @Column({ name: 'user_id', type: 'uuid' }) userId!: string;
+  @Column({ name: 'user_id', type: 'varchar' }) userId!: string;
   @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;
 }
 
@@ -79,7 +79,7 @@ export class Resource {
   @Column({ length: 255 }) title!: string;
   @Column({ length: 50, default: 'file' }) type!: string;
   @Column({ type: 'text' }) url!: string;
-  @Column({ name: 'owner_id', type: 'uuid' }) ownerId!: string;
+  @Column({ name: 'owner_id', type: 'varchar' }) ownerId!: string;
   @Column({ name: 'content_type', type: 'text', nullable: true }) contentType?: string;
   @Column({ type: 'bigint', nullable: true }) size?: number;
   @Column({ name: 'storage_provider', length: 30, default: 'external' }) storageProvider!: string;
@@ -90,7 +90,7 @@ export class Resource {
 export class Submission {
   @PrimaryGeneratedColumn('uuid') id!: string;
   @Column({ name: 'assignment_id', type: 'uuid' }) assignmentId!: string;
-  @Column({ name: 'user_id', type: 'uuid' }) userId!: string;
+  @Column({ name: 'user_id', type: 'varchar' }) userId!: string;
   @Column({ name: 'team_id', type: 'uuid', nullable: true }) teamId?: string;
   @Column({ name: 'resource_id', type: 'uuid' }) resourceId!: string;
   @Column({ length: 40, nullable: true }) language?: string;
@@ -100,6 +100,6 @@ export class Submission {
   @Column({ type: 'text', nullable: true }) feedback?: string;
   @Column({ type: 'text', nullable: true }) comments?: string;
   @Column({ name: 'submitted_at', type: 'timestamptz', nullable: true }) submittedAt?: Date;
-  @Column({ name: 'graded_by', type: 'uuid', nullable: true }) gradedBy?: string;
+  @Column({ name: 'graded_by', type: 'varchar', nullable: true }) gradedBy?: string;
   @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;
 }

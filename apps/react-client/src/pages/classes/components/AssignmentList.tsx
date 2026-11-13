@@ -89,7 +89,7 @@ export default function AssignmentList({ classId, filter }: AssignmentListProps)
     setLoading(true);
     setError(null);
     try {
-      const response = await getAssessmentsByClass(Number(classId));
+      const response = await getAssessmentsByClass(classId);
       const raw = (response as any).data ?? [];
       console.log("Raw API assignments:", raw);
 
@@ -131,13 +131,13 @@ export default function AssignmentList({ classId, filter }: AssignmentListProps)
     setPublishingId(assignment.id);
     try {
       // Step 1 — patch rubric so backend validation passes
-      await assessmentService.updateAssessment(Number(assignment.id), {
+      await assessmentService.updateAssessment(assignment.id, {
         rubrics: [{ definition: "Overall Score", totalScore: assignment.maxScore }],
       });
       console.log("Rubric patched for", assignment.id);
 
       // Step 2 — publish
-      await assessmentService.publishAssessment(Number(assignment.id));
+      await assessmentService.publishAssessment(assignment.id);
       console.log("Published:", assignment.id);
 
       showToast("Assignment published successfully!", "success", 3000);

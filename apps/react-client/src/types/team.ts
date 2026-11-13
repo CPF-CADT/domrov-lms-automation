@@ -3,7 +3,7 @@ import type { UserResponseDto } from './User';
 export interface Team {
   id: number;
   leader_id: number;
-  class_id: number;
+  class_id: string;
   name: string;
   max_member: number;
   join_code: string;
@@ -13,7 +13,7 @@ export interface Team {
 export interface CreateTeamDto {
   name: string;
   maxMember: number;
-  classId: number;
+  classId: string;
 }
 
 export interface CreateTeamItemDto {
@@ -24,7 +24,7 @@ export interface CreateTeamItemDto {
 }
 
 export interface CreateManyTeamsDto {
-  classId: number;
+  classId: string;
   teams: CreateTeamItemDto[];
 }
 

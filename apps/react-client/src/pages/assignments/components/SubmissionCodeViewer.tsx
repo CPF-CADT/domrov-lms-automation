@@ -8,17 +8,21 @@ import type { EvaluationFeedbackItemDto, FeedbackItemDto } from "@/types/Submiss
 import { FeedbackType } from "@/types/Enums";
 
 export interface SubmissionCodeViewerProps {
-  submissionId: number;
+  submissionId: string | number;
   feedbacks?: EvaluationFeedbackItemDto[];
   canComment?: boolean;
   showFeedback?: boolean;
   onFeedbackChanged?: () => void | Promise<void>;
+  onSnapshotReady?: (files: { path: string; content: string }[]) => void;
 }
+
+export interface SubmissionProjectFile { path: string; content: string; }
 
 interface TreeItemProps { node: FolderNodeDto; relativePath: string; selectedPath: string | null; onSelect: (path: string) => void; isRoot?: boolean; }
 interface LineRange { start: number; end: number; }
 
 const CODE_EXTENSIONS = new Set(["c", "cc", "cpp", "cs", "css", "go", "h", "hpp", "html", "java", "js", "jsx", "json", "kt", "md", "php", "py", "rb", "rs", "sh", "sql", "swift", "ts", "tsx", "txt", "xml", "yml", "yaml"]);
+const EMPTY_FEEDBACKS: EvaluationFeedbackItemDto[] = [];
 
 export function normalizeFeedbackPath(path: string): string {
   return path.replace(/\\/g, "/").replace(/^\.\/+/, "").replace(/^\/+/, "").split("/").filter((part) => part && part !== ".").join("/");
@@ -33,6 +37,12 @@ function sortedChildren(node: FolderNodeDto): FolderNodeDto[] {
     const folderRank = Number(a.type === "folder") - Number(b.type === "folder");
     return folderRank || a.name.localeCompare(b.name);
   });
+}
+
+function filePaths(node: FolderNodeDto, prefix = "", isRoot = true): string[] {
+  const nodePath = isRoot && node.type === "file" ? node.name : isRoot ? prefix : (prefix ? `${prefix}/${node.name}` : node.name);
+  if (node.type === "file") return [nodePath];
+  return (node.children || []).flatMap((child) => filePaths(child, nodePath, false));
 }
 
 function findFirstFile(node: FolderNodeDto, prefix = "", isRoot = true): string | null {
@@ -68,12 +78,12 @@ function FeedbackPanel({ feedbacks, canComment, selection, message, type, editin
   </aside>;
 }
 
-export default function SubmissionCodeViewer({ submissionId, feedbacks = [], canComment = false, showFeedback = true, onFeedbackChanged }: SubmissionCodeViewerProps) {
+export default function SubmissionCodeViewer({ submissionId, feedbacks = EMPTY_FEEDBACKS, canComment = false, showFeedback = true, onFeedbackChanged, onSnapshotReady }: SubmissionCodeViewerProps) {
   const [tree, setTree] = useState<FolderNodeDto | null>(null); const [selectedPath, setSelectedPath] = useState<string | null>(null); const [file, setFile] = useState<FileContentDto | null>(null); const [feedbackItems, setFeedbackItems] = useState<EvaluationFeedbackItemDto[]>(feedbacks); const [selection, setSelection] = useState<LineRange | null>(null); const [message, setMessage] = useState(""); const [type, setType] = useState<FeedbackType>(FeedbackType.SUGGESTION); const [editingId, setEditingId] = useState<string | null>(null); const [treeLoading, setTreeLoading] = useState(true); const [fileLoading, setFileLoading] = useState(false); const [saving, setSaving] = useState(false); const [error, setError] = useState<string | null>(null); const [feedbackError, setFeedbackError] = useState<string | null>(null); const [editorReady, setEditorReady] = useState(false);
   const editorRef = useRef<any>(null); const monacoRef = useRef<any>(null); const decorationIds = useRef<string[]>([]);
 
   useEffect(() => setFeedbackItems(feedbacks), [feedbacks]);
-  useEffect(() => { let cancelled = false; setTreeLoading(true); setTree(null); setFile(null); setSelectedPath(null); setError(null); evaluationService.getSubmissionFolderStructure(submissionId).then(({ data }) => { if (cancelled) return; const nextTree = data.folder_structure; setTree(nextTree); setSelectedPath(nextTree ? findFirstFile(nextTree) : null); }).catch(() => { if (!cancelled) setError("Could not load the submission file tree."); }).finally(() => { if (!cancelled) setTreeLoading(false); }); return () => { cancelled = true; }; }, [submissionId]);
+  useEffect(() => { let cancelled = false; setTreeLoading(true); setTree(null); setFile(null); setSelectedPath(null); setError(null); onSnapshotReady?.([]); evaluationService.getSubmissionFolderStructure(submissionId).then(async ({ data }) => { if (cancelled) return; const nextTree = data.folder_structure; setTree(nextTree); setSelectedPath(nextTree ? findFirstFile(nextTree) : null); if (nextTree && onSnapshotReady) { const paths = filePaths(nextTree); const files = await Promise.all(paths.map(async (path) => { const response = await evaluationService.getSubmissionFileContent(submissionId, path); return { path, content: response.data.file.content.join("\n") }; })); if (!cancelled) onSnapshotReady(files); } }).catch(() => { if (!cancelled) setError("Could not load the submission file tree."); }).finally(() => { if (!cancelled) setTreeLoading(false); }); return () => { cancelled = true; }; }, [submissionId, onSnapshotReady]);
   useEffect(() => { setSelection(null); setEditingId(null); setMessage(""); setFeedbackError(null); }, [selectedPath]);
   useEffect(() => { if (!selectedPath) { setFile(null); return; } let cancelled = false; setFileLoading(true); setError(null); evaluationService.getSubmissionFileContent(submissionId, selectedPath).then(({ data }) => { if (!cancelled) setFile(data.file); }).catch(() => { if (!cancelled) { setFile(null); setError(`Could not load ${selectedPath}.`); } }).finally(() => { if (!cancelled) setFileLoading(false); }); return () => { cancelled = true; }; }, [submissionId, selectedPath]);
 
@@ -82,7 +92,7 @@ export default function SubmissionCodeViewer({ submissionId, feedbacks = [], can
   const content = useMemo(() => file?.content.join("\n") || "", [file]); const selectedFeedbacks = useMemo(() => feedbackItems.filter((item) => normalizeFeedbackPath(item.filePath) === normalizeFeedbackPath(selectedPath || "")), [feedbackItems, selectedPath]);
   const handleEditorMount = (editor: any, monaco: any) => { editorRef.current = editor; monacoRef.current = monaco; setEditorReady(true); editor.onDidChangeCursorSelection((event: any) => { const start = Math.min(event.selection.startLineNumber, event.selection.endLineNumber); const end = Math.max(event.selection.startLineNumber, event.selection.endLineNumber); setSelection({ start, end }); }); };
   const handleEdit = (feedback: EvaluationFeedbackItemDto) => { setEditingId(feedback.id); setMessage(feedback.message); setType(feedback.feedbackType); const start = feedback.startLine || 1; const end = Math.max(start, feedback.endLine || start); setSelection({ start, end }); editorRef.current?.setSelection({ startLineNumber: start, startColumn: 1, endLineNumber: end, endColumn: 1 }); };
-  const handleSave = async () => { if (!selectedPath || !selection || !message.trim()) return; setSaving(true); setFeedbackError(null); const payload: FeedbackItemDto = { path: normalizeFeedbackPath(selectedPath), startLine: selection.start, endLine: selection.end, message: message.trim(), type }; try { if (editingId) { await submissionService.updateFeedback(submissionId, editingId, payload); setFeedbackItems((items) => items.map((item) => item.id === editingId ? { ...item, filePath: payload.path, startLine: payload.startLine ?? null, endLine: payload.endLine ?? null, message: payload.message, feedbackType: payload.type } : item)); } else { const localFeedback: EvaluationFeedbackItemDto = { id: `local-${Date.now()}`, filePath: payload.path, startLine: payload.startLine ?? null, endLine: payload.endLine ?? null, message: payload.message, feedbackType: payload.type, createdAt: new Date() }; await submissionService.addFeedback(submissionId, payload); setFeedbackItems((items) => [...items, localFeedback]); } setMessage(""); setEditingId(null); void onFeedbackChanged?.(); } catch (saveError: any) { setFeedbackError(saveError?.response?.data?.message || saveError?.message || "Could not save feedback."); } finally { setSaving(false); } };
+  const handleSave = async () => { if (!selectedPath || !selection || !message.trim()) return; setSaving(true); setFeedbackError(null); const payload: FeedbackItemDto = { path: normalizeFeedbackPath(selectedPath), startLine: selection.start, endLine: selection.end, message: message.trim(), type }; try { if (editingId) { await submissionService.updateFeedback(Number(submissionId), editingId, payload); setFeedbackItems((items) => items.map((item) => item.id === editingId ? { ...item, filePath: payload.path, startLine: payload.startLine ?? null, endLine: payload.endLine ?? null, message: payload.message, feedbackType: payload.type } : item)); } else { const localFeedback: EvaluationFeedbackItemDto = { id: `local-${Date.now()}`, filePath: payload.path, startLine: payload.startLine ?? null, endLine: payload.endLine ?? null, message: payload.message, feedbackType: payload.type, createdAt: new Date() }; await submissionService.addFeedback(Number(submissionId), payload); setFeedbackItems((items) => [...items, localFeedback]); } setMessage(""); setEditingId(null); void onFeedbackChanged?.(); } catch (saveError: any) { setFeedbackError(saveError?.response?.data?.message || saveError?.message || "Could not save feedback."); } finally { setSaving(false); } };
 
   if (treeLoading) return <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-600"><Loader2 className="h-4 w-4 animate-spin" /> Loading submission files...</div>;
   if (!tree && error) return <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-700">{error}</div>;

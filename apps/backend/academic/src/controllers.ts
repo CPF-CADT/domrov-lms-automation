@@ -43,7 +43,7 @@ export class SubmissionsController {
 @Controller('class')
 export class LegacyClassController {
   constructor(private readonly academic: AcademicService) {}
-  @Post() create(@Body() input: CreateClassDto, @Req() req: AuthenticatedRequest) { return { success: true, data: this.academic.createClass(input, req.user.sub) }; }
+  @Post() async create(@Body() input: CreateClassDto, @Req() req: AuthenticatedRequest) { return { success: true, data: await this.academic.createClass(input, req.user.sub) }; }
   @Get('my-classes') list(@Req() req: AuthenticatedRequest) { return this.academic.listClasses(req.user.sub).then(data => ({ success: true, data })); }
   @Patch(':classId') update(@Param('classId') id: string, @Body() input: UpdateClassDto, @Req() req: AuthenticatedRequest) { return this.academic.updateClass(id, input, req.user.sub).then(data => ({ success: true, data })); }
   @Delete(':classId') remove(@Param('classId') id: string, @Req() req: AuthenticatedRequest) { return this.academic.deleteClass(id, req.user.sub).then(data => ({ success: true, data })); }
@@ -71,10 +71,12 @@ export class LegacyAssessmentController {
   constructor(private readonly academic: AcademicService) {}
   @Get('class/:classId') list(@Param('classId') id: string, @Req() req: AuthenticatedRequest) { return this.academic.listAssignments(id, req.user.sub).then(data => ({ success: true, data })); }
   @Get('class/:classId/:sessionId') listSession(@Param('classId') id: string, @Param('sessionId') session: string, @Req() req: AuthenticatedRequest) { return this.academic.listAssignments(id, req.user.sub, Number(session)).then(data => ({ success: true, data })); }
+  @Get(':id/tracking') tracking(@Param('id') id: string, @Req() req: AuthenticatedRequest) { return this.academic.assignmentTracking(id, req.user.sub).then(data => ({ success: true, data })); }
+  @Get(':id/stats') stats(@Param('id') id: string, @Req() req: AuthenticatedRequest) { return this.academic.assignmentStats(id, req.user.sub); }
   @Get(':id') get(@Param('id') id: string, @Req() req: AuthenticatedRequest) { return this.academic.getAssignment(id, req.user.sub).then(data => ({ success: true, data })); }
   @Post('class/:classId/draft') draft(@Param('classId') classId: string, @Body() input: CreateAssignmentDto, @Req() req: AuthenticatedRequest) { return this.academic.createAssignment({ ...input, classId }, req.user.sub).then(data => ({ success: true, data })); }
-  @Patch(':id') update(@Param('id') id: string, @Body() input: UpdateAssignmentDto, @Req() req: AuthenticatedRequest) { return this.academic.updateAssignment(id, input, req.user.sub).then(data => ({ success: true, data })); }
   @Patch(':id/publish') publish(@Param('id') id: string, @Req() req: AuthenticatedRequest) { return this.academic.publishAssignment(id, req.user.sub).then(data => ({ success: true, data })); }
+  @Patch(':id') update(@Param('id') id: string, @Body() input: UpdateAssignmentDto, @Req() req: AuthenticatedRequest) { return this.academic.updateAssignment(id, input, req.user.sub).then(data => ({ success: true, data })); }
   @Delete(':id') remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) { return this.academic.deleteAssignment(id, req.user.sub).then(data => ({ success: true, data })); }
 }
 
@@ -82,10 +84,13 @@ export class LegacyAssessmentController {
 @Controller('submissions')
 export class LegacySubmissionController {
   constructor(private readonly academic: AcademicService) {}
+  @Get('my-status/class/:classId') statusInClass(@Param('classId') id: string, @Req() req: AuthenticatedRequest) { return this.academic.myStatusInClass(id, req.user.sub).then(data => ({ success: true, data })); }
   @Patch(':assessmentId/submit') draft(@Param('assessmentId') id: string, @Body() input: CreateSubmissionDto, @Req() req: AuthenticatedRequest) { return this.academic.saveDraft(id, input, req.user.sub).then(data => ({ success: true, data })); }
   @Post(':assessmentId/submit') submit(@Param('assessmentId') id: string, @Body() input: CreateSubmissionDto, @Req() req: AuthenticatedRequest) { return this.academic.submitAssignment(id, input, req.user.sub).then(data => ({ success: true, data })); }
   @Post(':submissionId/unsubmit') unsubmit(@Param('submissionId') id: string, @Req() req: AuthenticatedRequest) { return this.academic.unsubmit(id, req.user.sub).then(data => ({ success: true, data })); }
   @Get(':assessmentId/my-status') status(@Param('assessmentId') id: string, @Req() req: AuthenticatedRequest) { return this.academic.myStatus(id, req.user.sub).then(data => ({ success: true, data })); }
+  @Get('assessment/:assessmentId/roster') roster(@Param('assessmentId') id: string, @Req() req: AuthenticatedRequest) { return this.academic.assignmentTracking(id, req.user.sub).then(data => ({ success: true, data })); }
+  @Get('assessment/:assessmentId/stats') stats(@Param('assessmentId') id: string, @Req() req: AuthenticatedRequest) { return this.academic.assignmentStats(id, req.user.sub).then(data => ({ success: true, data })); }
   @Get(':id/student') getStudent(@Param('id') id: string, @Req() req: AuthenticatedRequest) { return this.academic.getSubmissionForUser(id, req.user.sub).then(data => ({ success: true, data })); }
   @Get(':id/teacher') getTeacher(@Param('id') id: string, @Req() req: AuthenticatedRequest) { return this.academic.getSubmissionForUser(id, req.user.sub).then(data => ({ success: true, data })); }
   @Post(':id/grade') grade(@Param('id') id: string, @Body() input: GradeSubmissionDto, @Req() req: AuthenticatedRequest) { return this.academic.grade(id, input, req.user.sub).then(data => ({ success: true, data })); }
@@ -109,6 +114,15 @@ export class LegacyFileController {
     res.setHeader('Content-Type', file.contentType || 'application/octet-stream');
     if (file.size !== undefined) res.setHeader('Content-Length', String(file.size));
     const encoded = encodeURIComponent(file.filename);
+    res.setHeader('Content-Disposition', `attachment; filename="${encoded}"; filename*=UTF-8''${encoded}`);
+    file.stream.pipe(res);
+  }
+  @Get('submission/:submissionId/download') async downloadSubmission(@Param('submissionId') submissionId: string, @Req() req: AuthenticatedRequest, @Res() res: Response) {
+    const resource = await this.academic.getSubmissionResource(submissionId, req.user.sub);
+    const file = await this.academic.getSubmissionResourceStream(submissionId, req.user.sub);
+    res.setHeader('Content-Type', file.contentType || resource.contentType || 'application/octet-stream');
+    if (file.size !== undefined) res.setHeader('Content-Length', String(file.size));
+    const encoded = encodeURIComponent(resource.title);
     res.setHeader('Content-Disposition', `attachment; filename="${encoded}"; filename*=UTF-8''${encoded}`);
     file.stream.pipe(res);
   }

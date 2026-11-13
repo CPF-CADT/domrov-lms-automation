@@ -47,7 +47,7 @@ const RoleAwareClassTab: React.FC<{ tab: 'general' | 'assignment' }> = ({ tab })
     let cancelled = false;
     classService.getMyClasses()
       .then((classes) => {
-        const currentClass = classes.find((item) => item.id === Number(classId));
+        const currentClass = classes.find((item) => item.id === classId);
         if (!cancelled) setRole(currentClass?.role);
       })
       .catch(() => {
@@ -82,7 +82,7 @@ const TeacherOnlyClassTab: React.FC<{ tab: 'students' | 'teams' }> = ({ tab }) =
     if (!classId) return;
     let cancelled = false;
     classService.getMyClasses().then((classes) => {
-      const role = classes.find((item) => item.id === Number(classId))?.role;
+      const role = classes.find((item) => item.id === classId)?.role;
       if (!cancelled) setIsTeacher(role === UserRole.Teacher || role === UserRole.TeacherAssistant);
     }).catch(() => {
       if (!cancelled) setIsTeacher(false);
@@ -106,7 +106,7 @@ const CanonicalAssignmentDetail: React.FC = () => {
   useEffect(() => {
     if (!classId) return;
     classService.getMyClasses().then((classes) => {
-      setRole(classes.find((item) => item.id === Number(classId))?.role);
+      setRole(classes.find((item) => item.id === classId)?.role);
     }).catch(() => setRole(undefined));
   }, [classId]);
   if (!classId || !assignmentId || !role) return null;
@@ -146,6 +146,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/classes/:classId/assignments/:assignmentId" element={<ProtectedRoute><CanonicalAssignmentDetail /></ProtectedRoute>} />
       <Route path="/classes/:classId/assignments/:assignmentId/edit" element={<ProtectedRoute><EditAssignmentPage mode="edit" /></ProtectedRoute>} />
       <Route path="/classes/:classId/assignments/:assignmentId/grade" element={<ProtectedRoute><EditAssignmentPage mode="grade" /></ProtectedRoute>} />
+      <Route path="/classes/:classId/assignments/:assignmentId/submissions" element={<ProtectedRoute><EditAssignmentPage mode="grade" /></ProtectedRoute>} />
 
       <Route path="/profile" element={<ProtectedRoute><UserProfilePage /></ProtectedRoute>} />
       <Route path="/creditPurchase" element={<ProtectedRoute><CreditPurchasePage /></ProtectedRoute>} />

@@ -54,15 +54,15 @@ function mapToDto(data: CreateAssignmentData): UpdateAssessmentDto {
   return {
     title: data.title,
     instruction: data.instructions,
-    startDate: data.startDate ? new Date(data.startDate) : undefined,
-    dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
+    startAt: data.startDate ? new Date(data.startDate) : undefined,
+    dueAt: data.dueDate ? new Date(data.dueDate) : undefined,
     maxScore: Number(data.maxScore),
     session: Number(data.session),
     allowLate: data.allowLateSubmissions,
     submissionType: data.submissionType === "team"
       ? SubmissionType.TEAM
       : SubmissionType.INDIVIDUAL,
-    aiEvaluationEnable: data.aiEvaluationEnabled,
+    aiEvaluationEnabled: data.aiEvaluationEnabled,
     allowedTeamIds: data.submissionType === "team" ? data.allowedTeamIds : [],
     allowedSubmissionMethod:
       data.allowedSubmissionMethod === "UPLOAD" ? SubmissionMethod.ANY
@@ -83,7 +83,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
 
   useEffect(() => {
     if (formData.submissionType !== "team") return;
-    teamService.getTeamsByClass(Number(classId)).then(setTeams).catch(() => setTeamsError("Unable to load class teams."));
+    teamService.getTeamsByClass(classId).then(setTeams).catch(() => setTeamsError("Unable to load class teams."));
   }, [classId, formData.submissionType]);
 
   // Load local draft on mount
@@ -105,10 +105,10 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
 
   // ─── Shared: step 1 + step 2 ──────────────────────────────────────────────
 
-  async function createAndUpdate(): Promise<number> {
+  async function createAndUpdate(): Promise<string> {
     // Step 1 — create draft (only needs classId + session)
     const draftRes = await assessmentService.createAssessmentDraft(
-      Number(classId),
+      classId,
       Number(formData.session)
     );
 

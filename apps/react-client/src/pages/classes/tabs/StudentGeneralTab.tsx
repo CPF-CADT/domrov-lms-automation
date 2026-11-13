@@ -97,7 +97,7 @@ function getSubmissionStatusBadge(
  * NOT shared with teacher dashboard
  */
 const StudentGeneralTab = ({ classId }: StudentGeneralTabProps) => {
-    const classIdNum = Number(classId);
+    const classIdNum = classId;
     const navigate = useNavigate();
 
     const [, setAssignments] = useState<AssessmentListItemDto[]>([]);

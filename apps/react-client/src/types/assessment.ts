@@ -86,7 +86,7 @@ export interface AssessmentDetailDto extends AssessmentListItemDto {
 
 export interface CreateDraftResponseDto {
   message: string;
-  assessmentId: number;
+  assessmentId: string;
 }
 
 export interface PublishAssessmentResponseDto {
@@ -130,12 +130,18 @@ export interface UpdateRubricDTO {
 export interface UpdateAssessmentDto {
   title?: string;
   instruction?: string;
+  startAt?: Date;
+  dueAt?: Date;
+  /** @deprecated Legacy caller compatibility; assignment forms must use startAt/dueAt. */
   startDate?: Date;
+  /** @deprecated Legacy caller compatibility; assignment forms must use startAt/dueAt. */
   dueDate?: Date;
   maxScore?: number;
   session?: number;
   allowLate?: boolean;
   submissionType?: SubmissionType;
+  aiEvaluationEnabled?: boolean;
+  /** @deprecated Legacy caller compatibility; assignment forms must use aiEvaluationEnabled. */
   aiEvaluationEnable?: boolean;
   aiModelSelectionMode?: AIModelSelectionMode;
   allowedSubmissionMethod?: SubmissionMethod;
@@ -149,14 +155,14 @@ export interface UpdateAssessmentDto {
 export interface CreateAssessmentDto {
   title: string;
   instruction: string;
-  startDate: Date;
-  dueDate: Date;
+  startAt: Date;
+  dueAt: Date;
   maxScore: number;
   session: number;
   allowLate?: boolean;
   penaltyCriteria?: string;
   submissionType: SubmissionType;
-  aiEvaluationEnable?: boolean;
+  aiEvaluationEnabled?: boolean;
   aiModelSelectionMode?: AIModelSelectionMode;
   allowedSubmissionMethod: SubmissionMethod;
   classId: number;

@@ -9,7 +9,7 @@ import type { CreateTeamDto, CreateManyTeamsDto } from "@/types/Team";
 interface CreateTeamModalProps {
   isOpen: boolean;
   onClose: () => void;
-  classId: number;
+  classId: string;
   onSuccess?: () => void;
 }
 

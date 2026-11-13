@@ -32,7 +32,7 @@ export async function getMyClasses(): Promise<GetMyClassesResponseDto[]> {
 /**
  * Update class information
  */
-export async function updateClass(classId: number, data: UpdateClassDto): Promise<ClassResponseDto> {
+export async function updateClass(classId: string, data: UpdateClassDto): Promise<ClassResponseDto> {
     const response = (await axiosInstance.patch(`/class/${classId}`, data)).data;
     return response.data;
 }
@@ -40,7 +40,7 @@ export async function updateClass(classId: number, data: UpdateClassDto): Promis
 /**
  * Delete a class
  */
-export async function deleteClass(classId: number): Promise<MessageResponse> {
+export async function deleteClass(classId: string): Promise<MessageResponse> {
     const response = (await axiosInstance.delete(`/class/${classId}`)).data;
     return response;
 }
@@ -64,7 +64,7 @@ export async function joinClassByToken(data: JoinClassByTokenDto): Promise<JoinC
 /**
  * Get all students in a class
  */
-export async function getClassStudents(classId: number): Promise<any[]> {
+export async function getClassStudents(classId: string): Promise<any[]> {
     const response = (await axiosInstance.get(`/class/${classId}/students`)).data;
     return response.data || response;
 }
@@ -72,7 +72,7 @@ export async function getClassStudents(classId: number): Promise<any[]> {
 /**
  * Invite members to class
  */
-export async function inviteMembers(classId: number, data: InviteMembersDto): Promise<MessageResponse> {
+export async function inviteMembers(classId: string, data: InviteMembersDto): Promise<MessageResponse> {
     const response = (await axiosInstance.post(`/class/${classId}/invite`, data)).data;
     return response;
 }
@@ -80,7 +80,7 @@ export async function inviteMembers(classId: number, data: InviteMembersDto): Pr
 /**
  * Remove member from class
  */
-export async function removeMember(classId: number, userId: number): Promise<MessageResponse> {
+export async function removeMember(classId: string, userId: number): Promise<MessageResponse> {
     const response = (await axiosInstance.delete(`/class/${classId}/student/${userId}`)).data;
     return response;
 }
@@ -88,7 +88,7 @@ export async function removeMember(classId: number, userId: number): Promise<Mes
 /**
  * Transfer class ownership
  */
-export async function transferOwnership(classId: number, data: TransferOwnershipDto): Promise<MessageResponse> {
+export async function transferOwnership(classId: string, data: TransferOwnershipDto): Promise<MessageResponse> {
     const response = (await axiosInstance.post(`/class/${classId}/transfer-ownership`, data)).data;
     return response;
 }
@@ -96,7 +96,7 @@ export async function transferOwnership(classId: number, data: TransferOwnership
 /**
  * Get class leaderboard
  */
-export async function getLeaderboard(classId: number): Promise<LeaderboardItemDto[]> {
+export async function getLeaderboard(classId: string): Promise<LeaderboardItemDto[]> {
     const response = (await axiosInstance.get(`/class/${classId}/leaderboard`)).data;
     return response.data;
 }

@@ -83,7 +83,7 @@ export default function StudentAssignmentList({
         try {
             // Fetch assessments
             const assessments = await getAssessmentsByClass(
-                Number(classId)
+                classId
             );
             console.log("[StudentAssignmentList] Loaded assessments:", assessments);
             setAllAssignments(assessments);
@@ -92,7 +92,7 @@ export default function StudentAssignmentList({
             try {
                 const statuses =
                     await submissionService.getMySubmissionStatusInClass(
-                        Number(classId)
+                        classId
                     );
                 console.log("[StudentAssignmentList] Loaded submission statuses:", statuses);
                 const map = new Map<number, SubmissionStatusItemDto>();

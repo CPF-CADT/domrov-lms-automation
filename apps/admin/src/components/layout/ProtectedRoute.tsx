@@ -6,8 +6,10 @@ interface ProtectedRouteProps {
     children: ReactNode;
 }
 
+const ADMIN_ROLES = new Set(['Admin', 'SuperAdmin', 'admin', 'superadmin', 'administrator', 'super_admin']);
+
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-    const { isAuthenticated, isLoading } = useAuth();
+    const { isAuthenticated, isLoading, user } = useAuth();
 
     if (isLoading) {
         return (
@@ -22,6 +24,10 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
     if (!isAuthenticated) {
         return <Navigate to="/login" replace />;
+    }
+
+    if (!user?.role || !ADMIN_ROLES.has(user.role)) {
+        return <Navigate to="/login" replace state={{ error: 'Administrator role required' }} />;
     }
 
     return <>{children}</>;

@@ -23,6 +23,12 @@ export class PaymentService {
 
   async wallet(userId: string) { const wallet = await this.wallets.findOne({ where: { userId } }); return wallet ?? this.wallets.save(this.wallets.create({ userId, availableCredits: 0, reservedCredits: 0 })); }
   packagesList() { return this.packages.find({ where: { isActive: true }, order: { sortOrder: 'ASC', price: 'ASC' } }); }
+  async userTransactions(userId: string, page = 1, limit = 10) {
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.min(100, Math.max(1, limit));
+    const [items, total] = await this.transactions.findAndCount({ where: { userId }, order: { createdAt: 'DESC' }, skip: (safePage - 1) * safeLimit, take: safeLimit });
+    return { transactions: items, pagination: { page: safePage, limit: safeLimit, total, totalPages: Math.ceil(total / safeLimit) } };
+  }
 
   async adminListPackages() { return this.packages.find({ order: { sortOrder: 'ASC', price: 'ASC' } }); }
 

@@ -17,7 +17,7 @@ interface TeacherGeneralTabProps {
  * NOT shared with student dashboard
  */
 const TeacherGeneralTab = ({ classId }: TeacherGeneralTabProps) => {
-    const classIdNum = Number(classId);
+    const classIdNum = classId;
     const navigate = useNavigate();
 
     const [, setAssignments] = useState<AssessmentListItemDto[]>([]);

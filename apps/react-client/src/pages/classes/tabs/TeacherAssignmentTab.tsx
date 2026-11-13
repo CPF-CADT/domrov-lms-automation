@@ -64,7 +64,7 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await assessmentService.getAssessmentsByClass(Number(classId));
+      const response = await assessmentService.getAssessmentsByClass(classId);
       setAssignments(Array.isArray(response) ? response : []);
     } catch (err: any) {
       console.error("Failed to load assignments:", err);
@@ -107,12 +107,12 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
       });
 
       // Step 2 — patch all required fields that may be missing on old drafts
-      // Backend requires: instruction, dueDate, rubric totalScore == maxScore
+      // Backend requires: instruction, dueAt, rubric totalScore == maxScore
       await assessmentService.updateAssessment(assignmentId, {
         instruction: details.instruction?.trim()
           ? details.instruction
           : "No instructions provided.",
-        dueDate: details.dueDate
+        dueAt: details.dueDate
           ? new Date(details.dueDate)
           : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
         rubrics: [{ definition: "Overall Score", totalScore: maxScore }],
@@ -145,7 +145,7 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
 
       // Create draft with selected session
       const draftRes = await assessmentService.createAssessmentDraft(
-        Number(classId),
+        classId,
         sessionToUse
       );
 

@@ -78,10 +78,10 @@ export default function ClassSidebar({ classId, allowedTabs, role }: ClassSideba
 
   const userClasses: ClassShortcut[] = classes.map((currentClass, index) => ({
     ...currentClass,
-    id: Number(currentClass.id),
+    id: currentClass.id,
     badge: generateBadge(currentClass.name),
     color: COLORS[index % COLORS.length],
-    isActive: Number(currentClass.id) === Number(classId),
+    isActive: currentClass.id === classId,
     description: currentClass.description || "",
   }));
 

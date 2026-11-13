@@ -56,7 +56,7 @@ export default function TeacherAssignmentDetail() {
       try {
         setLoading(true);
         setError(null);
-        const data = await getAssessmentDetails(Number(resolvedAssignmentId));
+        const data = await getAssessmentDetails(resolvedAssignmentId);
         if (!cancelled) setAssignment(data);
       } catch (err: unknown) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load assignment details");
@@ -78,7 +78,7 @@ export default function TeacherAssignmentDetail() {
   const handleDeleteAssignment = async () => {
     if (!resolvedAssignmentId || !confirm("Are you sure you want to delete this assignment?")) return;
     try {
-      await deleteAssessment(Number(resolvedAssignmentId));
+      await deleteAssessment(resolvedAssignmentId);
       alert("Assignment deleted successfully");
       navigate(routes.classAssignments(classId));
     } catch (err: unknown) {

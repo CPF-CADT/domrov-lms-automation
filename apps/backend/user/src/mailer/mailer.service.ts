@@ -15,7 +15,7 @@ export class MailerService {
         host,
         port: this.config.get<number>('SMTP_PORT', 587),
         secure: this.config.get<number>('SMTP_PORT', 587) === 465,
-        auth: { user: this.config.getOrThrow<string>('SMTP_USER'), pass: this.config.getOrThrow<string>('SMTP_PASSWORD') },
+        auth: { user: this.config.getOrThrow<string>('SMTP_USER'), pass: this.config.get<string>('SMTP_PASSWORD') ?? this.config.getOrThrow<string>('SMTP_PASS') },
       });
     }
   }
@@ -26,11 +26,19 @@ export class MailerService {
       this.logger.debug(`Test OTP generated for ${purpose}`);
       return;
     }
-    await this.transporter.sendMail({
-      from: this.config.get<string>('SMTP_FROM'),
-      to,
-      subject: purpose === OtpPurpose.VERIFICATION ? 'DOMROV email verification code' : 'DOMROV password reset code',
-      text: `Your DOMROV code is: ${otp}`,
-    });
+    try {
+      await this.transporter.sendMail({
+        from: this.config.get<string>('SMTP_FROM'),
+        to,
+        subject: purpose === OtpPurpose.VERIFICATION ? 'DOMROV email verification code' : 'DOMROV password reset code',
+        text: `Your DOMROV code is: ${otp}`,
+      });
+    } catch (error) {
+      if (this.config.get<string>('SMTP_REQUIRED', 'false').toLowerCase() !== 'true') {
+        this.logger.warn(`SMTP delivery failed; OTP remains stored for retry: ${error instanceof Error ? error.message : String(error)}`);
+        return;
+      }
+      throw new InternalServerErrorException('Email delivery failed');
+    }
   }
 }

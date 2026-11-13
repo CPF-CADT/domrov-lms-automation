@@ -85,15 +85,15 @@ function mapToDto(data: FormData, uploadedFiles: UploadedFile[]): UpdateAssessme
   return {
     title: data.title,
     instruction: data.instructions,
-    startDate: data.startDate ? new Date(data.startDate) : undefined,
-    dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
+    startAt: data.startDate ? new Date(data.startDate) : undefined,
+    dueAt: data.dueDate ? new Date(data.dueDate) : undefined,
     maxScore: data.maxScore,
     session: Number(data.session),
     allowLate: data.allowLateSubmissions,
     submissionType: data.submissionType === "team"
       ? SubmissionType.TEAM
       : SubmissionType.INDIVIDUAL,
-    aiEvaluationEnable: data.aiEvaluationEnabled,
+    aiEvaluationEnabled: data.aiEvaluationEnabled,
     allowedSubmissionMethod:
       data.allowedSubmissionMethod === SubmissionMethod.ZIP ? SubmissionMethod.ZIP
         : data.allowedSubmissionMethod === SubmissionMethod.GITHUB ? SubmissionMethod.GITHUB
@@ -110,8 +110,8 @@ function mapToDto(data: FormData, uploadedFiles: UploadedFile[]): UpdateAssessme
 
 export default function EditAssignmentDetail({ assignmentId, classId, onBack }: EditAssignmentDetailProps) {
   const navigate = useNavigate();
-  const id = assignmentId ? Number(assignmentId) : 0;
-  const isNewDraft = !assignmentId || id === 0 || isNaN(id);
+  const id = assignmentId || "";
+  const isNewDraft = !assignmentId || id === 0;
   const draftKey = classId ? `draft_assignment_detail_${classId}` : "draft_assignment_detail";
 
   const [formData, setFormData] = useState<FormData>(() => {
@@ -149,7 +149,7 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
 
   useEffect(() => {
     if (!classId || formData.submissionType !== "team") return;
-    teamService.getTeamsByClass(Number(classId)).then(setTeams).catch(() => setTeamsError("Unable to load class teams."));
+    teamService.getTeamsByClass(classId).then(setTeams).catch(() => setTeamsError("Unable to load class teams."));
   }, [classId, formData.submissionType]);
 
   useEffect(() => {
@@ -378,7 +378,7 @@ export default function EditAssignmentDetail({ assignmentId, classId, onBack }: 
     fileInputRef.current?.click();
   }
 
-  async function updateAssignmentData(): Promise<number> {
+  async function updateAssignmentData(): Promise<string | number> {
     const dto = mapToDto(formData, uploadedFiles);
     console.log("📤 Updating assignment:", id, dto);
     await assessmentService.updateAssessment(id, dto);

@@ -3,7 +3,7 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Update
 @Entity({ name: 'wallet_balances' })
 export class WalletBalance {
   @PrimaryGeneratedColumn('uuid') id!: string;
-  @Index({ unique: true }) @Column({ name: 'user_id', type: 'uuid' }) userId!: string;
+  @Index({ unique: true }) @Column({ name: 'user_id', type: 'varchar' }) userId!: string;
   @Column({ type: 'numeric', precision: 18, scale: 4, default: 0 }) availableCredits!: number;
   @Column({ type: 'numeric', precision: 18, scale: 4, default: 0 }) reservedCredits!: number;
   @CreateDateColumn() createdAt!: Date;
@@ -28,7 +28,7 @@ export class CreditPackage {
 @Entity({ name: 'payments' })
 export class Payment {
   @PrimaryGeneratedColumn('uuid') id!: string;
-  @Column({ name: 'user_id', type: 'uuid' }) userId!: string;
+  @Column({ name: 'user_id', type: 'varchar' }) userId!: string;
   @Column({ name: 'credit_package_id', type: 'uuid' }) creditPackageId!: string;
   @Column({ type: 'numeric', precision: 18, scale: 4 }) amount!: number;
   @Column({ length: 3 }) currency!: string;
@@ -42,7 +42,7 @@ export class Payment {
 @Entity({ name: 'credit_reservations' })
 export class CreditReservation {
   @PrimaryGeneratedColumn('uuid') id!: string;
-  @Column({ name: 'user_id', type: 'uuid' }) userId!: string;
+  @Column({ name: 'user_id', type: 'varchar' }) userId!: string;
   @Column({ type: 'numeric', precision: 18, scale: 4 }) amount!: number;
   @Column({ name: 'reference_id', type: 'uuid' }) referenceId!: string;
   @Column({ default: 'reserved' }) status!: string;
@@ -54,7 +54,7 @@ export class CreditReservation {
 @Entity({ name: 'wallet_transactions' })
 export class WalletTransaction {
   @PrimaryGeneratedColumn('uuid') id!: string;
-  @Column({ name: 'user_id', type: 'uuid' }) userId!: string;
+  @Column({ name: 'user_id', type: 'varchar' }) userId!: string;
   @Column({ type: 'numeric', precision: 18, scale: 4 }) amount!: number;
   @Column() type!: string;
   @Column() reason!: string;

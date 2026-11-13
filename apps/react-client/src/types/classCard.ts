@@ -1,14 +1,14 @@
 export type StatusFilter = "All" | "Active" | "End";
 
 export interface ClassOwner {
-  id: number;
+  id: string;
   firstName: string;
   lastName: string;
   email: string;
 }
 
 export interface ClassCard {
-  id: number;
+  id: string;
   name: string;
   description: string;
   coverImageUrl?: string;
