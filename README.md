@@ -537,7 +537,6 @@ infra/
     ├── evaluation-service/
     ├── databases/
     ├── ingress/
-    └── observability/
 ```
 
 ### Service scopes
