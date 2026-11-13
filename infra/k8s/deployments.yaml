@@ -12,7 +12,7 @@ spec:
           image: phyvathanak/domrov-auth-service:dev
           ports: [{name: http, containerPort: 3001}]
           envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
-          env: [{name: PORT, value: "3001"}, {name: DATABASE_URL, value: postgresql://domrov:$(AUTH_DB_PASSWORD)@auth-db:5432/auth_db}]
+          env: [{name: PORT, value: "3001"}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: AUTH_DATABASE_URL}}}]
           readinessProbe: {httpGet: {path: /health/ready, port: http}, initialDelaySeconds: 10, periodSeconds: 10}
           livenessProbe: {httpGet: {path: /health/live, port: http}, initialDelaySeconds: 20, periodSeconds: 20}
           resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 500m, memory: 512Mi}}
@@ -31,7 +31,7 @@ spec:
           image: phyvathanak/domrov-academic-service:dev
           ports: [{name: http, containerPort: 3002}]
           envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
-          env: [{name: PORT, value: "3002"}, {name: DATABASE_URL, value: postgresql://domrov:$(ACADEMIC_DB_PASSWORD)@academic-db:5432/academic_db}]
+          env: [{name: PORT, value: "3002"}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: ACADEMIC_DATABASE_URL}}}]
           readinessProbe: {httpGet: {path: /health/ready, port: http}, initialDelaySeconds: 10, periodSeconds: 10}
           livenessProbe: {httpGet: {path: /health/live, port: http}, initialDelaySeconds: 20, periodSeconds: 20}
           resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 500m, memory: 512Mi}}
@@ -50,7 +50,7 @@ spec:
           image: phyvathanak/domrov-payment-service:dev
           ports: [{name: http, containerPort: 3003}]
           envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
-          env: [{name: PORT, value: "3003"}, {name: DATABASE_URL, value: postgresql://domrov:$(PAYMENT_DB_PASSWORD)@payment-db:5432/payment_db}]
+          env: [{name: PORT, value: "3003"}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: PAYMENT_DATABASE_URL}}}]
           readinessProbe: {httpGet: {path: /health/ready, port: http}, initialDelaySeconds: 10, periodSeconds: 10}
           livenessProbe: {httpGet: {path: /health/live, port: http}, initialDelaySeconds: 20, periodSeconds: 20}
           resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 500m, memory: 512Mi}}
@@ -67,9 +67,9 @@ spec:
       containers:
         - name: ai-api
           image: phyvathanak/domrov-ai-service:dev
-          ports: [{name: http, containerPort: 3004}, {name: grpc, containerPort: 50051}]
+          ports: [{name: http, containerPort: 8080}, {name: grpc, containerPort: 50051}]
           envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
-          env: [{name: PORT, value: "3004"}, {name: GRPC_PORT, value: "50051"}, {name: DATABASE_URL, value: postgresql://domrov:$(AI_DB_PASSWORD)@ai-db:5432/ai_db}]
+          env: [{name: HTTP_PORT, value: "8080"}, {name: GRPC_PORT, value: "50051"}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: AI_DATABASE_URL}}}]
           readinessProbe: {httpGet: {path: /health/ready, port: http}, initialDelaySeconds: 10, periodSeconds: 10}
           livenessProbe: {httpGet: {path: /health/live, port: http}, initialDelaySeconds: 20, periodSeconds: 20}
           resources: {requests: {cpu: 200m, memory: 256Mi}, limits: {cpu: 1, memory: 1Gi}}
@@ -88,5 +88,5 @@ spec:
           image: phyvathanak/domrov-ai-service:dev
           command: ["python", "-m", "app.worker"]
           envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
-          env: [{name: DATABASE_URL, value: postgresql://domrov:$(AI_DB_PASSWORD)@ai-db:5432/ai_db}]
+          env: [{name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: AI_DATABASE_URL}}}]
           resources: {requests: {cpu: 200m, memory: 256Mi}, limits: {cpu: 1, memory: 1Gi}}

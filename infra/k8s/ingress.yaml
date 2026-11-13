@@ -26,4 +26,4 @@ spec:
             backend: { service: { name: payment-service, port: { number: 3003 } } }
           - path: /api/ai
             pathType: Prefix
-            backend: { service: { name: ai-service, port: { number: 3004 } } }
+            backend: { service: { name: ai-service, port: { number: 8080 } } }

@@ -25,7 +25,7 @@ metadata: {name: ai-service, namespace: domrov}
 spec:
   selector: {app: ai-api}
   ports:
-    - {name: http, port: 3004, targetPort: http}
+    - {name: http, port: 8080, targetPort: http}
     - {name: grpc, port: 50051, targetPort: grpc}
 ---
 apiVersion: v1

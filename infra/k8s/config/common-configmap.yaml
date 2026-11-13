@@ -7,6 +7,6 @@ data:
   AUTH_SERVICE_URL: http://auth-service:3001
   ACADEMIC_SERVICE_URL: http://academic-service:3002
   PAYMENT_SERVICE_URL: http://payment-service:3003
-  AI_SERVICE_URL: http://ai-service:3004
+  AI_SERVICE_URL: http://ai-service:8080
   AI_SERVICE_GRPC_ADDRESS: ai-service:50051
   REDIS_URL: redis://redis:6379/0
