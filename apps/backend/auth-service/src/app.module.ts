@@ -8,6 +8,7 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { UserEmailOtp } from './entities/user-email-otp.entity';
 import { UserRefreshToken } from './entities/user-refresh-token.entity';
 import { User } from './entities/user.entity';
+import { OAuthAccount } from './entities/oauth-account.entity';
 import { HealthController, MetricsController } from './health/health.controller';
 import { MailerService } from './mailer/mailer.service';
 
@@ -19,11 +20,11 @@ import { MailerService } from './mailer/mailer.service';
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
         url: config.getOrThrow<string>('DATABASE_URL'),
-        entities: [User, UserRefreshToken, UserEmailOtp],
+        entities: [User, UserRefreshToken, UserEmailOtp, OAuthAccount],
         synchronize: false,
       }),
     }),
-    TypeOrmModule.forFeature([User, UserRefreshToken, UserEmailOtp]),
+    TypeOrmModule.forFeature([User, UserRefreshToken, UserEmailOtp, OAuthAccount]),
   ],
   controllers: [AuthController, UsersController, HealthController, MetricsController],
   providers: [

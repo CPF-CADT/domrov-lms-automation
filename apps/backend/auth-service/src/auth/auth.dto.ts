@@ -38,9 +38,10 @@ export class LoginRequest {
 }
 
 export class RefreshRequest {
+  @IsOptional()
   @IsString()
   @MinLength(1)
-  refreshToken!: string;
+  refreshToken?: string;
 }
 
 export class VerifyEmailRequest {

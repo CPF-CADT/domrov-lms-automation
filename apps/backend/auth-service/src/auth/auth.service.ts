@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -10,6 +10,7 @@ import { OtpPurpose, UserEmailOtp } from '../entities/user-email-otp.entity';
 import { SystemRole, User, UserStatus } from '../entities/user.entity';
 import { UserRefreshToken } from '../entities/user-refresh-token.entity';
 import { MailerService } from '../mailer/mailer.service';
+import { OAuthAccount } from '../entities/oauth-account.entity';
 
 export interface AuthUser {
   sub: number;
@@ -23,6 +24,7 @@ export class AuthService {
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(UserRefreshToken) private readonly refreshTokens: Repository<UserRefreshToken>,
     @InjectRepository(UserEmailOtp) private readonly otps: Repository<UserEmailOtp>,
+    @InjectRepository(OAuthAccount) private readonly oauthAccounts: Repository<OAuthAccount>,
     @Inject('ACCESS_JWT_SERVICE') private readonly accessJwt: JwtService,
     @Inject('REFRESH_JWT_SERVICE') private readonly refreshJwt: JwtService,
     private readonly config: ConfigService,
@@ -71,6 +73,45 @@ export class AuthService {
     if (!session || session.expiresAt <= new Date()) throw new UnauthorizedException('Refresh token is invalid or expired');
     const accessToken = await this.accessJwt.signAsync({ sub: session.user.id, email: session.user.email, role: session.user.role });
     return { accessToken, refreshToken, expiresIn: this.config.get<string>('JWT_ACCESS_EXPIRES_IN', '20h') };
+  }
+
+  async oauthAuthorizationUrl(provider: string) {
+    const normalized = provider.toLowerCase();
+    const config = this.oauthConfig(normalized);
+    if (!config) throw new ServiceUnavailableException(`OAuth provider ${provider} is not configured`);
+    const params = new URLSearchParams({ client_id: config.clientId, redirect_uri: config.callbackUrl, response_type: 'code', scope: config.scope, state: normalized });
+    return `${config.authorizationUrl}?${params.toString()}`;
+  }
+
+  async oauthCallback(provider: string, code: string) {
+    const normalized = provider.toLowerCase();
+    const config = this.oauthConfig(normalized);
+    if (!config) throw new ServiceUnavailableException(`OAuth provider ${provider} is not configured`);
+    if (!code) throw new UnauthorizedException('OAuth authorization code is required');
+    const tokenResponse = await fetch(config.tokenUrl, {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: config.clientId, client_secret: config.clientSecret, code, redirect_uri: config.callbackUrl, grant_type: 'authorization_code' }),
+    });
+    if (!tokenResponse.ok) throw new UnauthorizedException('OAuth token exchange failed');
+    const token = await tokenResponse.json() as { access_token?: string };
+    if (!token.access_token) throw new UnauthorizedException('OAuth provider did not return an access token');
+    const profileResponse = await fetch(config.profileUrl, { headers: { Authorization: `Bearer ${token.access_token}`, Accept: 'application/json' } });
+    if (!profileResponse.ok) throw new UnauthorizedException('OAuth profile request failed');
+    const profile = await profileResponse.json() as Record<string, any>;
+    const normalizedProfile = normalized === 'google'
+      ? { id: profile.sub, email: profile.email, firstName: profile.given_name, lastName: profile.family_name, avatar: profile.picture }
+      : { id: String(profile.id), email: profile.email, firstName: profile.name?.split(' ')[0] ?? profile.login, lastName: profile.name?.split(' ').slice(1).join(' ') ?? '', avatar: profile.avatar_url };
+    if (!normalizedProfile.id || !normalizedProfile.email) throw new UnauthorizedException('OAuth provider returned an incomplete profile');
+
+    const account = await this.oauthAccounts.findOne({ where: { provider: normalized, accountId: normalizedProfile.id }, relations: { user: true } });
+    let user = account?.user;
+    if (!user) {
+      user = await this.users.findOne({ where: { email: normalizedProfile.email.toLowerCase() } }) ?? undefined;
+      if (!user) user = await this.users.save(this.users.create({ firstName: normalizedProfile.firstName || 'OAuth', lastName: normalizedProfile.lastName || 'User', email: normalizedProfile.email.toLowerCase(), password: await bcrypt.hash(`oauth:${normalized}:${normalizedProfile.id}:${Date.now()}`, 10), profilePictureUrl: normalizedProfile.avatar, status: UserStatus.ACTIVE, role: SystemRole.USER, isVerified: true, isTwoFactorEnable: false }));
+      await this.oauthAccounts.save(this.oauthAccounts.create({ provider: normalized, accountId: normalizedProfile.id, user, userId: user.id }));
+    }
+    return this.issueTokens(user);
   }
 
   async logout(userId: number, refreshToken: string) {
@@ -189,5 +230,18 @@ export class AuthService {
     if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password) || !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]/.test(password)) {
       throw new BadRequestException('Password must be at least 8 characters and contain uppercase, number, and special character');
     }
+  }
+
+  private oauthConfig(provider: string) {
+    if (provider !== 'google' && provider !== 'github') return undefined;
+    const prefix = provider === 'google' ? 'GOOGLE' : 'GITHUB';
+    const legacyPrefix = provider === 'github' ? 'GIT_HUB' : prefix;
+    const clientId = this.config.get<string>(`${prefix}_CLIENT_ID`) ?? this.config.get<string>(`${legacyPrefix}_CLIENT_ID`);
+    const clientSecret = this.config.get<string>(`${prefix}_CLIENT_SECRET`) ?? this.config.get<string>(`${legacyPrefix}_CLIENT_SECRET`);
+    const callbackUrl = this.config.get<string>(`${prefix}_CALLBACK_URL`) ?? this.config.get<string>(`${legacyPrefix}_CALLBACK_URL`);
+    if (!clientId || !clientSecret || !callbackUrl) return undefined;
+    return provider === 'google'
+      ? { clientId, clientSecret, callbackUrl, scope: 'openid email profile', authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth', tokenUrl: 'https://oauth2.googleapis.com/token', profileUrl: 'https://openidconnect.googleapis.com/v1/userinfo' }
+      : { clientId, clientSecret, callbackUrl, scope: 'read:user user:email', authorizationUrl: 'https://github.com/login/oauth/authorize', tokenUrl: 'https://github.com/login/oauth/access_token', profileUrl: 'https://api.github.com/user' };
   }
 }

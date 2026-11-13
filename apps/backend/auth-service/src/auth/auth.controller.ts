@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Patch, Post, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Patch, Post, Query, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { ChangePasswordRequest, CompletePasswordResetRequest, LoginRequest, PasswordResetRequest, RefreshRequest, RegisterRequest, UpdateProfileRequest, VerifyEmailRequest } from './auth.dto';
@@ -25,7 +25,13 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  refresh(@Body() input: RefreshRequest) { return this.auth.refresh(input.refreshToken); }
+  async refresh(@Body() input: RefreshRequest, @Req() request: Request & { cookies?: Record<string, string> }, @Res({ passthrough: true }) response: Response) {
+    const refreshToken = input.refreshToken ?? request.cookies?.refresh_token;
+    if (!refreshToken) throw new UnauthorizedException('Refresh token is required');
+    const result = await this.auth.refresh(refreshToken);
+    this.setRefreshCookie(response, result.refreshToken);
+    return { success: true, data: { accessToken: result.accessToken, expiresIn: result.expiresIn } };
+  }
 
   @Post('refresh-token')
   @HttpCode(HttpStatus.OK)
@@ -33,6 +39,7 @@ export class AuthController {
     const refreshToken = request.cookies?.refresh_token;
     if (!refreshToken) throw new UnauthorizedException('Refresh token is required');
     const result = await this.auth.refresh(refreshToken);
+    this.setRefreshCookie(response, result.refreshToken);
     return { success: true, data: { status: 'success', accessToken: result.accessToken, issuedAt: Math.floor(Date.now() / 1000) } };
   }
 
@@ -63,9 +70,25 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async resendVerification(@Body() input: PasswordResetRequest) { return { success: true, data: await this.auth.resendVerification(input.email) }; }
 
+  @Get(':provider/login')
+  async oauthLogin(@Param('provider') provider: string, @Res() response: Response) {
+    return response.redirect(await this.auth.oauthAuthorizationUrl(provider));
+  }
+
+  @Get(':provider/callback')
+  async oauthCallback(@Param('provider') provider: string, @Query('code') code: string, @Res() response: Response) {
+    const result = await this.auth.oauthCallback(provider, code);
+    this.setRefreshCookie(response, result.refreshToken);
+    return response.redirect(`${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/auth/callback`);
+  }
+
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() input: CompletePasswordResetRequest) { return { success: true, data: await this.auth.resetPassword(input) }; }
+
+  private setRefreshCookie(response: Response, refreshToken: string) {
+    response.cookie('refresh_token', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
+  }
 }
 
 @Controller('users')
@@ -75,6 +98,10 @@ export class UsersController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async currentUser(@Req() request: Request & { user: { sub: number } }) { return { success: true, data: await this.auth.currentUser(request.user.sub) }; }
+
+  @Get('details')
+  @UseGuards(JwtAuthGuard)
+  async details(@Req() request: Request & { user: { sub: number } }) { return { success: true, data: await this.auth.currentUser(request.user.sub) }; }
 
   @Patch('me')
   @UseGuards(JwtAuthGuard)
