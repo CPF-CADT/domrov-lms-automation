@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: auth-service, namespace: domrov}
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: auth-service}}
+  template:
+    metadata: {labels: {app: auth-service}}
+    spec:
+      containers:
+        - name: auth-service
+          image: phyvathanak/domrov-auth-service:dev
+          ports: [{name: http, containerPort: 3001}]
+          envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
+          env: [{name: PORT, value: "3001"}, {name: DATABASE_URL, value: postgresql://domrov:$(AUTH_DB_PASSWORD)@auth-db:5432/auth_db}]
+          readinessProbe: {httpGet: {path: /health/ready, port: http}, initialDelaySeconds: 10, periodSeconds: 10}
+          livenessProbe: {httpGet: {path: /health/live, port: http}, initialDelaySeconds: 20, periodSeconds: 20}
+          resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 500m, memory: 512Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: academic-service, namespace: domrov}
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: academic-service}}
+  template:
+    metadata: {labels: {app: academic-service}}
+    spec:
+      containers:
+        - name: academic-service
+          image: phyvathanak/domrov-academic-service:dev
+          ports: [{name: http, containerPort: 3002}]
+          envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
+          env: [{name: PORT, value: "3002"}, {name: DATABASE_URL, value: postgresql://domrov:$(ACADEMIC_DB_PASSWORD)@academic-db:5432/academic_db}]
+          readinessProbe: {httpGet: {path: /health/ready, port: http}, initialDelaySeconds: 10, periodSeconds: 10}
+          livenessProbe: {httpGet: {path: /health/live, port: http}, initialDelaySeconds: 20, periodSeconds: 20}
+          resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 500m, memory: 512Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: payment-service, namespace: domrov}
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: payment-service}}
+  template:
+    metadata: {labels: {app: payment-service}}
+    spec:
+      containers:
+        - name: payment-service
+          image: phyvathanak/domrov-payment-service:dev
+          ports: [{name: http, containerPort: 3003}]
+          envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
+          env: [{name: PORT, value: "3003"}, {name: DATABASE_URL, value: postgresql://domrov:$(PAYMENT_DB_PASSWORD)@payment-db:5432/payment_db}]
+          readinessProbe: {httpGet: {path: /health/ready, port: http}, initialDelaySeconds: 10, periodSeconds: 10}
+          livenessProbe: {httpGet: {path: /health/live, port: http}, initialDelaySeconds: 20, periodSeconds: 20}
+          resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 500m, memory: 512Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: ai-api, namespace: domrov}
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: ai-api}}
+  template:
+    metadata: {labels: {app: ai-api}}
+    spec:
+      containers:
+        - name: ai-api
+          image: phyvathanak/domrov-ai-service:dev
+          ports: [{name: http, containerPort: 3004}, {name: grpc, containerPort: 50051}]
+          envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
+          env: [{name: PORT, value: "3004"}, {name: GRPC_PORT, value: "50051"}, {name: DATABASE_URL, value: postgresql://domrov:$(AI_DB_PASSWORD)@ai-db:5432/ai_db}]
+          readinessProbe: {httpGet: {path: /health/ready, port: http}, initialDelaySeconds: 10, periodSeconds: 10}
+          livenessProbe: {httpGet: {path: /health/live, port: http}, initialDelaySeconds: 20, periodSeconds: 20}
+          resources: {requests: {cpu: 200m, memory: 256Mi}, limits: {cpu: 1, memory: 1Gi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: ai-worker, namespace: domrov}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: ai-worker}}
+  template:
+    metadata: {labels: {app: ai-worker}}
+    spec:
+      containers:
+        - name: ai-worker
+          image: phyvathanak/domrov-ai-service:dev
+          command: ["python", "-m", "app.worker"]
+          envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
+          env: [{name: DATABASE_URL, value: postgresql://domrov:$(AI_DB_PASSWORD)@ai-db:5432/ai_db}]
+          resources: {requests: {cpu: 200m, memory: 256Mi}, limits: {cpu: 1, memory: 1Gi}}

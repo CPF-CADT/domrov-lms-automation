@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: auth-db, namespace: domrov}
+spec:
+  serviceName: auth-db
+  replicas: 1
+  selector: {matchLabels: {app: auth-db}}
+  template:
+    metadata: {labels: {app: auth-db}}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports: [{name: postgres, containerPort: 5432}]
+          env: [{name: POSTGRES_DB, value: auth_db}, {name: POSTGRES_USER, value: domrov}, {name: POSTGRES_PASSWORD, valueFrom: {secretKeyRef: {name: domrov-secrets, key: AUTH_DB_PASSWORD}}}]
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}
+          ]
+  volumeClaimTemplates: [{metadata: {name: data}, spec: {accessModes: [ReadWriteOnce], resources: {requests: {storage: 5Gi}}}}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: academic-db, namespace: domrov}
+spec:
+  serviceName: academic-db
+  replicas: 1
+  selector: {matchLabels: {app: academic-db}}
+  template:
+    metadata: {labels: {app: academic-db}}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports: [{name: postgres, containerPort: 5432}]
+          env: [{name: POSTGRES_DB, value: academic_db}, {name: POSTGRES_USER, value: domrov}, {name: POSTGRES_PASSWORD, valueFrom: {secretKeyRef: {name: domrov-secrets, key: ACADEMIC_DB_PASSWORD}}}]
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+  volumeClaimTemplates: [{metadata: {name: data}, spec: {accessModes: [ReadWriteOnce], resources: {requests: {storage: 5Gi}}}}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: payment-db, namespace: domrov}
+spec:
+  serviceName: payment-db
+  replicas: 1
+  selector: {matchLabels: {app: payment-db}}
+  template:
+    metadata: {labels: {app: payment-db}}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports: [{name: postgres, containerPort: 5432}]
+          env: [{name: POSTGRES_DB, value: payment_db}, {name: POSTGRES_USER, value: domrov}, {name: POSTGRES_PASSWORD, valueFrom: {secretKeyRef: {name: domrov-secrets, key: PAYMENT_DB_PASSWORD}}}]
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+  volumeClaimTemplates: [{metadata: {name: data}, spec: {accessModes: [ReadWriteOnce], resources: {requests: {storage: 5Gi}}}}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: ai-db, namespace: domrov}
+spec:
+  serviceName: ai-db
+  replicas: 1
+  selector: {matchLabels: {app: ai-db}}
+  template:
+    metadata: {labels: {app: ai-db}}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports: [{name: postgres, containerPort: 5432}]
+          env: [{name: POSTGRES_DB, value: ai_db}, {name: POSTGRES_USER, value: domrov}, {name: POSTGRES_PASSWORD, valueFrom: {secretKeyRef: {name: domrov-secrets, key: AI_DB_PASSWORD}}}]
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+  volumeClaimTemplates: [{metadata: {name: data}, spec: {accessModes: [ReadWriteOnce], resources: {requests: {storage: 5Gi}}}}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: redis, namespace: domrov}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: redis}}
+  template:
+    metadata: {labels: {app: redis}}
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports: [{name: redis, containerPort: 6379}]
+          args: ["redis-server", "--appendonly", "yes"]

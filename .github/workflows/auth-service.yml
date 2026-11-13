@@ -1,0 +1,27 @@
+name: auth-service
+on:
+  push:
+    paths: ["apps/backend/auth-service/**", "contracts/auth/**", ".github/workflows/auth-service.yml"]
+  pull_request:
+    paths: ["apps/backend/auth-service/**", "contracts/auth/**", ".github/workflows/auth-service.yml"]
+  workflow_dispatch:
+jobs:
+  validate-build:
+    runs-on: ubuntu-latest
+    defaults: {run: {working-directory: apps/backend/auth-service}}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 20, cache: npm, cache-dependency-path: apps/backend/auth-service/package-lock.json}
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint when configured
+        run: npm run lint --if-present
+      - name: Test when configured
+        run: npm test --if-present -- --runInBand
+      - name: Build when configured
+        run: npm run build --if-present
+      - name: Validate Dockerfile presence
+        run: test -f Dockerfile
+      - name: Build image without publishing
+        run: docker build --tag domrov/auth-service:${{ github.sha }} .

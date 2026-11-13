@@ -1,0 +1,64 @@
+apiVersion: v1
+kind: Service
+metadata: {name: auth-service, namespace: domrov}
+spec:
+  selector: {app: auth-service}
+  ports: [{name: http, port: 3001, targetPort: http}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: academic-service, namespace: domrov}
+spec:
+  selector: {app: academic-service}
+  ports: [{name: http, port: 3002, targetPort: http}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: payment-service, namespace: domrov}
+spec:
+  selector: {app: payment-service}
+  ports: [{name: http, port: 3003, targetPort: http}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: ai-service, namespace: domrov}
+spec:
+  selector: {app: ai-api}
+  ports:
+    - {name: http, port: 3004, targetPort: http}
+    - {name: grpc, port: 50051, targetPort: grpc}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: auth-db, namespace: domrov}
+spec:
+  selector: {app: auth-db}
+  ports: [{name: postgres, port: 5432, targetPort: postgres}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: academic-db, namespace: domrov}
+spec:
+  selector: {app: academic-db}
+  ports: [{name: postgres, port: 5432, targetPort: postgres}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: payment-db, namespace: domrov}
+spec:
+  selector: {app: payment-db}
+  ports: [{name: postgres, port: 5432, targetPort: postgres}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: ai-db, namespace: domrov}
+spec:
+  selector: {app: ai-db}
+  ports: [{name: postgres, port: 5432, targetPort: postgres}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: redis, namespace: domrov}
+spec:
+  selector: {app: redis}
+  ports: [{name: redis, port: 6379, targetPort: redis}]

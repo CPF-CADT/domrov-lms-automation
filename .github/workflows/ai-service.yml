@@ -1,0 +1,19 @@
+name: ai-service
+on:
+  push:
+    paths: ["apps/backend/ai-service/**", "contracts/ai/**", ".github/workflows/ai-service.yml"]
+  pull_request:
+    paths: ["apps/backend/ai-service/**", "contracts/ai/**", ".github/workflows/ai-service.yml"]
+  workflow_dispatch:
+jobs:
+  validate-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate service scaffold
+        run: |
+          if [ ! -d apps/backend/ai-service ]; then echo "AI Service not extracted yet; scaffold validation skipped."; exit 0; fi
+          cd apps/backend/ai-service
+          if [ -f requirements.txt ]; then python -m pip install --upgrade pip; pip install -r requirements.txt; python -m pytest; python -m compileall app; fi
+          test -f Dockerfile
+          docker build --tag domrov/ai-service:${GITHUB_SHA} .

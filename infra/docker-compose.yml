@@ -1,0 +1,168 @@
+name: domrov
+
+services:
+  auth-service:
+    image: ${AUTH_SERVICE_IMAGE:-phyvathanak/domrov-auth-service:dev}
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: "3001"
+      DATABASE_URL: postgresql://domrov:domrov@auth-db:5432/auth_db
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-local-access-secret}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-local-refresh-secret}
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  academic-service:
+    image: ${ACADEMIC_SERVICE_IMAGE:-phyvathanak/domrov-academic-service:dev}
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      PORT: "3002"
+      DATABASE_URL: postgresql://domrov:domrov@academic-db:5432/academic_db
+      AUTH_JWT_PUBLIC_KEY: ${AUTH_JWT_PUBLIC_KEY:-local-public-key}
+      AI_SERVICE_GRPC_ADDRESS: ai-service:50051
+    depends_on:
+      academic-db:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3002/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  payment-service:
+    image: ${PAYMENT_SERVICE_IMAGE:-phyvathanak/domrov-payment-service:dev}
+    restart: unless-stopped
+    ports:
+      - "3003:3003"
+    environment:
+      PORT: "3003"
+      DATABASE_URL: postgresql://domrov:domrov@payment-db:5432/payment_db
+      AUTH_JWT_PUBLIC_KEY: ${AUTH_JWT_PUBLIC_KEY:-local-public-key}
+    depends_on:
+      payment-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3003/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  ai-service:
+    image: ${AI_SERVICE_IMAGE:-phyvathanak/domrov-ai-service:dev}
+    restart: unless-stopped
+    ports:
+      - "50051:50051"
+      - "3004:3004"
+    environment:
+      GRPC_PORT: "50051"
+      PORT: "3004"
+      DATABASE_URL: postgresql://domrov:domrov@ai-db:5432/ai_db
+      REDIS_URL: redis://redis:6379/0
+      PAYMENT_SERVICE_URL: http://payment-service:3003
+    depends_on:
+      ai-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3004/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  ai-worker:
+    image: ${AI_SERVICE_IMAGE:-phyvathanak/domrov-ai-service:dev}
+    restart: unless-stopped
+    command: ["python", "-m", "app.worker"]
+    environment:
+      DATABASE_URL: postgresql://domrov:domrov@ai-db:5432/ai_db
+      REDIS_URL: redis://redis:6379/0
+      PAYMENT_SERVICE_URL: http://payment-service:3003
+    depends_on:
+      ai-service:
+        condition: service_healthy
+      ai-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  auth-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: domrov
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-domrov}
+    volumes: [auth_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U domrov -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  academic-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: academic_db
+      POSTGRES_USER: domrov
+      POSTGRES_PASSWORD: ${ACADEMIC_DB_PASSWORD:-domrov}
+    volumes: [academic_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U domrov -d academic_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  payment-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: domrov
+      POSTGRES_PASSWORD: ${PAYMENT_DB_PASSWORD:-domrov}
+    volumes: [payment_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U domrov -d payment_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ai-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ai_db
+      POSTGRES_USER: domrov
+      POSTGRES_PASSWORD: ${AI_DB_PASSWORD:-domrov}
+    volumes: [ai_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U domrov -d ai_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redis_data:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  auth_db_data:
+  academic_db_data:
+  payment_db_data:
+  ai_db_data:
+  redis_data:

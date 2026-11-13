@@ -1,0 +1,19 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: {name: auth-service, namespace: domrov}
+spec: {scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: auth-service}, minReplicas: 2, maxReplicas: 5, metrics: [{type: Resource, resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}}]}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: {name: academic-service, namespace: domrov}
+spec: {scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: academic-service}, minReplicas: 2, maxReplicas: 5, metrics: [{type: Resource, resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}}]}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: {name: payment-service, namespace: domrov}
+spec: {scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: payment-service}, minReplicas: 2, maxReplicas: 5, metrics: [{type: Resource, resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}}]}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: {name: ai-api, namespace: domrov}
+spec: {scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: ai-api}, minReplicas: 2, maxReplicas: 6, metrics: [{type: Resource, resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}}]}
