@@ -42,6 +42,23 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Payment' }
+  /wallet/refund:
+    post:
+      operationId: refundWalletCredits
+      security: [{ serviceAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefundCreditsRequest' }
+      responses:
+        '200':
+          description: Credits refunded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RefundCreditsResponse' }
   /credits/reservations:
     post:
       operationId: reserveCredits
@@ -139,3 +156,18 @@ components:
         reservationId: { type: string, format: uuid }
         status: { type: string, enum: [reserved, committed, released] }
         amount: { type: number }
+    RefundCreditsRequest:
+      type: object
+      required: [userId, amount, referenceId]
+      properties:
+        userId: { type: string, format: uuid }
+        amount: { type: number, exclusiveMinimum: 0 }
+        referenceId: { type: string, format: uuid, description: Evaluation or payment reference }
+    RefundCreditsResponse:
+      type: object
+      required: [userId, amount, status, referenceId]
+      properties:
+        userId: { type: string, format: uuid }
+        amount: { type: number, exclusiveMinimum: 0 }
+        status: { type: string, enum: [refunded] }
+        referenceId: { type: string, format: uuid }
