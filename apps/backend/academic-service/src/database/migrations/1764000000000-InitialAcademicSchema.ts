@@ -1,0 +1,21 @@
+import { MigrationInterface, QueryRunner } from 'typeorm';
+
+export class InitialAcademicSchema1764000000000 implements MigrationInterface {
+  name = 'InitialAcademicSchema1764000000000';
+  async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
+    await queryRunner.query(`CREATE TABLE "classes" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" varchar(300) NOT NULL, "description" text, "owner_id" uuid NOT NULL, "join_code" varchar(6) NOT NULL, "status" varchar(20) NOT NULL DEFAULT 'active', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_classes_join_code" UNIQUE ("join_code"), CONSTRAINT "PK_classes" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE TABLE "enrollments" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "class_id" uuid NOT NULL, "user_id" uuid NOT NULL, "status" varchar(30) NOT NULL DEFAULT 'active', "role" varchar(30) NOT NULL DEFAULT 'student', "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_enrollments_class_user" UNIQUE ("class_id", "user_id"), CONSTRAINT "PK_enrollments" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE TABLE "teams" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "class_id" uuid NOT NULL, "name" varchar(300) NOT NULL, "leader_id" uuid, "max_members" integer NOT NULL DEFAULT 5, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_teams_class_name" UNIQUE ("class_id", "name"), CONSTRAINT "PK_teams" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE TABLE "team_members" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "team_id" uuid NOT NULL, "user_id" uuid NOT NULL, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_team_members_team_user" UNIQUE ("team_id", "user_id"), CONSTRAINT "PK_team_members" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE TABLE "assignments" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "class_id" uuid NOT NULL, "title" varchar(255) NOT NULL, "instruction" text NOT NULL, "max_score" numeric NOT NULL, "ai_evaluation_enabled" boolean NOT NULL DEFAULT false, "due_at" TIMESTAMPTZ, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_assignments" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE TABLE "rubrics" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "assignment_id" uuid NOT NULL, "definition" text NOT NULL, "total_score" numeric NOT NULL, CONSTRAINT "PK_rubrics" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE TABLE "resources" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" varchar(255) NOT NULL, "type" varchar(50) NOT NULL DEFAULT 'file', "url" text NOT NULL, "owner_id" uuid NOT NULL, CONSTRAINT "PK_resources" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE TABLE "submissions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "assignment_id" uuid NOT NULL, "user_id" uuid NOT NULL, "team_id" uuid, "resource_id" uuid NOT NULL, "language" varchar(40), "status" varchar(30) NOT NULL DEFAULT 'stored', "evaluation_id" uuid, "score" numeric, "feedback" text, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_submissions" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE INDEX "IDX_submissions_assignment_user" ON "submissions" ("assignment_id", "user_id")`);
+    await queryRunner.query(`CREATE INDEX "IDX_assignments_class" ON "assignments" ("class_id")`);
+  }
+  async down(queryRunner: QueryRunner): Promise<void> {
+    for (const table of ['submissions', 'resources', 'rubrics', 'assignments', 'team_members', 'teams', 'enrollments', 'classes']) await queryRunner.query(`DROP TABLE "${table}"`);
+  }
+}
