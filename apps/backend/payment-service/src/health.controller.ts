@@ -1,0 +1,3 @@
+import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common'; import { DataSource } from 'typeorm';
+@Controller('health') export class HealthController { constructor(private readonly db: DataSource) {} @Get('live') live() { return { status: 'ok', service: 'payment-service' }; } @Get('ready') @HttpCode(HttpStatus.OK) async ready() { if (!this.db.isInitialized) return { status: 'not_ready', database: 'disconnected' }; await this.db.query('SELECT 1'); return { status: 'ok', database: 'connected' }; } }
+@Controller() export class MetricsController { @Get('metrics') metrics() { return '# HELP payment_service_up Payment service process status\n# TYPE payment_service_up gauge\npayment_service_up 1\n'; } }
