@@ -9,10 +9,12 @@ import { AcademicAdminController } from './admin.controller';
 import { HealthController, MetricsController } from './health';
 import { AcademicClass, Assignment, Enrollment, Resource, Rubric, Submission, Team, TeamMember } from './entities';
 import { AcademicStorageService, LocalStorageAdapter, R2StorageAdapter } from './storage';
+import { ClientsModule, Transport } from '@nestjs/microservices';
+import { AI_RABBITMQ_CLIENT, EvaluationEventsController, EvaluationPublisher } from './messaging/rabbitmq';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), TypeOrmModule.forRootAsync({ inject: [ConfigService], useFactory: (config: ConfigService) => ({ type: 'postgres', url: config.getOrThrow<string>('DATABASE_URL'), entities: [AcademicClass, Enrollment, Team, TeamMember, Assignment, Rubric, Resource, Submission], synchronize: false }) }), TypeOrmModule.forFeature([AcademicClass, Enrollment, Team, TeamMember, Assignment, Rubric, Resource, Submission])],
-  controllers: [ClassesController, TeamsController, AssignmentsController, SubmissionsController, LegacyClassController, LegacyTeamController, LegacyAssessmentController, LegacySubmissionController, LegacyFileController, AcademicAdminController, HealthController, MetricsController],
-  providers: [AcademicService, JwtBoundaryGuard, AsyncEvaluationClient, LocalStorageAdapter, R2StorageAdapter, AcademicStorageService, { provide: 'EvaluationClient', useExisting: AsyncEvaluationClient }],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), ClientsModule.registerAsync([{ name: AI_RABBITMQ_CLIENT, imports: [ConfigModule], inject: [ConfigService], useFactory: (config: ConfigService) => ({ transport: Transport.RMQ, options: { urls: [config.get<string>('RABBITMQ_URL', 'amqp://domrov:domrov@localhost:5672')], queue: config.get<string>('RABBITMQ_AI_REQUEST_QUEUE', 'ai-evaluation-requests'), queueOptions: { durable: true }, noAck: false, prefetchCount: 10 } }) }]), TypeOrmModule.forRootAsync({ inject: [ConfigService], useFactory: (config: ConfigService) => ({ type: 'postgres', url: config.getOrThrow<string>('DATABASE_URL'), entities: [AcademicClass, Enrollment, Team, TeamMember, Assignment, Rubric, Resource, Submission], synchronize: false }) }), TypeOrmModule.forFeature([AcademicClass, Enrollment, Team, TeamMember, Assignment, Rubric, Resource, Submission])],
+  controllers: [ClassesController, TeamsController, AssignmentsController, SubmissionsController, LegacyClassController, LegacyTeamController, LegacyAssessmentController, LegacySubmissionController, LegacyFileController, AcademicAdminController, HealthController, MetricsController, EvaluationEventsController],
+  providers: [AcademicService, JwtBoundaryGuard, AsyncEvaluationClient, EvaluationPublisher, LocalStorageAdapter, R2StorageAdapter, AcademicStorageService, { provide: 'EvaluationClient', useExisting: AsyncEvaluationClient }],
 })
 export class AppModule {}

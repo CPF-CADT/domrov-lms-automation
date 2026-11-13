@@ -17,10 +17,13 @@ import { NotificationService } from './notifications/notification.service';
 import { AdminUserController } from './admin/admin-user.controller';
 import { AdminUserService } from './admin/admin-user.service';
 import { AdminRoleGuard, SuperAdminRoleGuard } from './admin/admin-role.guard';
+import { ClientsModule, Transport } from '@nestjs/microservices';
+import { AUTH_EVENTS_CLIENT, AuthEventsPublisher } from './messaging/rabbitmq';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ClientsModule.registerAsync([{ name: AUTH_EVENTS_CLIENT, imports: [ConfigModule], inject: [ConfigService], useFactory: (config: ConfigService) => ({ transport: Transport.RMQ, options: { urls: [config.get<string>('RABBITMQ_URL', 'amqp://domrov:domrov@localhost:5672')], queue: config.get<string>('RABBITMQ_AUTH_EVENTS_QUEUE', 'auth-events'), queueOptions: { durable: true }, noAck: false, prefetchCount: 10 } }) }]),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -39,6 +42,7 @@ import { AdminRoleGuard, SuperAdminRoleGuard } from './admin/admin-role.guard';
     MailerService,
     NotificationService,
     AdminUserService,
+    AuthEventsPublisher,
     AdminRoleGuard,
     SuperAdminRoleGuard,
     {

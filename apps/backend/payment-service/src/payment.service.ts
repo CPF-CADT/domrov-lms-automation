@@ -1,9 +1,10 @@
-import { ConflictException, Injectable, NotFoundException, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, BadRequestException, UnauthorizedException, Optional } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { CreditPackage, CreditReservation, IdempotencyRecord, Payment, WalletBalance, WalletTransaction } from './entities';
 import { BakongProvider, PaymentCurrency } from './bakong.provider';
 import { PaymentGateway } from './payment.gateway';
+import { PaymentEventsPublisher } from './messaging/payment-events';
 
 @Injectable()
 export class PaymentService {
@@ -17,6 +18,7 @@ export class PaymentService {
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly provider: BakongProvider,
     private readonly gateway: PaymentGateway,
+    @Optional() private readonly events?: PaymentEventsPublisher,
   ) {}
 
   async wallet(userId: string) { const wallet = await this.wallets.findOne({ where: { userId } }); return wallet ?? this.wallets.save(this.wallets.create({ userId, availableCredits: 0, reservedCredits: 0 })); }
@@ -122,10 +124,11 @@ export class PaymentService {
     if (payment.status === 'completed') return { paymentId, status: 'PAID' };
     if (!payment.providerReference) throw new ConflictException('Payment provider reference is missing');
     const result = await this.provider.checkPaymentByMd5(payment.providerReference);
-    if (result.responseCode !== 0 || !result.data) { this.gateway.sendStatus(userId, 'UNPAID'); return { paymentId, status: 'UNPAID' }; }
+    if (result.responseCode !== 0 || !result.data) { this.gateway.sendStatus(userId, 'UNPAID'); void this.events?.publish('payment.failed', { paymentId, userId, reason: 'unpaid' }, paymentId); return { paymentId, status: 'UNPAID' }; }
     if (Number(result.data.amount) !== Number(payment.amount) || result.data.currency !== payment.currency) throw new ConflictException('Payment amount or currency mismatch');
     await this.creditSuccessfulPayment(payment, result.data as unknown as Record<string, unknown>);
     this.gateway.sendStatus(userId, 'PAID');
+    void this.events?.publish('payment.completed', { paymentId, userId, amount: Number(payment.amount), currency: payment.currency }, paymentId);
     return { paymentId, status: 'PAID' };
   }
 
@@ -153,7 +156,7 @@ export class PaymentService {
       const wallet = await manager.findOne(WalletBalance, { where: { userId: reservation.userId }, lock: { mode: 'pessimistic_write' } }); if (!wallet) throw new NotFoundException('Wallet not found');
       wallet.reservedCredits = Math.max(0, Number(wallet.reservedCredits) - Number(reservation.amount)); if (status === 'released') wallet.availableCredits = Number(wallet.availableCredits) + Number(reservation.amount); await manager.save(wallet);
       reservation.status = status; await manager.save(reservation); await manager.save(manager.create(WalletTransaction, { userId: reservation.userId, amount: Number(reservation.amount), type: status, reason: 'ai-evaluation', referenceId: reservation.referenceId }));
-      const response = { reservationId: id, status }; await manager.save(manager.create(IdempotencyRecord, { key, operation: `${status}-credits`, statusCode: 200, response })); return response;
+      const response = { reservationId: id, status }; await manager.save(manager.create(IdempotencyRecord, { key, operation: `${status}-credits`, statusCode: 200, response })); void this.events?.publish(`credit.${status === 'committed' ? 'committed' : 'released'}`, { reservationId: id, userId: reservation.userId, amount: Number(reservation.amount), referenceId: reservation.referenceId }, id); return response;
     });
   }
 

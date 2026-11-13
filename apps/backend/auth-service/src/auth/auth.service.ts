@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -11,6 +11,7 @@ import { SystemRole, User, UserStatus } from '../entities/user.entity';
 import { UserRefreshToken } from '../entities/user-refresh-token.entity';
 import { MailerService } from '../mailer/mailer.service';
 import { OAuthAccount } from '../entities/oauth-account.entity';
+import { AuthEventsPublisher } from '../messaging/rabbitmq';
 
 export interface AuthUser {
   sub: number;
@@ -29,6 +30,7 @@ export class AuthService {
     @Inject('REFRESH_JWT_SERVICE') private readonly refreshJwt: JwtService,
     private readonly config: ConfigService,
     private readonly mailer: MailerService,
+    @Optional() private readonly events?: AuthEventsPublisher,
   ) {}
 
   async register(input: RegisterRequest) {
@@ -50,6 +52,7 @@ export class AuthService {
       isTwoFactorEnable: false,
     });
     const saved = await this.users.save(user);
+    void this.events?.publish('user.created', { userId: saved.id, email: saved.email, role: saved.role }, String(saved.id));
     await this.sendOtp(saved, OtpPurpose.VERIFICATION);
     return { userId: saved.id, firstName: saved.firstName, lastName: saved.lastName, email: saved.email };
   }

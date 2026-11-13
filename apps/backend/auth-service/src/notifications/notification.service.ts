@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import { Notification, NotificationStatus, NotificationType } from '../entities/notification.entity';
 import { User } from '../entities/user.entity';
+import { AuthEventsPublisher } from '../messaging/rabbitmq';
 
 export interface CreateNotificationInput {
   userId: number;
@@ -17,6 +18,7 @@ export class NotificationService {
   constructor(
     @InjectRepository(Notification) private readonly notifications: Repository<Notification>,
     @InjectRepository(User) private readonly users: Repository<User>,
+    @Optional() private readonly events?: AuthEventsPublisher,
   ) {}
 
   async create(input: CreateNotificationInput) {
@@ -31,7 +33,9 @@ export class NotificationService {
       type: input.type ?? NotificationType.INFO,
       status: NotificationStatus.UNREAD,
     });
-    return this.notifications.save(notification);
+    const saved = await this.notifications.save(notification);
+    void this.events?.publish('notification.created', { notificationId: saved.id, userId: saved.userId, title: saved.title, message: saved.message, type: saved.type, actionUrl: saved.actionUrl }, String(saved.id));
+    return saved;
   }
 
   listForUser(userId: number) {

@@ -10,6 +10,7 @@ import { User, UserStatus } from '../src/entities/user.entity';
 import { MailerService } from '../src/mailer/mailer.service';
 import { OAuthAccount } from '../src/entities/oauth-account.entity';
 import * as bcrypt from 'bcrypt';
+import { AuthEventsPublisher } from '../src/messaging/rabbitmq';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -32,6 +33,7 @@ describe('AuthService', () => {
         { provide: 'REFRESH_JWT_SERVICE', useValue: { signAsync: jest.fn(async (payload) => `refresh-${payload.sub}`), verifyAsync: jest.fn() } },
         { provide: ConfigService, useValue: { get: jest.fn((_key, fallback) => fallback), getOrThrow: jest.fn(() => 'test-secret') } },
         { provide: MailerService, useValue: { sendOtp: jest.fn() } },
+        { provide: AuthEventsPublisher, useValue: { publish: jest.fn() } },
       ],
     }).compile();
     service = module.get(AuthService);
