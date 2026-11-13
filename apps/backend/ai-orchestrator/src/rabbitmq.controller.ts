@@ -12,7 +12,7 @@ export class RabbitMqController {
   @EventPattern('evaluation.requested')
   async handleRequested(@Payload() message: EvaluationRequested | { payload: EvaluationRequested }, @Ctx() context: RmqContext) {
     try {
-      const payload = this.unwrap(message);
+      const payload = this.unwrapRequested(message);
       await this.orchestration.requestEvaluation(payload);
       this.ack(context);
     } catch (error) {
@@ -23,13 +23,13 @@ export class RabbitMqController {
 
   @EventPattern('evaluation.completed')
   handleCompleted(@Payload() message: EvaluationResult | { payload: EvaluationResult }, @Ctx() context: RmqContext) {
-    this.orchestration.complete(this.unwrap(message));
+    this.orchestration.complete(this.unwrapResult(message));
     this.ack(context);
   }
 
   @EventPattern('evaluation.failed')
   handleFailed(@Payload() message: EvaluationResult | { payload: EvaluationResult }, @Ctx() context: RmqContext) {
-    this.orchestration.fail(this.unwrap(message));
+    this.orchestration.fail(this.unwrapResult(message));
     this.ack(context);
   }
 
@@ -41,10 +41,19 @@ export class RabbitMqController {
     context.getChannelRef().nack(context.getMessage(), false, requeue);
   }
 
-  private unwrap<T>(message: T | { payload: T }): T {
+  private unwrapRequested<T>(message: T | { payload: T }): T {
     if (message && typeof message === 'object' && 'payload' in message) {
       return (message as { payload: T }).payload;
     }
     return message as T;
+  }
+
+  private unwrapResult(message: EvaluationResult | { payload: EvaluationResult }): EvaluationResult {
+    if ('payload' in message && message.payload) {
+      const outer = message as EvaluationResult & { payload: EvaluationResult };
+      if (outer.evaluationId) return { ...outer.payload, ...outer, evaluationId: outer.evaluationId };
+      return outer.payload;
+    }
+    return message as EvaluationResult;
   }
 }

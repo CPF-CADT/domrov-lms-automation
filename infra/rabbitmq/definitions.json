@@ -8,6 +8,8 @@
   "global_parameters": [],
   "policies": [],
   "queues": [
+    {"name": "domrov.ai.orchestrator", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {}},
+    {"name": "ai-evaluation-worker", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {}},
     {"name": "domrov.academic.evaluation.completed", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {"x-dead-letter-exchange": "domrov.retry", "x-dead-letter-routing-key": "evaluation.completed.retry"}},
     {"name": "domrov.academic.evaluation.completed.retry", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {"x-message-ttl": 30000, "x-dead-letter-exchange": "domrov.events", "x-dead-letter-routing-key": "evaluation.completed"}},
     {"name": "domrov.academic.evaluation.completed.dlq", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {}},
@@ -24,11 +26,13 @@
   ],
   "exchanges": [
     {"name": "domrov.events", "vhost": "/", "type": "topic", "durable": true, "auto_delete": false, "internal": false, "arguments": {}},
-    {"name": "domrov.commands", "vhost": "/", "type": "direct", "durable": true, "auto_delete": false, "internal": false, "arguments": {}},
+    {"name": "domrov.commands", "vhost": "/", "type": "topic", "durable": true, "auto_delete": false, "internal": false, "arguments": {}},
     {"name": "domrov.retry", "vhost": "/", "type": "topic", "durable": true, "auto_delete": false, "internal": false, "arguments": {}},
     {"name": "domrov.dlx", "vhost": "/", "type": "topic", "durable": true, "auto_delete": false, "internal": false, "arguments": {}}
   ],
   "bindings": [
+    {"source": "domrov.events", "vhost": "/", "destination": "domrov.ai.orchestrator", "destination_type": "queue", "routing_key": "evaluation.*", "arguments": {}},
+    {"source": "domrov.events", "vhost": "/", "destination": "ai-evaluation-worker", "destination_type": "queue", "routing_key": "evaluation.job", "arguments": {}},
     {"source": "domrov.events", "vhost": "/", "destination": "domrov.academic.evaluation.completed", "destination_type": "queue", "routing_key": "evaluation.completed", "arguments": {}},
     {"source": "domrov.retry", "vhost": "/", "destination": "domrov.academic.evaluation.completed.retry", "destination_type": "queue", "routing_key": "evaluation.completed.retry", "arguments": {}},
     {"source": "domrov.dlx", "vhost": "/", "destination": "domrov.academic.evaluation.completed.dlq", "destination_type": "queue", "routing_key": "evaluation.completed.dlq", "arguments": {}},

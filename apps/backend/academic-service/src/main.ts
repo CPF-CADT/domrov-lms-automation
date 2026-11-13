@@ -8,7 +8,7 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
-  app.connectMicroservice<MicroserviceOptions>({ transport: Transport.RMQ, options: { urls: [config.get<string>('RABBITMQ_URL', 'amqp://domrov:domrov@localhost:5672')], queue: config.get<string>('RABBITMQ_ACADEMIC_QUEUE', 'academic-ai-events'), queueOptions: { durable: true }, noAck: false, prefetchCount: 10 } });
+  app.connectMicroservice<MicroserviceOptions>({ transport: Transport.RMQ, options: { urls: [config.getOrThrow<string>('RABBITMQ_URL')], queue: config.get<string>('RABBITMQ_ACADEMIC_QUEUE', 'domrov.academic.evaluation.completed'), exchange: config.get<string>('RABBITMQ_EVENTS_EXCHANGE', 'domrov.events'), exchangeType: 'topic', wildcards: true, queueOptions: { durable: true }, noAck: false, prefetchCount: 10 } });
   app.setGlobalPrefix('api/academic');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   await app.startAllMicroservices();

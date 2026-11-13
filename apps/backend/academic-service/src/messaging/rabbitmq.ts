@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { Controller, Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ClientProxy, Ctx, EventPattern, Payload, RmqContext } from '@nestjs/microservices';
 import { firstValueFrom, timeout } from 'rxjs';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -12,6 +12,7 @@ export interface RabbitEnvelope<T> {
   correlationId: string;
   idempotencyKey: string;
   eventType: string;
+  schemaVersion: number;
   occurredAt: string;
   producer: string;
   payload: T;
@@ -48,6 +49,7 @@ export class EvaluationPublisher {
       correlationId: payload.evaluationId,
       idempotencyKey: `evaluation:${payload.evaluationId}`,
       eventType: 'evaluation.requested',
+      schemaVersion: 1,
       occurredAt: new Date().toISOString(),
       producer: 'academic-service',
       payload,
@@ -60,7 +62,7 @@ export class EvaluationPublisher {
   }
 }
 
-@Injectable()
+@Controller()
 export class EvaluationEventsController {
   private readonly logger = new Logger(EvaluationEventsController.name);
 
@@ -111,6 +113,7 @@ export class EvaluationEventsController {
       correlationId: result.evaluationId,
       idempotencyKey: `evaluation:${result.evaluationId}`,
       eventType: result.status === 'failed' ? 'evaluation.failed' : 'evaluation.completed',
+      schemaVersion: 1,
       occurredAt: new Date().toISOString(),
       producer: 'ai-service',
       payload: result,

@@ -1,28 +1,33 @@
+from __future__ import annotations
+
 from datetime import datetime, timezone
 from sqlalchemy import Column, DateTime, Float, Integer, MetaData, String, Table, Text, create_engine, select, update
+from sqlalchemy.dialects.postgresql import UUID
+
+Identifier = String(128).with_variant(UUID(as_uuid=False), "postgresql")
 
 metadata = MetaData()
 evaluations = Table(
     "evaluations", metadata,
-    Column("evaluation_id", String(128), primary_key=True),
-    Column("submission_id", String(128), nullable=False),
-    Column("assignment_id", String(128), nullable=False),
-    Column("user_id", String(128), nullable=False),
+    Column("evaluation_id", Identifier, primary_key=True),
+    Column("submission_id", Identifier, nullable=False),
+    Column("assignment_id", Identifier, nullable=False),
+    Column("user_id", Identifier, nullable=False),
     Column("language", String(64), nullable=False),
     Column("resource_key", Text, nullable=False),
     Column("status", String(32), nullable=False),
     Column("score", Float),
     Column("feedback", Text, nullable=False, default=""),
     Column("error_code", String(64), nullable=False, default=""),
-    Column("request_id", String(128), nullable=False),
+    Column("request_id", Identifier, nullable=False),
     Column("attempts", Integer, nullable=False, default=0),
 )
 
 evaluation_logs = Table(
     "evaluation_logs", metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
-    Column("evaluation_id", String(128), nullable=False),
-    Column("submission_id", String(128), nullable=False),
+    Column("evaluation_id", Identifier, nullable=False),
+    Column("submission_id", Identifier, nullable=False),
     Column("event", String(64), nullable=False),
     Column("status", String(32), nullable=False),
     Column("details", Text, nullable=False, default=""),
@@ -34,6 +39,10 @@ class EvaluationStore:
     def __init__(self, database_url: str):
         self.engine = create_engine(database_url, future=True)
         metadata.create_all(self.engine)
+
+    def healthcheck(self) -> None:
+        with self.engine.connect() as connection:
+            connection.exec_driver_sql("SELECT 1")
 
     def create(self, record: dict) -> None:
         with self.engine.begin() as connection:
@@ -90,7 +99,7 @@ class EvaluationStore:
             return [dict(row) for row in connection.execute(statement).mappings().all()]
 
     def list_logs(self, *, evaluation_id: str | None = None, limit: int = 100) -> list[dict]:
-        statement = select(evaluation_logs).order_by(evaluation_logs.c.id.desc()).limit(min(max(limit, 1), 500))
+        statement = select(evaluation_logs).order_by(evaluation_logs.c.id.asc()).limit(min(max(limit, 1), 500))
         if evaluation_id:
             statement = statement.where(evaluation_logs.c.evaluation_id == evaluation_id)
         with self.engine.connect() as connection:

@@ -78,6 +78,14 @@ def test_decode_job_supports_envelope_and_properties():
     assert message.payload["evaluation_id"] == "eval-1"
 
 
+def test_decode_job_supports_nest_packet_and_camel_case_payload():
+    body = json.dumps({"pattern": "evaluation.job", "data": {"evaluationId": "eval-2", "userId": "user-2", "submissionId": "sub-2"}})
+    message = decode_job(body)
+    assert message.evaluation_id == "eval-2"
+    assert message.payload["user_id"] == "user-2"
+    assert message.payload["submission_id"] == "sub-2"
+
+
 def test_success_publishes_completed_and_acknowledges(monkeypatch):
     install_fake_pika(monkeypatch)
     channel = FakeChannel()
@@ -98,7 +106,8 @@ def test_success_publishes_completed_and_acknowledges(monkeypatch):
     assert seen[0]["evaluation_id"] == "eval-1"
     assert channel.acks == [{"delivery_tag": 7}]
     assert len(channel.published) == 1
-    event = json.loads(channel.published[0]["body"])
+    packet = json.loads(channel.published[0]["body"])
+    event = packet["data"]
     assert channel.published[0]["routing_key"] == "evaluation.completed"
     assert event["correlationId"] == "corr-1"
     assert event["evaluationId"] == "eval-1"
@@ -134,7 +143,8 @@ def test_exhausted_failure_publishes_failed_and_acknowledges(monkeypatch):
     )
     assert channel.acks == [{"delivery_tag": 9}]
     assert channel.published[0]["routing_key"] == "evaluation.failed"
-    event = json.loads(channel.published[0]["body"])
+    packet = json.loads(channel.published[0]["body"])
+    event = packet["data"]
     assert event["correlationId"] == "corr-3"
     assert event["evaluationId"] == "eval-3"
 

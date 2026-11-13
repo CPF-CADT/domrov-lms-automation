@@ -12,7 +12,7 @@ spec:
           image: phyvathanak/domrov-auth-service:dev
           ports: [{name: http, containerPort: 3001}]
           envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
-          env: [{name: PORT, value: "3001"}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: AUTH_DATABASE_URL}}}]
+          env: [{name: PORT, value: "3001"}, {name: RABBITMQ_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: RABBITMQ_URL}}}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: AUTH_DATABASE_URL}}}]
           readinessProbe: {httpGet: {path: /health/ready, port: http}, initialDelaySeconds: 10, periodSeconds: 10}
           livenessProbe: {httpGet: {path: /health/live, port: http}, initialDelaySeconds: 20, periodSeconds: 20}
           resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 500m, memory: 512Mi}}
@@ -33,9 +33,15 @@ spec:
           env:
             - {name: RABBITMQ_DEFAULT_USER, value: domrov}
             - {name: RABBITMQ_DEFAULT_PASS, valueFrom: {secretKeyRef: {name: domrov-secrets, key: RABBITMQ_PASSWORD}}}
+            - {name: RABBITMQ_LOAD_DEFINITIONS, value: /etc/rabbitmq/definitions/definitions.json}
+          volumeMounts:
+            - {name: rabbitmq-definitions, mountPath: /etc/rabbitmq/definitions, readOnly: true}
           readinessProbe: {tcpSocket: {port: amqp}, initialDelaySeconds: 10, periodSeconds: 10}
           livenessProbe: {tcpSocket: {port: amqp}, initialDelaySeconds: 20, periodSeconds: 20}
           resources: {requests: {cpu: 100m, memory: 256Mi}, limits: {cpu: 500m, memory: 512Mi}}
+      volumes:
+        - name: rabbitmq-definitions
+          configMap: {name: rabbitmq-definitions}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -51,7 +57,7 @@ spec:
           image: phyvathanak/domrov-academic-service:dev
           ports: [{name: http, containerPort: 3002}]
           envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
-          env: [{name: PORT, value: "3002"}, {name: JWT_ACCESS_SECRET, valueFrom: {secretKeyRef: {name: domrov-secrets, key: JWT_ACCESS_SECRET}}}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: ACADEMIC_DATABASE_URL}}}]
+          env: [{name: PORT, value: "3002"}, {name: RABBITMQ_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: RABBITMQ_URL}}}, {name: JWT_ACCESS_SECRET, valueFrom: {secretKeyRef: {name: domrov-secrets, key: JWT_ACCESS_SECRET}}}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: ACADEMIC_DATABASE_URL}}}]
           readinessProbe: {httpGet: {path: /health/ready, port: http}, initialDelaySeconds: 10, periodSeconds: 10}
           livenessProbe: {httpGet: {path: /health/live, port: http}, initialDelaySeconds: 20, periodSeconds: 20}
           resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 500m, memory: 512Mi}}
@@ -70,7 +76,7 @@ spec:
           image: phyvathanak/domrov-payment-service:dev
           ports: [{name: http, containerPort: 3003}]
           envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
-          env: [{name: PORT, value: "3003"}, {name: JWT_ACCESS_SECRET, valueFrom: {secretKeyRef: {name: domrov-secrets, key: JWT_ACCESS_SECRET}}}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: PAYMENT_DATABASE_URL}}}]
+          env: [{name: PORT, value: "3003"}, {name: RABBITMQ_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: RABBITMQ_URL}}}, {name: JWT_ACCESS_SECRET, valueFrom: {secretKeyRef: {name: domrov-secrets, key: JWT_ACCESS_SECRET}}}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: PAYMENT_DATABASE_URL}}}]
           readinessProbe: {httpGet: {path: /health/ready, port: http}, initialDelaySeconds: 10, periodSeconds: 10}
           livenessProbe: {httpGet: {path: /health/live, port: http}, initialDelaySeconds: 20, periodSeconds: 20}
           resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 500m, memory: 512Mi}}

@@ -15,4 +15,4 @@ RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 COPY --from=build /app/dist ./dist
 USER node
 EXPOSE 3004
-CMD ["node", "dist/src/main.js"]
+CMD ["node", "dist/main.js"]

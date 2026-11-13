@@ -1,5 +1,6 @@
 export interface EvaluationRequested {
   messageId?: string;
+  schemaVersion?: number;
   correlationId: string;
   evaluationId?: string;
   submissionId: string;
@@ -21,6 +22,7 @@ export interface EvaluationJob extends EvaluationRequested {
 
 export interface EvaluationResult {
   messageId?: string;
+  schemaVersion?: number;
   correlationId: string;
   evaluationId: string;
   submissionId: string;

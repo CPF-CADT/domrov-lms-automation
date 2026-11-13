@@ -40,6 +40,7 @@ export class OrchestrationService {
       evaluationId,
       jobId: randomUUID(),
       eventType: 'evaluation.job',
+      schemaVersion: 1,
     };
 
     try {

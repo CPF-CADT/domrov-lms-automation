@@ -7,6 +7,7 @@ export interface RabbitEnvelope<T> {
   correlationId: string;
   idempotencyKey: string;
   eventType: string;
+  schemaVersion?: number;
   occurredAt: string;
   producer: string;
   payload: T;

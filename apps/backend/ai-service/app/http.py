@@ -16,7 +16,7 @@ def create_app(store: EvaluationStore, admin_token: str = "") -> FastAPI:
 
     @app.get("/health/ready")
     def ready():
-        store.get("readiness-probe")
+        store.healthcheck()
         requests.labels("/health/ready").inc()
         return {"status": "ready"}
 

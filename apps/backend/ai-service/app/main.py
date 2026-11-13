@@ -1,4 +1,3 @@
-from rq import Connection, Queue, Worker
 from redis import Redis
 import uvicorn
 
@@ -19,9 +18,10 @@ def run_api() -> None:
 
 
 def run_worker() -> None:
+    from rq import Queue, Worker
+
     redis = Redis.from_url(settings.redis_url)
-    with Connection(redis):
-        Worker([Queue("ai-evaluations")]).work()
+    Worker([Queue("ai-evaluations", connection=redis)], connection=redis).work()
 
 
 def run_rabbitmq_worker() -> None:

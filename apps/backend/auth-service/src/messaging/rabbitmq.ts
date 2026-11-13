@@ -13,7 +13,7 @@ export class AuthEventsPublisher {
 
   async publish(eventType: string, payload: Record<string, unknown>, correlationId: string = randomUUID()) {
     if (!this.client) return;
-    const envelope = { messageId: randomUUID(), correlationId, idempotencyKey: `auth-event:${correlationId}:${eventType}`, eventType, occurredAt: new Date().toISOString(), producer: 'auth-service', payload };
+    const envelope = { messageId: randomUUID(), correlationId, idempotencyKey: `auth-event:${correlationId}:${eventType}`, eventType, occurredAt: new Date().toISOString(), schemaVersion: 1, producer: 'auth-service', payload };
     try {
       await firstValueFrom(this.client.emit(eventType, envelope).pipe(timeout(5000)));
     } catch (error) {

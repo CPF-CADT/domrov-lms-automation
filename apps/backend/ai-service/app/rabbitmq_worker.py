@@ -32,10 +32,11 @@ def decode_job(body: bytes | str, properties: Any = None) -> RabbitMessage:
     raw = json.loads(body.decode("utf-8") if isinstance(body, bytes) else body)
     if not isinstance(raw, dict):
         raise ValueError("evaluation.job payload must be a JSON object")
-    payload = raw.get("payload") if isinstance(raw.get("payload"), dict) else raw
+    packet_data = raw.get("data") if isinstance(raw.get("data"), dict) else raw
+    payload = packet_data.get("payload") if isinstance(packet_data.get("payload"), dict) else packet_data
     evaluation_id = str(
-        raw.get("evaluationId")
-        or raw.get("evaluation_id")
+        packet_data.get("evaluationId")
+        or packet_data.get("evaluation_id")
         or payload.get("evaluationId")
         or payload.get("evaluation_id")
         or ""
@@ -44,30 +45,46 @@ def decode_job(body: bytes | str, properties: Any = None) -> RabbitMessage:
         raise ValueError("evaluation.job is missing evaluationId")
     correlation_id = str(
         getattr(properties, "correlation_id", None)
-        or raw.get("correlationId")
-        or raw.get("correlation_id")
+        or packet_data.get("correlationId")
+        or packet_data.get("correlation_id")
         or payload.get("correlationId")
         or evaluation_id
     )
-    headers = getattr(properties, "headers", None) or raw.get("headers") or {}
-    retry_count = int(headers.get("x-retry-count", raw.get("retryCount", 0)) or 0)
+    headers = getattr(properties, "headers", None) or packet_data.get("headers") or {}
+    retry_count = int(headers.get("x-retry-count", packet_data.get("retryCount", 0)) or 0)
     normalized = dict(payload)
+    for camel, snake in {
+        "submissionId": "submission_id",
+        "assignmentId": "assignment_id",
+        "userId": "user_id",
+        "resourceKey": "resource_key",
+        "includePaths": "include_paths",
+        "excludePaths": "exclude_paths",
+        "apiKey": "api_key",
+        "apiEndpoint": "api_endpoint",
+        "storageProvider": "storage_provider",
+        "externalUrl": "external_url",
+    }.items():
+        if camel in normalized and snake not in normalized:
+            normalized[snake] = normalized[camel]
     normalized["evaluation_id"] = evaluation_id
     normalized.setdefault("request_id", correlation_id)
     return RabbitMessage(normalized, correlation_id, evaluation_id, retry_count)
 
 
 def _event(event_type: str, message: RabbitMessage, *, status: str, **payload: Any) -> bytes:
-    return json.dumps(
-        {
-            "messageId": str(uuid.uuid4()),
-            "correlationId": message.correlation_id,
-            "evaluationId": message.evaluation_id,
-            "eventType": event_type,
-            "status": status,
-            "producer": "ai-service",
-            "payload": payload,
-        },
+    event = {
+        "messageId": str(uuid.uuid4()),
+        "correlationId": message.correlation_id,
+        "evaluationId": message.evaluation_id,
+        "eventType": event_type,
+        "schemaVersion": 1,
+        "idempotencyKey": f"evaluation:{message.evaluation_id}:{event_type}",
+        "status": status,
+        "producer": "ai-service",
+        "payload": payload,
+    }
+    return json.dumps({"pattern": event_type, "data": event},
         separators=(",", ":"),
         default=str,
     ).encode("utf-8")
@@ -132,12 +149,11 @@ def handle_message(
     except Exception as exc:  # noqa: BLE001 - classify failures at transport boundary
         LOGGER.exception("RabbitMQ evaluation failed", extra={"evaluation_id": message.evaluation_id})
         if message.retry_count < config.rabbitmq_max_retries:
-            retry_body = json.dumps(
-                {
+            retry_body = json.dumps({"pattern": config.rabbitmq_job_routing_key, "data": {
                     "correlationId": message.correlation_id,
                     "evaluationId": message.evaluation_id,
                     "payload": message.payload,
-                },
+                }},
                 separators=(",", ":"),
             ).encode("utf-8")
             _publish(

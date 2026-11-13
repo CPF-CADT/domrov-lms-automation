@@ -3,11 +3,13 @@ name: domrov
 services:
   gateway:
     image: nginx:1.27-alpine
-    command: >-
-      /bin/sh -c
-      'envsubst ''$${LEGACY_BACKEND_HOST} $${LEGACY_BACKEND_PORT}''
-      < /etc/nginx/templates/nginx.conf.template
-      > /etc/nginx/nginx.conf && nginx -g "daemon off;"'
+    command:
+      - /bin/sh
+      - -c
+      - >-
+        envsubst '$${LEGACY_BACKEND_HOST} $${LEGACY_BACKEND_PORT}'
+        < /etc/nginx/templates/nginx.conf.template
+        > /etc/nginx/nginx.conf && nginx -g "daemon off;"
     ports:
       - "${GATEWAY_PORT:-8088}:80"
     environment:
@@ -125,7 +127,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "50051:50051"
+      - "${AI_GRPC_PORT:-50052}:50051"
       - "8080:8080"
     environment:
       GRPC_PORT: "50051"
