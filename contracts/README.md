@@ -9,8 +9,7 @@ until each work package is migrated.
 | `auth/openapi.yaml` | Auth Service | Identity and user profile APIs |
 | `academic/openapi.yaml` | Academic Service | Classes, assignments, and submissions |
 | `payment/openapi.yaml` | Payment Service | Wallet and credit reservation APIs |
-| `ai/evaluation.proto` | AI Service | Internal asynchronous evaluation RPC |
-| `rabbitmq/` | Shared platform | RabbitMQ exchanges, routing keys, queues, and message schemas |
+| `rabbitmq/` | Evaluation/Payment/Auth services | Internal RabbitMQ events, commands, and payload schemas |
 
 HTTP conventions and health endpoints are defined in
 `docs/microservices-conventions.md`. The current-to-target mapping is in
