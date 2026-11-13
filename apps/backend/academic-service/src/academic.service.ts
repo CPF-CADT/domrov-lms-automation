@@ -1,10 +1,13 @@
-import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
 import { AcademicClass, Assignment, Enrollment, Resource, Rubric, Submission, Team, TeamMember } from './entities';
 import { CreateAssignmentDto, CreateClassDto, CreateSubmissionDto, CreateTeamDto, FeedbackDto, GradeSubmissionDto, JoinClassDto, JoinTeamDto, NotifyUploadDto, RubricDto, UpdateAssignmentDto, UpdateClassDto } from './dto';
 import { AsyncEvaluationClient, EvaluationClient } from './ai-client';
+import { AcademicStorageService } from './storage';
+import { Readable } from 'node:stream';
+import { createHash } from 'node:crypto';
 
 @Injectable()
 export class AcademicService {
@@ -18,6 +21,7 @@ export class AcademicService {
     @InjectRepository(Resource) private readonly resources: Repository<Resource>,
     @InjectRepository(Submission) private readonly submissions: Repository<Submission>,
     @Inject('EvaluationClient') private readonly evaluationClient: EvaluationClient,
+    @Optional() private readonly storage?: AcademicStorageService,
   ) {}
 
   async createClass(input: CreateClassDto, ownerId: string) {
@@ -97,9 +101,71 @@ export class AcademicService {
   async addFeedback(id: string, input: FeedbackDto, actorId: string) { return this.grade(id, { score: Number((await this.submissions.findOneBy({ id }))?.score ?? 0), feedback: input.feedback }, actorId); }
   async getSubmissionForUser(id: string, userId: string) { const s = await this.submissions.findOneBy({ id }); if (!s) throw new NotFoundException('Submission not found'); const a = await this.assignments.findOneBy({ id: s.assignmentId }); if (!a) throw new NotFoundException('Assignment not found'); if (s.userId !== userId) await this.requireInstructor(a.classId, userId); return s; }
 
-  async createResource(input: NotifyUploadDto, ownerId: string) { const resource = this.resources.create({ title: input.filename, url: input.key, ownerId, type: input.contentType?.split('/')[0] ?? 'file', contentType: input.contentType, storageProvider: 'external' }); return this.resources.save(resource); }
-  async getResource(id: string, userId: string) { const resource = await this.resources.findOneBy({ id }); if (!resource) throw new NotFoundException('Resource not found'); await this.requireMemberByResource(resource, userId); return resource; }
-  async presignedResource(input: NotifyUploadDto, userId: string) { return { presignedUrl: input.key, key: `${userId}/${input.resourceType ?? 'resource'}/${input.resourceId ?? 'pending'}/${input.filename.replace(/[^a-zA-Z0-9._-]/g, '_')}` }; }
+  async uploadResource(file: { originalname: string; mimetype: string; buffer: Buffer; size: number }, input: NotifyUploadDto, ownerId: string) {
+    if (!file?.buffer?.length) throw new BadRequestException('File is required');
+    const filename = file.originalname.trim();
+    if (!filename || filename.includes('\0') || /[\\/]/.test(filename)) throw new BadRequestException('Invalid filename');
+    const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const key = input.key || `${ownerId}/${input.resourceType ?? 'resource'}/${input.resourceId ?? 'pending'}/${safeFilename}`;
+    const checksum = createHash('sha256').update(file.buffer).digest('hex');
+    if (!this.storage) throw new Error('Academic storage is not configured');
+    await this.storage.save(key, Readable.from(file.buffer), { key, contentType: file.mimetype, size: file.size });
+    return this.persistStoredResource({ key, filename, contentType: file.mimetype, size: file.size, checksum }, ownerId);
+  }
+
+  async createResource(input: NotifyUploadDto, ownerId: string) {
+    if (/^https?:\/\//i.test(input.key)) {
+      const resource = this.resources.create({ title: input.filename, url: input.key, ownerId, type: 'url', contentType: 'text/uri-list', storageProvider: 'external' });
+      return this.resources.save(resource);
+    }
+    if (!this.storage || !(await this.storage.exists(input.key))) throw new NotFoundException('File not found in storage');
+    const metadata = await this.storage.head(input.key);
+    return this.persistStoredResource({ key: input.key, filename: input.filename, contentType: input.contentType ?? metadata.contentType, size: metadata.size }, ownerId);
+  }
+
+  private async persistStoredResource(input: { key: string; filename: string; contentType?: string; size?: number; checksum?: string }, ownerId: string) {
+    let resource = await this.resources.findOneBy({ url: input.key });
+    const data = { title: input.filename, url: input.key, ownerId, type: this.resourceType(input.filename), contentType: input.contentType, size: input.size, storageProvider: this.storage?.provider ?? 'local' };
+    if (resource) Object.assign(resource, data);
+    else resource = this.resources.create(data);
+    return this.resources.save(resource);
+  }
+
+  async getResource(id: string, userId: string) {
+    const resource = await this.resources.findOneBy({ id });
+    if (!resource) throw new NotFoundException('Resource not found');
+    await this.requireMemberByResource(resource, userId);
+    return resource;
+  }
+
+  async getResourceStream(id: string, userId: string) {
+    const resource = await this.getResource(id, userId);
+    if (resource.storageProvider === 'external' || resource.type === 'url') throw new NotFoundException('External resources cannot be downloaded as files');
+    if (!this.storage) throw new NotFoundException('Storage is not configured');
+    const file = await this.storage.stream(resource.url).catch(() => { throw new NotFoundException('File not found in storage'); });
+    return { ...file, filename: resource.title, contentType: resource.contentType ?? file.contentType };
+  }
+
+  async presignedResource(input: NotifyUploadDto, userId: string) {
+    if (!input.filename || !input.contentType) throw new BadRequestException('Filename and content type are required');
+    const filename = input.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const key = input.key || `${userId}/${input.resourceType ?? 'resource'}/${input.resourceId ?? 'pending'}/${filename}`;
+    if (!this.storage) throw new NotFoundException('Storage is not configured');
+    return { presignedUrl: await this.storage.createUploadUrl(key, input.contentType), key, provider: this.storage.provider, expiresIn: this.storage.provider === 'r2' ? 300 : undefined };
+  }
+
+  cloudinaryUploadParams() {
+    if (!this.storage) throw new NotFoundException('Storage is not configured');
+    return this.storage.createCloudinaryUploadParams();
+  }
+
+  private resourceType(filename: string): string {
+    const ext = filename.split('.').pop()?.toLowerCase();
+    if (['jpg', 'jpeg', 'png', 'gif'].includes(ext ?? '')) return 'image';
+    if (['mp4', 'mov', 'avi'].includes(ext ?? '')) return 'video';
+    if (['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt', 'java', 'js', 'py', 'zip'].includes(ext ?? '')) return 'document';
+    return 'file';
+  }
 
   async createSubmission(assignmentId: string, input: CreateSubmissionDto, userId: string) {
     const assignment = await this.assignments.findOneBy({ id: assignmentId });

@@ -1,4 +1,7 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import type { Response } from 'express';
 import { AcademicService } from './academic.service';
 import { CreateAssignmentDto, CreateClassDto, CreateSubmissionDto, CreateTeamDto, AddTeamMemberDto, FeedbackDto, GradeSubmissionDto, JoinClassDto, JoinTeamDto, NotifyUploadDto, UpdateAssignmentDto, UpdateClassDto } from './dto';
 import { AuthenticatedRequest, JwtBoundaryGuard } from './auth';
@@ -93,8 +96,23 @@ export class LegacySubmissionController {
 @Controller('file')
 export class LegacyFileController {
   constructor(private readonly academic: AcademicService) {}
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }))
+  upload(@UploadedFile() file: { originalname: string; mimetype: string; buffer: Buffer; size: number }, @Body('resourceType') resourceType: string, @Body('resourceId') resourceId: string, @Req() req: AuthenticatedRequest) {
+    return this.academic.uploadResource(file, { key: '', filename: file?.originalname ?? '', contentType: file?.mimetype, resourceType, resourceId: resourceId || undefined }, req.user.sub)
+      .then(resource => ({ success: true, data: { resourceId: resource.id, key: resource.url, filename: resource.title, contentType: resource.contentType, size: resource.size } }));
+  }
   @Get('presigned-url') presigned(@Query() input: NotifyUploadDto, @Req() req: AuthenticatedRequest) { return this.academic.presignedResource(input, req.user.sub).then(data => ({ success: true, data })); }
   @Post('notify-upload') notify(@Body() input: NotifyUploadDto, @Req() req: AuthenticatedRequest) { return this.academic.createResource(input, req.user.sub).then(resource => ({ success: true, data: { message: 'Resource saved successfully', resourceId: resource.id } })); }
-  @Get('download/:resourceId') download(@Param('resourceId') id: string, @Req() req: AuthenticatedRequest) { return this.academic.getResource(id, req.user.sub).then(resource => ({ success: true, data: resource })); }
-  @Get('cloudinary-presigned-url') cloudinary() { return { success: true, data: { signature: '', timestamp: Math.floor(Date.now() / 1000), folder: 'domrov-pictures' } }; }
+  @Get('download/:resourceId') async download(@Param('resourceId') id: string, @Req() req: AuthenticatedRequest, @Res() res: Response) {
+    const file = await this.academic.getResourceStream(id, req.user.sub);
+    res.setHeader('Content-Type', file.contentType || 'application/octet-stream');
+    if (file.size !== undefined) res.setHeader('Content-Length', String(file.size));
+    const encoded = encodeURIComponent(file.filename);
+    res.setHeader('Content-Disposition', `attachment; filename="${encoded}"; filename*=UTF-8''${encoded}`);
+    file.stream.pipe(res);
+  }
+  @Get('cloudinary-presigned-url') cloudinary() {
+    return { success: true, data: this.academic.cloudinaryUploadParams() };
+  }
 }
