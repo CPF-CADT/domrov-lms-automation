@@ -450,4 +450,127 @@ domrov-lms-automation/
 
 ## Terms of Use
 
+---
+
+## Production Microservices Refactoring PRD
+
+### Objective
+
+Refactor the backend into four independently deployable microservices while preserving the existing DOMROV product behavior:
+
+1. Auth Service
+2. Academic Service
+3. Payment Service
+4. AI Evaluation Service
+
+The frontend remains outside this refactoring. It should access backend functionality through the API Gateway or Kubernetes Ingress.
+
+### Architecture principles
+
+- Each service has one clear business responsibility.
+- Each service owns and manages its own database.
+- No service directly queries another service's database.
+- Each service has its own Docker image, tests, configuration, health checks, metrics, and deployment manifest.
+- REST is used for client-facing APIs; gRPC may be used for internal evaluation requests.
+- Long-running AI evaluation is asynchronous and uses Redis for queue processing.
+- Services fail independently through timeouts, retries, circuit breakers, and readiness checks.
+- API contracts are versioned and stored under `contracts/`.
+
+### Service ownership
+
+| Service | Responsibility | Database |
+|---|---|---|
+| Auth Service | Registration, login, JWT, users, roles, OAuth, password recovery | `auth_db` |
+| Academic Service | Classes, teams, assignments, rubrics, submissions, academic results | `academic_db` |
+| Payment Service | Wallets, credit packages, KHQR payments, transactions, credit reservations | `payment_db` |
+| AI Service | Code execution, evaluation jobs, AI feedback, evaluation results and workers | `ai_db` plus Redis |
+
+Database-per-service means logical ownership. The databases may run on the same PostgreSQL infrastructure, but credentials, migrations, repositories, and tables must remain isolated.
+
+### Communication
+
+```text
+Frontend -> API Gateway/Ingress -> Auth, Academic, Payment, or AI API
+Academic Service -> AI Service: submit evaluation request
+AI Service -> Payment Service: reserve, commit, or release credits
+AI Service -> Redis: queue evaluation work
+AI Worker -> ai_db: store evaluation state and result
+```
+
+The evaluation flow is asynchronous:
+
+```text
+Academic Service stores submission
+  -> publishes evaluation request
+  -> AI Service returns evaluationId
+  -> Redis queues the job
+  -> AI Worker executes and evaluates code
+  -> AI Service stores the result
+  -> Academic Service exposes the result to the client
+```
+
+### Required repository structure
+
+```text
+apps/backend/
+├── auth-service/
+├── academic-service/
+├── payment-service/
+└── ai-service/
+
+contracts/
+├── auth/openapi.yaml
+├── academic/openapi.yaml
+├── payment/openapi.yaml
+└── ai/evaluation.proto
+
+infra/
+├── docker-compose.yml
+└── k8s/
+    ├── auth-service/
+    ├── academic-service/
+    ├── payment-service/
+    ├── ai-service/
+    ├── databases/
+    ├── redis/
+    ├── ingress/
+    └── observability/
+```
+
+### Service scopes
+
+- **Auth Service:** registration, login, refresh tokens, logout, email verification, password reset, OAuth, user profiles, and roles. It owns identity data in `auth_db`. Other services validate JWTs and must not read `auth_db`.
+- **Academic Service:** classes, enrollments, teams, assignments, rubrics, resources, submissions, evaluation status, and academic feedback in `academic_db`.
+- **Payment Service:** credit packages, wallet balances, payments, KHQR verification, transactions, refunds, and credit reservations in `payment_db`. Credit operations require idempotency keys.
+- **AI Service:** code execution, evaluation jobs, AI feedback, retries, timeouts, and results in `ai_db`; Redis is used for queues, retries, locks, and temporary job state. API and worker processes are separate Kubernetes deployments.
+
+### Platform and operations
+
+- Docker Compose runs all services and dependencies locally.
+- Kubernetes deploys each service independently.
+- Kubernetes Ingress is the public API entry point.
+- Prometheus collects metrics and Grafana displays dashboards.
+- Loki and Promtail centralize structured JSON logs.
+- OpenTelemetry request IDs and trace IDs connect the submission-to-evaluation flow.
+- CI/CD tests, scans, builds, publishes, and deploys each service independently.
+- Image tags use the Git SHA; production must not rely only on `latest`.
+
+### Production acceptance criteria
+
+- Four services start and deploy independently.
+- Each service has a separate database and database credentials.
+- No cross-service database access or cross-database foreign keys exist.
+- REST APIs and the internal gRPC contract are documented and tested.
+- AI evaluation is asynchronous and retryable.
+- Payment credit operations are idempotent.
+- Liveness and readiness probes work for every service.
+- Timeouts, retries, and graceful dependency failures are implemented.
+- Docker Compose runs the local environment.
+- Kubernetes runs the production environment.
+- CI/CD produces versioned images and deploys changed services.
+- Centralized logs and Prometheus metrics are visible in Grafana.
+- The complete flow works: login, assignment submission, credit reservation, evaluation, result delivery, and credit commit/release.
+
+The implementation checklist and execution order are maintained in [TASK.md](TASK.md).
+
 This project is open source

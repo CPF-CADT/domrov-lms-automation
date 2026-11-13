@@ -1,0 +1,141 @@
+openapi: 3.0.3
+info:
+  title: DOMROV Payment Service API
+  version: 1.0.0
+  description: Wallet, payments, credits, and idempotent credit reservations.
+servers:
+  - url: /api/payment
+paths:
+  /wallet:
+    get:
+      operationId: getWallet
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Current wallet
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Wallet' }
+  /credit-packages:
+    get:
+      operationId: listCreditPackages
+      responses:
+        '200':
+          description: Active packages
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/CreditPackage' } }
+  /payments:
+    post:
+      operationId: createPayment
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePaymentRequest' }
+      responses:
+        '201':
+          description: Payment created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+  /credits/reservations:
+    post:
+      operationId: reserveCredits
+      security: [{ serviceAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReserveCreditsRequest' }
+      responses:
+        '201':
+          description: Credits reserved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreditReservation' }
+        '409': { description: Duplicate or insufficient credits }
+  /credits/reservations/{reservationId}/commit:
+    post:
+      operationId: commitCredits
+      security: [{ serviceAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ReservationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Reservation committed }
+  /credits/reservations/{reservationId}/release:
+    post:
+      operationId: releaseCredits
+      security: [{ serviceAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ReservationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Reservation released }
+  /health/live:
+    get:
+      operationId: liveness
+      responses: { '200': { description: Process is alive } }
+  /health/ready:
+    get:
+      operationId: readiness
+      responses: { '200': { description: Ready }, '503': { description: Not ready } }
+  /metrics:
+    get:
+      operationId: metrics
+      responses: { '200': { description: Prometheus metrics } }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+    serviceAuth: { type: http, scheme: bearer, bearerFormat: service-token }
+  parameters:
+    IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1 } }
+    ReservationId: { name: reservationId, in: path, required: true, schema: { type: string, format: uuid } }
+  schemas:
+    Wallet:
+      type: object
+      required: [userId, availableCredits, reservedCredits]
+      properties:
+        userId: { type: string, format: uuid }
+        availableCredits: { type: number, minimum: 0 }
+        reservedCredits: { type: number, minimum: 0 }
+    CreditPackage:
+      type: object
+      required: [id, name, credits, price, currency]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        credits: { type: number, minimum: 0 }
+        price: { type: number, minimum: 0 }
+        currency: { type: string, example: USD }
+    CreatePaymentRequest:
+      type: object
+      required: [creditPackageId]
+      properties: { creditPackageId: { type: string, format: uuid } }
+    Payment:
+      type: object
+      required: [id, status]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [pending, paid, failed, expired] }
+        providerReference: { type: string }
+    ReserveCreditsRequest:
+      type: object
+      required: [userId, amount, referenceId]
+      properties:
+        userId: { type: string, format: uuid }
+        amount: { type: number, exclusiveMinimum: 0 }
+        referenceId: { type: string, format: uuid, description: Evaluation ID }
+    CreditReservation:
+      type: object
+      required: [reservationId, status, amount]
+      properties:
+        reservationId: { type: string, format: uuid }
+        status: { type: string, enum: [reserved, committed, released] }
+        amount: { type: number }
