@@ -9,6 +9,19 @@ tags:
   - name: authentication
   - name: users
 paths:
+  /sign-up:
+    post:
+      tags: [authentication]
+      summary: Legacy registration route retained for the existing frontend
+      operationId: legacySignUp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201': { description: User registered in the legacy success/data envelope }
+        '409': { $ref: '#/components/responses/Conflict' }
   /register:
     post:
       tags: [authentication]
@@ -57,6 +70,19 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/TokenPair' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /refresh-token:
+    post:
+      tags: [authentication]
+      summary: Legacy cookie-based refresh route retained for the existing frontend
+      operationId: legacyRefresh
+      parameters:
+        - name: refresh_token
+          in: cookie
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Access token refreshed in the legacy success/data envelope }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /logout:
     post:
       tags: [authentication]
@@ -100,6 +126,20 @@ paths:
               properties: { email: { type: string, format: email } }
       responses:
         '200': { description: Reset request accepted }
+  /resend-verification:
+    post:
+      tags: [authentication]
+      operationId: resendVerification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties: { email: { type: string, format: email } }
+      responses:
+        '200': { description: Verification code sent in the legacy success/data envelope }
   /reset-password:
     post:
       tags: [authentication]
@@ -139,6 +179,19 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /users/change-password:
+    post:
+      tags: [users]
+      security: [{ bearerAuth: [] }]
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangePasswordRequest' }
+      responses:
+        '200': { description: Password changed }
         '401': { $ref: '#/components/responses/Unauthorized' }
   /health/live:
     get:
@@ -199,6 +252,13 @@ components:
       properties:
         firstName: { type: string }
         lastName: { type: string }
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword, confirmPassword]
+      properties:
+        currentPassword: { type: string }
+        newPassword: { type: string, minLength: 8 }
+        confirmPassword: { type: string }
     VerifyEmailRequest:
       type: object
       required: [email, otp]

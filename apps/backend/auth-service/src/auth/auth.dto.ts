@@ -71,3 +71,39 @@ export class CompletePasswordResetRequest {
   @MinLength(8)
   newPassword!: string;
 }
+
+export class UpdateProfileRequest {
+  @IsOptional()
+  @IsString()
+  @Length(1, 50)
+  firstName?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 50)
+  lastName?: string;
+
+  @IsOptional()
+  @IsString()
+  gender?: string;
+
+  @IsOptional()
+  @IsString()
+  phoneNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  profilePictureUrl?: string;
+}
+
+export class ChangePasswordRequest {
+  @IsString()
+  currentPassword!: string;
+
+  @IsString()
+  @MinLength(8)
+  newPassword!: string;
+
+  @IsString()
+  confirmPassword!: string;
+}

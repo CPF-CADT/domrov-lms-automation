@@ -5,7 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { randomInt } from 'crypto';
 import { Repository } from 'typeorm';
-import { CompletePasswordResetRequest, LoginRequest, PasswordResetRequest, RegisterRequest, VerifyEmailRequest } from './auth.dto';
+import { ChangePasswordRequest, CompletePasswordResetRequest, LoginRequest, PasswordResetRequest, RegisterRequest, UpdateProfileRequest, VerifyEmailRequest } from './auth.dto';
 import { OtpPurpose, UserEmailOtp } from '../entities/user-email-otp.entity';
 import { SystemRole, User, UserStatus } from '../entities/user.entity';
 import { UserRefreshToken } from '../entities/user-refresh-token.entity';
@@ -81,7 +81,54 @@ export class AuthService {
   async currentUser(userId: number) {
     const user = await this.users.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
-    return { id: String(user.id), email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role };
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      gender: user.gender,
+      dob: user.dob,
+      phoneNumber: user.phoneNumber,
+      profilePictureUrl: user.profilePictureUrl,
+      isVerified: user.isVerified,
+      isTwoFactorEnable: user.isTwoFactorEnable,
+      status: user.status,
+      role: user.role,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+    };
+  }
+
+  async updateProfile(userId: number, input: UpdateProfileRequest) {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    if (input.phoneNumber && input.phoneNumber !== user.phoneNumber) {
+      const existing = await this.users.findOne({ where: { phoneNumber: input.phoneNumber } });
+      if (existing && existing.id !== userId) throw new BadRequestException('Phone number already in use');
+    }
+    Object.assign(user, input);
+    await this.users.save(user);
+    return { message: 'Profile updated successfully', user: await this.currentUser(userId) };
+  }
+
+  async changePassword(userId: number, input: ChangePasswordRequest) {
+    if (input.newPassword !== input.confirmPassword) throw new BadRequestException('New password and confirmation do not match');
+    this.validatePassword(input.newPassword);
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    if (!(await bcrypt.compare(input.currentPassword, user.password))) throw new UnauthorizedException('Current password is incorrect');
+    if (await bcrypt.compare(input.newPassword, user.password)) throw new BadRequestException('New password must be different from current password');
+    user.password = await bcrypt.hash(input.newPassword, 10);
+    await this.users.save(user);
+    await this.refreshTokens.delete({ userId });
+    return { message: 'Password changed successfully' };
+  }
+
+  async resendVerification(email: string) {
+    const user = await this.findUserByEmail(email);
+    if (user.isVerified) throw new BadRequestException('Email is already verified');
+    await this.sendOtp(user, OtpPurpose.VERIFICATION);
+    return { message: 'Verification OTP sent successfully' };
   }
 
   async verifyEmail(input: VerifyEmailRequest) {
