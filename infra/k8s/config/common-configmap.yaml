@@ -15,3 +15,4 @@ data:
   RABBITMQ_RETRY_EXCHANGE: domrov.retry
   RABBITMQ_DLX: domrov.dlx
   RABBITMQ_PREFETCH_COUNT: "10"
+  RABBITMQ_ORCHESTRATOR_QUEUE: domrov.ai.orchestrator

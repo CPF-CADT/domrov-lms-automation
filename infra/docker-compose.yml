@@ -26,6 +26,8 @@ services:
         condition: service_started
       ai-service:
         condition: service_started
+      ai-orchestrator:
+        condition: service_started
       rabbitmq:
         condition: service_healthy
     healthcheck:
@@ -154,7 +156,7 @@ services:
       context: ../apps/backend/ai-service
       dockerfile: Dockerfile
     restart: unless-stopped
-    command: ["python", "-m", "app.worker"]
+    command: ["python", "-m", "app.main", "rabbitmq-worker"]
     environment:
       DATABASE_URL: postgresql://domrov:domrov@ai-db:5432/ai_db
       REDIS_URL: redis://redis:6379/0
@@ -170,6 +172,24 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  ai-orchestrator:
+    image: ${AI_ORCHESTRATOR_IMAGE:-phyvathanak/domrov-ai-orchestrator:dev}
+    build:
+      context: ../apps/backend/ai-orchestrator
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3004:3004"
+    environment:
+      PORT: "3004"
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://domrov:domrov@rabbitmq:5672/%2f}
+      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}
+      RABBITMQ_ORCHESTRATOR_QUEUE: ${RABBITMQ_ORCHESTRATOR_QUEUE:-domrov.ai.orchestrator}
+      RABBITMQ_PREFETCH_COUNT: ${RABBITMQ_PREFETCH_COUNT:-10}
+    depends_on:
       rabbitmq:
         condition: service_healthy
 

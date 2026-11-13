@@ -19,6 +19,26 @@ spec:
 ---
 apiVersion: apps/v1
 kind: Deployment
+metadata: {name: rabbitmq, namespace: domrov}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: rabbitmq}}
+  template:
+    metadata: {labels: {app: rabbitmq}}
+    spec:
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:3.13-management-alpine
+          ports: [{name: amqp, containerPort: 5672}, {name: management, containerPort: 15672}]
+          env:
+            - {name: RABBITMQ_DEFAULT_USER, value: domrov}
+            - {name: RABBITMQ_DEFAULT_PASS, valueFrom: {secretKeyRef: {name: domrov-secrets, key: RABBITMQ_PASSWORD}}}
+          readinessProbe: {tcpSocket: {port: amqp}, initialDelaySeconds: 10, periodSeconds: 10}
+          livenessProbe: {tcpSocket: {port: amqp}, initialDelaySeconds: 20, periodSeconds: 20}
+          resources: {requests: {cpu: 100m, memory: 256Mi}, limits: {cpu: 500m, memory: 512Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
 metadata: {name: academic-service, namespace: domrov}
 spec:
   replicas: 2
@@ -86,7 +106,26 @@ spec:
       containers:
         - name: ai-worker
           image: phyvathanak/domrov-ai-service:dev
-          command: ["python", "-m", "app.worker"]
+          command: ["python", "-m", "app.main", "rabbitmq-worker"]
           envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
-          env: [{name: HTTP_PORT, value: "8080"}, {name: REDIS_URL, valueFrom: {configMapKeyRef: {name: domrov-common, key: REDIS_URL}}}, {name: PAYMENT_SERVICE_URL, valueFrom: {configMapKeyRef: {name: domrov-common, key: PAYMENT_SERVICE_URL}}}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: AI_DATABASE_URL}}}]
+          env: [{name: HTTP_PORT, value: "8080"}, {name: REDIS_URL, valueFrom: {configMapKeyRef: {name: domrov-common, key: REDIS_URL}}}, {name: PAYMENT_SERVICE_URL, valueFrom: {configMapKeyRef: {name: domrov-common, key: PAYMENT_SERVICE_URL}}}, {name: RABBITMQ_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: RABBITMQ_URL}}}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: AI_DATABASE_URL}}}]
           resources: {requests: {cpu: 200m, memory: 256Mi}, limits: {cpu: 1, memory: 1Gi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: ai-orchestrator, namespace: domrov}
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: ai-orchestrator}}
+  template:
+    metadata: {labels: {app: ai-orchestrator}}
+    spec:
+      containers:
+        - name: ai-orchestrator
+          image: phyvathanak/domrov-ai-orchestrator:dev
+          ports: [{name: http, containerPort: 3004}]
+          envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
+          env: [{name: PORT, value: "3004"}, {name: RABBITMQ_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: RABBITMQ_URL}}}]
+          readinessProbe: {httpGet: {path: /api/ai-orchestrator/health/ready, port: http}, initialDelaySeconds: 10, periodSeconds: 10}
+          livenessProbe: {httpGet: {path: /api/ai-orchestrator/health/live, port: http}, initialDelaySeconds: 20, periodSeconds: 20}
+          resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 500m, memory: 512Mi}}

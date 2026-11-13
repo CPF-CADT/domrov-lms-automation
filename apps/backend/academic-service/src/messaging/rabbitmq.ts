@@ -67,13 +67,13 @@ export class EvaluationEventsController {
   constructor(@InjectRepository(Submission) private readonly submissions: Repository<Submission>) {}
 
   @EventPattern('evaluation.completed')
-  async completed(@Payload() envelope: RabbitEnvelope<EvaluationCompleted>, @Ctx() context: RmqContext) {
-    await this.handleResult(envelope, context, 'COMPLETED');
+  async completed(@Payload() envelope: RabbitEnvelope<EvaluationCompleted> | EvaluationCompleted, @Ctx() context: RmqContext) {
+    await this.handleResult(this.normalize(envelope), context, 'COMPLETED');
   }
 
   @EventPattern('evaluation.failed')
-  async failed(@Payload() envelope: RabbitEnvelope<EvaluationCompleted>, @Ctx() context: RmqContext) {
-    await this.handleResult(envelope, context, 'FAILED');
+  async failed(@Payload() envelope: RabbitEnvelope<EvaluationCompleted> | EvaluationCompleted, @Ctx() context: RmqContext) {
+    await this.handleResult(this.normalize(envelope), context, 'FAILED');
   }
 
   private async handleResult(envelope: RabbitEnvelope<EvaluationCompleted>, context: RmqContext, fallbackStatus: string) {
@@ -101,5 +101,19 @@ export class EvaluationEventsController {
     if (payload.score !== undefined || result.score !== undefined) submission.score = payload.score ?? result.score;
     if (payload.feedback !== undefined || result.feedback !== undefined) submission.feedback = payload.feedback ?? result.feedback;
     await this.submissions.save(submission);
+  }
+
+  private normalize(message: RabbitEnvelope<EvaluationCompleted> | EvaluationCompleted): RabbitEnvelope<EvaluationCompleted> {
+    if ('payload' in message && message.payload) return message as RabbitEnvelope<EvaluationCompleted>;
+    const result = message as EvaluationCompleted;
+    return {
+      messageId: result.evaluationId,
+      correlationId: result.evaluationId,
+      idempotencyKey: `evaluation:${result.evaluationId}`,
+      eventType: result.status === 'failed' ? 'evaluation.failed' : 'evaluation.completed',
+      occurredAt: new Date().toISOString(),
+      producer: 'ai-service',
+      payload: result,
+    };
   }
 }

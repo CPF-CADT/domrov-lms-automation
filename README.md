@@ -116,15 +116,15 @@ DOMROV uses a modern, distributed cloud architecture to deliver scalable, secure
 ### Backend Services
 
 - Node.js (NestJS) for the API Gateway and business logic  
-- Python (FastAPI/Flask) for orchestration and AI task management  
+- NestJS for orchestration and service-to-service messaging; Python remains the evaluation worker
 - Amazon EC2 for scalable compute resources  
 - RabbitMQ for durable backend-to-backend events and commands; gRPC remains only
-  as a legacy compatibility contract during migration
+  in the legacy Python API for compatibility during migration
 
 ### Task Processing & Automation
 
-- Redis Cloud for distributed task queue management  
-- RQ (Redis Queue) Workers for asynchronous job processing  
+- RabbitMQ for distributed task queues and service events
+- Redis remains available for evaluator-local cache/legacy RQ compatibility
 
 ### Data Storage
 
@@ -152,7 +152,8 @@ DOMROV uses a modern, distributed cloud architecture to deliver scalable, secure
 The system follows a distributed architecture composed of:
 
 - NestJS Backend – Handles business logic, APIs, authentication, and database operations  
-- Python Evaluation Service – Consumes RabbitMQ evaluation jobs and manages worker processes
+- NestJS AI Orchestrator – Translates academic evaluation events into evaluator jobs and tracks correlation state
+- Python Evaluation Worker – Consumes RabbitMQ evaluation jobs and runs the existing evaluator
 - RabbitMQ – Handles durable service events, commands, retries, and dead-letter queues
 - Redis Queue (RQ) – Retained for evaluator-local temporary execution state during migration
 - LLM Provider – Performs rubric-based evaluation  
@@ -179,7 +180,7 @@ The system follows a distributed architecture composed of:
 ![AI Evaluation](https://res.cloudinary.com/dgnugtetz/image/upload/v1772225042/mermaid-diagram-2026-02-28-034330_yq6xlr.png)
 
 1. Academic Service publishes `evaluation.requested` to RabbitMQ
-2. AI service enqueues the job into its worker queue
+2. AI Orchestrator publishes `evaluation.job` to the durable evaluator queue
 3. Worker consumes the job asynchronously:  
    - Fetches submission files  
    - Estimates token size  
@@ -314,7 +315,7 @@ domrov-lms-automation/
 | `admin/` | User management, analytics, monitoring |
 | `file/` | Local EBS file uploads/downloads and Cloudinary image uploads |
 
-**External Connections:** PostgreSQL DB, Redis cache, Python eval service (gRPC), OpenAI API, AWS S3
+**External Connections:** PostgreSQL DB, Redis cache, RabbitMQ, Python evaluation worker, OpenAI API, AWS S3
 
 ---
 
@@ -334,15 +335,15 @@ domrov-lms-automation/
 
 ### **`apps/code_eval/`** - AI Code Evaluation Engine 
 **Purpose:** Automated code execution, evaluation, and intelligent feedback generation  
-**Tech:** Python, gRPC, OpenAI API, Google GenAI, Redis Queue  
+**Tech:** Python, RabbitMQ, OpenAI API, Google GenAI, Redis Queue compatibility
 
 **Components:**
 | Component | Purpose |
 |-----------|---------|
 | `ai/` | LLM integration, feedback generation |
-| `grpc_services/` | gRPC server for backend communication |
+| `rabbitmq_worker.py` | RabbitMQ consumer for evaluation jobs |
 | `job_handler/` | Process eval jobs from Redis queue |
-| `server/` | gRPC service implementation |
+| `server/` | Legacy HTTP/gRPC service implementation |
 | `utils/` | Helpers, plagiarism detection, GitHub API |
 
 **What It Does:**
@@ -400,10 +401,10 @@ domrov-lms-automation/
 │  ✓ Real-time notifications           │         │
 │  ✓ Database: PostgreSQL + Redis      │
 └──────────┬───────────────────────────┘
-           │ gRPC (gRPC protocol)
+           │ RabbitMQ events/jobs
            ▼
 ┌──────────────────────────────────────┐
-│  Python Code Eval (Port 50051)       │
+│  NestJS AI Orchestrator + Python Worker│
 │  ✓ Code execution                    │
 │  ✓ AI feedback generation            │
 │  ✓ Result scoring                    │
@@ -425,14 +426,14 @@ domrov-lms-automation/
 |-------|-----------|
 | **Frontend** | React 19, Vite, TypeScript, Tailwind CSS, Socket.io |
 | **Backend API** | NestJS, TypeScript, TypeORM, Express.js |
-| **Eval Engine** | Python 3.10+, gRPC, LLM APIs |
+| **Eval Engine** | Python 3.10+, RabbitMQ, LLM APIs |
 | **Database** | PostgreSQL 14+, Redis 6+ |
 | **Cloud** | AWS (EC2, RDS, S3, ALB, CloudFront) |
 | **DNS & CDN** | Cloudflare (proxy, DDoS, SSL) |
 | **AI Services** | OpenAI API, Google GenAI, Ollama |
 | **Storage** | EBS-mounted local storage, Cloudinary |
 | **Queue** | Bull MQ (Node.js), RQ (Python) |
-| **IPC** | gRPC, REST APIs, WebSocket |
+| **IPC** | RabbitMQ, REST APIs, WebSocket |
 | **DevOps** | Terraform, Docker, Docker Compose |
 | **CI/CD** | GitHub Actions |
 
@@ -474,8 +475,8 @@ The frontend remains outside this refactoring. It should access backend function
 - Each service owns and manages its own database.
 - No service directly queries another service's database.
 - Each service has its own Docker image, tests, configuration, health checks, metrics, and deployment manifest.
-- REST is used for client-facing APIs; gRPC may be used for internal evaluation requests.
-- Long-running AI evaluation is asynchronous and uses Redis for queue processing.
+- REST is used for client-facing APIs; RabbitMQ is used for internal events and commands.
+- Long-running AI evaluation is asynchronous and uses RabbitMQ as the service boundary.
 - Services fail independently through timeouts, retries, circuit breakers, and readiness checks.
 - API contracts are versioned and stored under `contracts/`.
 
@@ -563,7 +564,7 @@ infra/
 - Four services start and deploy independently.
 - Each service has a separate database and database credentials.
 - No cross-service database access or cross-database foreign keys exist.
-- REST APIs and the internal gRPC contract are documented and tested.
+- REST APIs and RabbitMQ message contracts are documented and tested.
 - AI evaluation is asynchronous and retryable.
 - Payment credit operations are idempotent.
 - Liveness and readiness probes work for every service.
