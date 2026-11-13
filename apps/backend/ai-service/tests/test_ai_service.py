@@ -7,6 +7,22 @@ from app.db import EvaluationStore
 from app.payment_client import PaymentServiceClient
 from app import worker
 from app import queue as evaluation_queue
+from app.http import create_app
+
+
+def test_admin_http_api_requires_token_and_exposes_usage(tmp_path: Path):
+    from fastapi.testclient import TestClient
+
+    store = EvaluationStore(f"sqlite:///{tmp_path / 'http.db'}")
+    store.create({"evaluation_id": "eval-http", "submission_id": "sub-http", "assignment_id": "a-http", "user_id": "u-http", "language": "python", "resource_key": "r-http", "status": "QUEUED", "request_id": "req-http"})
+    client = TestClient(create_app(store, "admin-secret"))
+    assert client.get("/admin/usage").status_code == 403
+    response = client.get("/admin/usage", headers={"X-Admin-Token": "admin-secret"})
+    assert response.status_code == 200
+    assert response.json()["totalEvaluations"] == 1
+    logs = client.get("/admin/logs?evaluation_id=eval-http", headers={"X-Admin-Token": "admin-secret"})
+    assert logs.status_code == 200
+    assert logs.json()["items"][0]["event"] == "created"
 
 
 def test_evaluation_store_persists_and_updates(tmp_path: Path):
@@ -16,6 +32,21 @@ def test_evaluation_store_persists_and_updates(tmp_path: Path):
     record = store.get("eval-1")
     assert record["status"] == "COMPLETED"
     assert record["score"] == 90.0
+    assert store.list_logs(evaluation_id="eval-1")[-1]["event"] == "status_changed"
+
+
+def test_usage_summary_and_admin_log_projection(tmp_path: Path):
+    store = EvaluationStore(f"sqlite:///{tmp_path / 'usage.db'}")
+    store.create({"evaluation_id": "eval-1", "submission_id": "sub-1", "assignment_id": "a-1", "user_id": "u-1", "language": "python", "resource_key": "r-1", "status": "QUEUED", "request_id": "req-1"})
+    store.create({"evaluation_id": "eval-2", "submission_id": "sub-2", "assignment_id": "a-1", "user_id": "u-2", "language": "javascript", "resource_key": "r-2", "status": "FAILED", "request_id": "req-2", "attempts": 2})
+    store.update("eval-1", status="COMPLETED", score=88.0, feedback="ok")
+    summary = store.usage_summary()
+    assert summary["totalEvaluations"] == 2
+    assert summary["byLanguage"] == {"python": 1, "javascript": 1}
+    assert summary["byStatus"] == {"COMPLETED": 1, "FAILED": 1}
+    assert summary["totalAttempts"] == 2
+    assert summary["averageScore"] == 88.0
+    assert len(store.list_logs(evaluation_id="eval-1")) == 2
 
 
 def test_payment_client_has_no_database_dependency():

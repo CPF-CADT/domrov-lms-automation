@@ -18,6 +18,11 @@ python -m app.main worker   # Redis/RQ worker
 - Readiness: `GET /health/ready`
 - Metrics: `GET /metrics`
 - Status: `GET /evaluations/{evaluation_id}`
+- Admin evaluation inspection: `GET /admin/evaluations` and `GET /admin/evaluations/{evaluation_id}`
+- Admin usage summary: `GET /admin/usage`
+- Admin lifecycle logs: `GET /admin/logs`
+
+Admin endpoints require `X-Admin-Token` matching `AI_ADMIN_TOKEN`. They read only `ai_db`; Academic data remains behind the Academic Service API.
 
 ## Configuration
 

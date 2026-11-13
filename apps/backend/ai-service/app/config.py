@@ -13,6 +13,7 @@ class Settings:
     http_host: str = os.getenv("HTTP_HOST", "0.0.0.0")
     http_port: int = int(os.getenv("HTTP_PORT", "8080"))
     evaluation_timeout_seconds: int = int(os.getenv("EVALUATION_TIMEOUT_SECONDS", "600"))
+    ai_admin_token: str = os.getenv("AI_ADMIN_TOKEN", "")
 
 
 settings = Settings()

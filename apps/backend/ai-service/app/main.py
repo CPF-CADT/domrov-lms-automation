@@ -13,7 +13,7 @@ def run_api() -> None:
     grpc_server = create_server(store, settings)
     grpc_server.start()
     try:
-        uvicorn.run(create_app(store), host=settings.http_host, port=settings.http_port, log_level="info")
+        uvicorn.run(create_app(store, settings.ai_admin_token), host=settings.http_host, port=settings.http_port, log_level="info")
     finally:
         grpc_server.stop(0)
 

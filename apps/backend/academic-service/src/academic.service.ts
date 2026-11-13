@@ -101,6 +101,50 @@ export class AcademicService {
   async addFeedback(id: string, input: FeedbackDto, actorId: string) { return this.grade(id, { score: Number((await this.submissions.findOneBy({ id }))?.score ?? 0), feedback: input.feedback }, actorId); }
   async getSubmissionForUser(id: string, userId: string) { const s = await this.submissions.findOneBy({ id }); if (!s) throw new NotFoundException('Submission not found'); const a = await this.assignments.findOneBy({ id: s.assignmentId }); if (!a) throw new NotFoundException('Assignment not found'); if (s.userId !== userId) await this.requireInstructor(a.classId, userId); return s; }
 
+  async getDashboardStats() {
+    const [classes, enrollments, assignments, submissions] = await Promise.all([
+      this.classes.find(), this.enrollments.find(), this.assignments.find(), this.submissions.find(),
+    ]);
+    const statusCounts = submissions.reduce<Record<string, number>>((counts, submission) => {
+      counts[submission.status] = (counts[submission.status] ?? 0) + 1;
+      return counts;
+    }, {});
+    const scored = submissions.filter((submission) => submission.score !== null && submission.score !== undefined);
+    const averageScore = scored.length === 0 ? null : Number((scored.reduce((sum, submission) => sum + Number(submission.score), 0) / scored.length).toFixed(2));
+    return {
+      classes: classes.length,
+      activeClasses: classes.filter((item) => item.status === 'active').length,
+      enrollments: enrollments.filter((item) => item.status === 'active').length,
+      assignments: assignments.length,
+      submissions: submissions.length,
+      evaluations: submissions.filter((item) => Boolean(item.evaluationId)).length,
+      scoredSubmissions: scored.length,
+      averageScore,
+      submissionsByStatus: statusCounts,
+    };
+  }
+
+  async listEvaluationResults(filters: { status?: string; assignmentId?: string; userId?: string; limit?: number } = {}) {
+    const rows = (await this.submissions.find())
+      .filter((submission) => Boolean(submission.evaluationId))
+      .filter((submission) => !filters.status || submission.status === filters.status)
+      .filter((submission) => !filters.assignmentId || submission.assignmentId === filters.assignmentId)
+      .filter((submission) => !filters.userId || submission.userId === filters.userId)
+      .sort((left, right) => new Date(right.createdAt ?? 0).getTime() - new Date(left.createdAt ?? 0).getTime())
+      .slice(0, Math.min(Math.max(filters.limit ?? 100, 1), 500));
+    return Promise.all(rows.map(async (submission) => ({
+      ...submission,
+      assignment: await this.assignments.findOneBy({ id: submission.assignmentId }),
+    })));
+  }
+
+  async getEvaluationResult(id: string) {
+    const submission = await this.submissions.findOneBy({ id });
+    if (!submission || !submission.evaluationId) throw new NotFoundException('Evaluation result not found');
+    const assignment = await this.assignments.findOneBy({ id: submission.assignmentId });
+    return { ...submission, assignment };
+  }
+
   async uploadResource(file: { originalname: string; mimetype: string; buffer: Buffer; size: number }, input: NotifyUploadDto, ownerId: string) {
     if (!file?.buffer?.length) throw new BadRequestException('File is required');
     const filename = file.originalname.trim();

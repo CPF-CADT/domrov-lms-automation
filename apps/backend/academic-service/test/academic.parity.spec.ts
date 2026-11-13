@@ -24,6 +24,33 @@ async function serviceWith(overrides: Record<string, unknown> = {}) {
 }
 
 describe('Academic functional parity', () => {
+  it('builds an academic dashboard from academic_db-owned records', async () => {
+    const { service } = await serviceWith({
+      classes: { find: jest.fn().mockResolvedValue([{ status: 'active' }, { status: 'archived' }]) },
+      enrollments: { find: jest.fn().mockResolvedValue([{ status: 'active' }, { status: 'removed' }]) },
+      assignments: { find: jest.fn().mockResolvedValue([{ id: 'a1' }, { id: 'a2' }]) },
+      submissions: { find: jest.fn().mockResolvedValue([
+        { status: 'COMPLETED', evaluationId: 'e1', score: 80 },
+        { status: 'FAILED', evaluationId: 'e2', score: null },
+      ]) },
+    });
+    await expect(service.getDashboardStats()).resolves.toEqual(expect.objectContaining({
+      classes: 2, activeClasses: 1, enrollments: 1, assignments: 2, submissions: 2,
+      evaluations: 2, scoredSubmissions: 1, averageScore: 80,
+      submissionsByStatus: { COMPLETED: 1, FAILED: 1 },
+    }));
+  });
+
+  it('lists and retrieves evaluation results without querying AI storage', async () => {
+    const submission = { id: 'submission-1', assignmentId: 'assignment-1', userId: 'student-1', evaluationId: 'eval-1', status: 'COMPLETED', score: 90, createdAt: new Date() };
+    const { service } = await serviceWith({
+      submissions: { find: jest.fn().mockResolvedValue([submission]), findOneBy: jest.fn().mockResolvedValue(submission) },
+      assignments: { findOneBy: jest.fn().mockResolvedValue({ id: 'assignment-1', title: 'Loops' }) },
+    });
+    await expect(service.listEvaluationResults({ status: 'COMPLETED' })).resolves.toEqual([{ ...submission, assignment: { id: 'assignment-1', title: 'Loops' } }]);
+    await expect(service.getEvaluationResult('submission-1')).resolves.toEqual(expect.objectContaining({ evaluationId: 'eval-1' }));
+  });
+
   it('joins a class by its legacy join code without touching Auth data', async () => {
     const cls = { id: 'class-1', joinCode: 'ABC123', ownerId: 'teacher-1' };
     const { service, repos } = await serviceWith({ classes: { findOneBy: jest.fn().mockResolvedValue(cls) }, enrollments: { findOneBy: jest.fn().mockResolvedValue(undefined) } });
