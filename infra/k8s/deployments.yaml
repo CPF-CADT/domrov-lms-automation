@@ -31,7 +31,7 @@ spec:
           image: phyvathanak/domrov-academic-service:dev
           ports: [{name: http, containerPort: 3002}]
           envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
-          env: [{name: PORT, value: "3002"}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: ACADEMIC_DATABASE_URL}}}]
+          env: [{name: PORT, value: "3002"}, {name: JWT_ACCESS_SECRET, valueFrom: {secretKeyRef: {name: domrov-secrets, key: JWT_ACCESS_SECRET}}}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: ACADEMIC_DATABASE_URL}}}]
           readinessProbe: {httpGet: {path: /health/ready, port: http}, initialDelaySeconds: 10, periodSeconds: 10}
           livenessProbe: {httpGet: {path: /health/live, port: http}, initialDelaySeconds: 20, periodSeconds: 20}
           resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 500m, memory: 512Mi}}
@@ -50,7 +50,7 @@ spec:
           image: phyvathanak/domrov-payment-service:dev
           ports: [{name: http, containerPort: 3003}]
           envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
-          env: [{name: PORT, value: "3003"}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: PAYMENT_DATABASE_URL}}}]
+          env: [{name: PORT, value: "3003"}, {name: JWT_ACCESS_SECRET, valueFrom: {secretKeyRef: {name: domrov-secrets, key: JWT_ACCESS_SECRET}}}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: PAYMENT_DATABASE_URL}}}]
           readinessProbe: {httpGet: {path: /health/ready, port: http}, initialDelaySeconds: 10, periodSeconds: 10}
           livenessProbe: {httpGet: {path: /health/live, port: http}, initialDelaySeconds: 20, periodSeconds: 20}
           resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 500m, memory: 512Mi}}
@@ -69,7 +69,7 @@ spec:
           image: phyvathanak/domrov-ai-service:dev
           ports: [{name: http, containerPort: 8080}, {name: grpc, containerPort: 50051}]
           envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
-          env: [{name: HTTP_PORT, value: "8080"}, {name: GRPC_PORT, value: "50051"}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: AI_DATABASE_URL}}}]
+          env: [{name: HTTP_PORT, value: "8080"}, {name: GRPC_PORT, value: "50051"}, {name: REDIS_URL, valueFrom: {configMapKeyRef: {name: domrov-common, key: REDIS_URL}}}, {name: PAYMENT_SERVICE_URL, valueFrom: {configMapKeyRef: {name: domrov-common, key: PAYMENT_SERVICE_URL}}}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: AI_DATABASE_URL}}}]
           readinessProbe: {httpGet: {path: /health/ready, port: http}, initialDelaySeconds: 10, periodSeconds: 10}
           livenessProbe: {httpGet: {path: /health/live, port: http}, initialDelaySeconds: 20, periodSeconds: 20}
           resources: {requests: {cpu: 200m, memory: 256Mi}, limits: {cpu: 1, memory: 1Gi}}
@@ -88,5 +88,5 @@ spec:
           image: phyvathanak/domrov-ai-service:dev
           command: ["python", "-m", "app.worker"]
           envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
-          env: [{name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: AI_DATABASE_URL}}}]
+          env: [{name: HTTP_PORT, value: "8080"}, {name: REDIS_URL, valueFrom: {configMapKeyRef: {name: domrov-common, key: REDIS_URL}}}, {name: PAYMENT_SERVICE_URL, valueFrom: {configMapKeyRef: {name: domrov-common, key: PAYMENT_SERVICE_URL}}}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: AI_DATABASE_URL}}}]
           resources: {requests: {cpu: 200m, memory: 256Mi}, limits: {cpu: 1, memory: 1Gi}}

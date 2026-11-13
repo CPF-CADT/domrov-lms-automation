@@ -3,6 +3,9 @@ name: domrov
 services:
   auth-service:
     image: ${AUTH_SERVICE_IMAGE:-phyvathanak/domrov-auth-service:dev}
+    build:
+      context: ../apps/backend/auth-service
+      dockerfile: Dockerfile
     restart: unless-stopped
     ports:
       - "3001:3001"
@@ -22,13 +25,16 @@ services:
 
   academic-service:
     image: ${ACADEMIC_SERVICE_IMAGE:-phyvathanak/domrov-academic-service:dev}
+    build:
+      context: ../apps/backend/academic-service
+      dockerfile: Dockerfile
     restart: unless-stopped
     ports:
       - "3002:3002"
     environment:
       PORT: "3002"
       DATABASE_URL: postgresql://domrov:domrov@academic-db:5432/academic_db
-      AUTH_JWT_PUBLIC_KEY: ${AUTH_JWT_PUBLIC_KEY:-local-public-key}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-local-access-secret}
       AI_SERVICE_GRPC_ADDRESS: ai-service:50051
     depends_on:
       academic-db:
@@ -43,13 +49,16 @@ services:
 
   payment-service:
     image: ${PAYMENT_SERVICE_IMAGE:-phyvathanak/domrov-payment-service:dev}
+    build:
+      context: ../apps/backend/payment-service
+      dockerfile: Dockerfile
     restart: unless-stopped
     ports:
       - "3003:3003"
     environment:
       PORT: "3003"
       DATABASE_URL: postgresql://domrov:domrov@payment-db:5432/payment_db
-      AUTH_JWT_PUBLIC_KEY: ${AUTH_JWT_PUBLIC_KEY:-local-public-key}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-local-access-secret}
     depends_on:
       payment-db:
         condition: service_healthy
@@ -61,13 +70,16 @@ services:
 
   ai-service:
     image: ${AI_SERVICE_IMAGE:-phyvathanak/domrov-ai-service:dev}
+    build:
+      context: ../apps/backend/ai-service
+      dockerfile: Dockerfile
     restart: unless-stopped
     ports:
       - "50051:50051"
-      - "3004:3004"
+      - "8080:8080"
     environment:
       GRPC_PORT: "50051"
-      PORT: "3004"
+      HTTP_PORT: "8080"
       DATABASE_URL: postgresql://domrov:domrov@ai-db:5432/ai_db
       REDIS_URL: redis://redis:6379/0
       PAYMENT_SERVICE_URL: http://payment-service:3003
@@ -77,13 +89,16 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3004/health/ready || exit 1"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/ready', timeout=3)"]
       interval: 10s
       timeout: 5s
       retries: 10
 
   ai-worker:
     image: ${AI_SERVICE_IMAGE:-phyvathanak/domrov-ai-service:dev}
+    build:
+      context: ../apps/backend/ai-service
+      dockerfile: Dockerfile
     restart: unless-stopped
     command: ["python", "-m", "app.worker"]
     environment:
