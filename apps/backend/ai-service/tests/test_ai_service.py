@@ -22,6 +22,37 @@ def test_payment_client_has_no_database_dependency():
     assert client.base_url.endswith(":3003")
 
 
+def test_payment_client_matches_payment_service_contract(monkeypatch):
+    calls = []
+
+    class Response:
+        def __init__(self, payload=None):
+            self.payload = payload or {"reservationId": "res-1", "status": "reserved", "amount": 1}
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self.payload
+
+    def post(url, **kwargs):
+        calls.append((url, kwargs))
+        return Response()
+
+    monkeypatch.setattr("app.payment_client.requests.post", post)
+    client = PaymentServiceClient("http://payment-service:3003", "service-token")
+    reservation = client.reserve("user-1", "eval-1")
+    client.commit(reservation.reservation_id, "eval-1")
+    client.release(reservation.reservation_id, "eval-2")
+
+    assert reservation.approved is True
+    assert calls[0][0].endswith("/credits/reservations")
+    assert calls[1][0].endswith("/credits/reservations/res-1/commit")
+    assert calls[2][0].endswith("/credits/reservations/res-1/release")
+    assert calls[0][1]["headers"]["Authorization"] == "Bearer service-token"
+    assert calls[0][1]["headers"]["Idempotency-Key"] == "eval-1"
+
+
 def test_worker_invokes_preserved_evaluator_and_persists_output(tmp_path: Path, monkeypatch):
     database_url = f"sqlite:///{tmp_path / 'worker.db'}"
     store = EvaluationStore(database_url)
@@ -36,7 +67,7 @@ def test_worker_invokes_preserved_evaluator_and_persists_output(tmp_path: Path, 
             return None
 
     monkeypatch.setattr(worker, "settings", type("Settings", (), {"database_url": database_url, "payment_service_url": "http://payment"})())
-    monkeypatch.setattr(worker, "PaymentServiceClient", lambda _: ApprovedPayment())
+    monkeypatch.setattr(worker, "PaymentServiceClient", lambda *args: ApprovedPayment())
     monkeypatch.setattr(worker, "evaluate", lambda **kwargs: {"result": {"scores": [8, 9], "feedback": "Strong solution"}})
 
     worker.process_evaluation({"evaluation_id": "eval-2", "submission_id": "sub-2", "assignment_id": "a-2", "user_id": "u-2", "language": "python", "resource_key": "./submission", "rubric": [{"criterion": "correctness", "weight": 10}, {"criterion": "style", "weight": 10}]})
@@ -61,7 +92,7 @@ def test_worker_persists_failure_when_evaluator_raises(tmp_path: Path, monkeypat
             return None
 
     monkeypatch.setattr(worker, "settings", type("Settings", (), {"database_url": database_url, "payment_service_url": "http://payment"})())
-    monkeypatch.setattr(worker, "PaymentServiceClient", lambda _: ApprovedPayment())
+    monkeypatch.setattr(worker, "PaymentServiceClient", lambda *args: ApprovedPayment())
     monkeypatch.setattr(worker, "evaluate", lambda **kwargs: (_ for _ in ()).throw(RuntimeError("provider down")))
 
     import pytest

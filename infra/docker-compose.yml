@@ -59,6 +59,7 @@ services:
       PORT: "3003"
       DATABASE_URL: postgresql://domrov:domrov@payment-db:5432/payment_db
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-local-access-secret}
+      SERVICE_AUTH_TOKEN: ${SERVICE_AUTH_TOKEN:-local-service-token}
     depends_on:
       payment-db:
         condition: service_healthy
@@ -83,6 +84,7 @@ services:
       DATABASE_URL: postgresql://domrov:domrov@ai-db:5432/ai_db
       REDIS_URL: redis://redis:6379/0
       PAYMENT_SERVICE_URL: http://payment-service:3003
+      PAYMENT_SERVICE_TOKEN: ${SERVICE_AUTH_TOKEN:-local-service-token}
     depends_on:
       ai-db:
         condition: service_healthy
@@ -105,6 +107,7 @@ services:
       DATABASE_URL: postgresql://domrov:domrov@ai-db:5432/ai_db
       REDIS_URL: redis://redis:6379/0
       PAYMENT_SERVICE_URL: http://payment-service:3003
+      PAYMENT_SERVICE_TOKEN: ${SERVICE_AUTH_TOKEN:-local-service-token}
     depends_on:
       ai-service:
         condition: service_healthy

@@ -48,7 +48,10 @@ def process_evaluation(payload: dict[str, Any]) -> None:
     store = EvaluationStore(settings.database_url)
     evaluation_id = payload["evaluation_id"]
     store.update(evaluation_id, status="RUNNING", attempts=1)
-    payment = PaymentServiceClient(settings.payment_service_url)
+    payment = PaymentServiceClient(
+        settings.payment_service_url,
+        getattr(settings, "payment_service_token", ""),
+    )
     reservation = None
     try:
         reservation = payment.reserve(payload["user_id"], evaluation_id)
