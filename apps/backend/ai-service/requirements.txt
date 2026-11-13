@@ -1,0 +1,9 @@
+-r requirements-evaluator.txt
+fastapi
+grpcio
+grpcio-tools
+prometheus-client
+pytest
+SQLAlchemy
+psycopg[binary]
+uvicorn

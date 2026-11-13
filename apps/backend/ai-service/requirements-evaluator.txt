@@ -1,0 +1,17 @@
+tiktoken
+chardet
+pathspec
+GitPython
+PyGithub
+requests
+boto3
+pydantic
+redis
+rq
+ollama
+ijson
+grpcio
+grpcio-tools
+python-dotenv
+openai
+google-genai

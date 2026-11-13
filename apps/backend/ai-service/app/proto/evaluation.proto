@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package domrov.ai.v1;
+
+// Target contract for asynchronous code evaluation. The Academic Service
+// stores the submission before calling SubmitEvaluation and receives an ID
+// without waiting for code execution or LLM feedback.
+service EvaluationService {
+  rpc SubmitEvaluation(SubmitEvaluationRequest) returns (SubmitEvaluationResponse);
+  rpc GetEvaluationStatus(GetEvaluationStatusRequest) returns (EvaluationStatusResponse);
+  rpc CancelEvaluation(CancelEvaluationRequest) returns (EvaluationStatusResponse);
+}
+
+message SubmitEvaluationRequest {
+  string submission_id = 1;
+  string assignment_id = 2;
+  string user_id = 3;
+  string language = 4;
+  string resource_key = 5;
+  repeated RubricCriterion rubric = 6;
+  repeated string include_paths = 7;
+  repeated string exclude_paths = 8;
+  string request_id = 9;
+}
+
+message RubricCriterion {
+  string criterion = 1;
+  int32 weight = 2;
+}
+
+message SubmitEvaluationResponse {
+  string evaluation_id = 1;
+  EvaluationState status = 2;
+}
+
+message GetEvaluationStatusRequest {
+  string evaluation_id = 1;
+}
+
+message CancelEvaluationRequest {
+  string evaluation_id = 1;
+  string request_id = 2;
+}
+
+message EvaluationStatusResponse {
+  string evaluation_id = 1;
+  string submission_id = 2;
+  EvaluationState status = 3;
+  optional double score = 4;
+  string feedback = 5;
+  string error_code = 6;
+}
+
+enum EvaluationState {
+  EVALUATION_STATE_UNSPECIFIED = 0;
+  QUEUED = 1;
+  RUNNING = 2;
+  COMPLETED = 3;
+  FAILED = 4;
+  CANCELLED = 5;
+}
