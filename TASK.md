@@ -66,7 +66,7 @@ Acceptance:
 
 ### WP-2: Academic Service
 
-- Create `apps/backend/academic-service`.
+- Create `apps/backend/academic`.
 - Move classes, teams, assignments, rubrics, resources, and submissions.
 - Create `academic_db` migrations.
 - Replace direct user-database access with JWT claims or an Auth API client.
@@ -82,7 +82,7 @@ Acceptance:
 
 ### WP-3: Payment Service
 
-- Create `apps/backend/payment-service`.
+- Create `apps/backend/payment`.
 - Move wallet, credit package, payment, and transaction functionality.
 - Create `payment_db` migrations.
 - Implement credit reservation, commit, release, refund, and idempotency.
@@ -97,7 +97,7 @@ Acceptance:
 
 ### WP-4: Evaluation Service
 
-- Create `apps/backend/evaluation-service`.
+- Create `apps/backend/evaluation`.
 - Create `evaluation_db` migrations and persistent evaluation records.
 - Use RabbitMQ for asynchronous jobs, retries, and result events.
 - Add Payment Service credit reservation integration.

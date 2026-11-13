@@ -518,9 +518,9 @@ Academic Service stores submission
 ```text
 apps/backend/
 ├── user/
-├── academic-service/
-├── payment-service/
-└── evaluation-service/
+├── academic/
+├── payment/
+└── evaluation/
 
 contracts/
 ├── auth/openapi.yaml

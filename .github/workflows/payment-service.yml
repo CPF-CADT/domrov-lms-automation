@@ -1,9 +1,9 @@
 name: payment-service
 on:
   push:
-    paths: ["apps/backend/payment-service/**", "contracts/payment/**", ".github/workflows/payment-service.yml"]
+    paths: ["apps/backend/payment/**", "contracts/payment/**", ".github/workflows/payment-service.yml"]
   pull_request:
-    paths: ["apps/backend/payment-service/**", "contracts/payment/**", ".github/workflows/payment-service.yml"]
+    paths: ["apps/backend/payment/**", "contracts/payment/**", ".github/workflows/payment-service.yml"]
   workflow_dispatch:
 jobs:
   validate-build:
@@ -12,8 +12,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate service scaffold
         run: |
-          if [ ! -d apps/backend/payment-service ]; then echo "Payment Service not extracted yet; scaffold validation skipped."; exit 0; fi
-          cd apps/backend/payment-service
+          if [ ! -d apps/backend/payment ]; then echo "Payment Service not extracted yet; scaffold validation skipped."; exit 0; fi
+          cd apps/backend/payment
           if [ -f package.json ]; then npm ci; npm run lint --if-present; npm test --if-present -- --runInBand; npm run build --if-present; fi
           test -f Dockerfile
           docker build --tag domrov/payment-service:${GITHUB_SHA} .
