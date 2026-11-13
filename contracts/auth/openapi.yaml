@@ -62,9 +62,56 @@ paths:
       tags: [authentication]
       security: [{ bearerAuth: [] }]
       operationId: logout
+      parameters:
+        - name: X-Refresh-Token
+          in: header
+          required: true
+          schema: { type: string }
       responses:
         '204': { description: Session revoked }
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /verify-email:
+    post:
+      tags: [authentication]
+      operationId: verifyEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VerifyEmailRequest' }
+      responses:
+        '200':
+          description: Email verified and tokens issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /request-password-reset:
+    post:
+      tags: [authentication]
+      operationId: requestPasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties: { email: { type: string, format: email } }
+      responses:
+        '200': { description: Reset request accepted }
+  /reset-password:
+    post:
+      tags: [authentication]
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResetPasswordRequest' }
+      responses:
+        '200': { description: Password reset completed }
+        '400': { $ref: '#/components/responses/BadRequest' }
   /users/me:
     get:
       tags: [users]
@@ -93,6 +140,18 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/User' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /health/live:
+    get:
+      operationId: liveness
+      responses: { '200': { description: Process is alive } }
+  /health/ready:
+    get:
+      operationId: readiness
+      responses: { '200': { description: Ready }, '503': { description: Not ready } }
+  /metrics:
+    get:
+      operationId: metrics
+      responses: { '200': { description: Prometheus metrics } }
 components:
   securitySchemes:
     bearerAuth:
@@ -140,6 +199,19 @@ components:
       properties:
         firstName: { type: string }
         lastName: { type: string }
+    VerifyEmailRequest:
+      type: object
+      required: [email, otp]
+      properties:
+        email: { type: string, format: email }
+        otp: { type: string, pattern: '^\\d{6}$' }
+    ResetPasswordRequest:
+      type: object
+      required: [email, otp, newPassword]
+      properties:
+        email: { type: string, format: email }
+        otp: { type: string, pattern: '^\\d{6}$' }
+        newPassword: { type: string, minLength: 8 }
     Error:
       type: object
       required: [error]
@@ -160,6 +232,11 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
     Conflict:
       description: Resource already exists
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    BadRequest:
+      description: Request validation failed
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
