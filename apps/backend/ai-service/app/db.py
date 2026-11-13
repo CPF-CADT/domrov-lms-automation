@@ -36,3 +36,15 @@ class EvaluationStore:
         if values:
             with self.engine.begin() as connection:
                 connection.execute(update(evaluations).where(evaluations.c.evaluation_id == evaluation_id).values(**values))
+
+    def update_by_submission(self, submission_id: str, **values: object) -> bool:
+        """Apply a legacy result callback without taking ownership of Academic data."""
+        if not values:
+            return False
+        with self.engine.begin() as connection:
+            result = connection.execute(
+                update(evaluations)
+                .where(evaluations.c.submission_id == submission_id)
+                .values(**values)
+            )
+            return result.rowcount > 0

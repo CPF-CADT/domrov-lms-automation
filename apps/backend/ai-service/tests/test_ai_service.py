@@ -6,6 +6,7 @@ os.environ["DATABASE_URL"] = "sqlite:///./test-ai.db"
 from app.db import EvaluationStore
 from app.payment_client import PaymentServiceClient
 from app import worker
+from app import queue as evaluation_queue
 
 
 def test_evaluation_store_persists_and_updates(tmp_path: Path):
@@ -102,3 +103,26 @@ def test_worker_persists_failure_when_evaluator_raises(tmp_path: Path, monkeypat
     record = store.get("eval-3")
     assert record["status"] == "FAILED"
     assert record["error_code"] == "EVALUATION_FAILED"
+
+
+def test_redis_enqueue_dispatches_worker_entrypoint(monkeypatch):
+    calls = []
+
+    class FakeRedis:
+        pass
+
+    class FakeQueue:
+        def __init__(self, name, connection):
+            assert name == "ai-evaluations"
+            assert isinstance(connection, FakeRedis)
+
+        def enqueue(self, function, payload, job_timeout):
+            calls.append((function, payload, job_timeout))
+            return type("Job", (), {"id": "job-1"})()
+
+    monkeypatch.setattr(evaluation_queue.Redis, "from_url", lambda _url, decode_responses: FakeRedis())
+    monkeypatch.setattr(evaluation_queue, "Queue", FakeQueue)
+    payload = {"evaluation_id": "eval-queue", "submission_id": "sub-queue"}
+
+    assert evaluation_queue.enqueue("redis://test", payload) == "job-1"
+    assert calls == [("app.worker.process_evaluation", payload, 600)]

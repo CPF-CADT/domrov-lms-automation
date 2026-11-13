@@ -6,6 +6,7 @@ from app.db import EvaluationStore
 from app.queue import enqueue
 from app.config import Settings
 from app.proto import evaluation_pb2, evaluation_pb2_grpc
+from app.legacy_compat import register_legacy_services
 
 
 class EvaluationServicer(evaluation_pb2_grpc.EvaluationServiceServicer):
@@ -49,5 +50,6 @@ class EvaluationServicer(evaluation_pb2_grpc.EvaluationServiceServicer):
 def create_server(store: EvaluationStore, settings: Settings) -> grpc.Server:
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     evaluation_pb2_grpc.add_EvaluationServiceServicer_to_server(EvaluationServicer(store, settings), server)
+    register_legacy_services(server, store)
     server.add_insecure_port(f"{settings.grpc_host}:{settings.grpc_port}")
     return server
