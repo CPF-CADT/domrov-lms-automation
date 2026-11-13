@@ -1,285 +1,75 @@
 name: domrov
-
 services:
   gateway:
     image: nginx:1.27-alpine
-    command:
-      - /bin/sh
-      - -c
-      - >-
-        envsubst '$${LEGACY_BACKEND_HOST} $${LEGACY_BACKEND_PORT}'
-        < /etc/nginx/templates/nginx.conf.template
-        > /etc/nginx/nginx.conf && nginx -g "daemon off;"
-    ports:
-      - "${GATEWAY_PORT:-8088}:80"
-    environment:
-      LEGACY_BACKEND_HOST: ${LEGACY_BACKEND_HOST:-host.docker.internal}
-      LEGACY_BACKEND_PORT: ${LEGACY_BACKEND_PORT:-3000}
-    volumes:
-      - ./gateway/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    command: ["/bin/sh", "-c", "envsubst '$${LEGACY_BACKEND_HOST} $${LEGACY_BACKEND_PORT}' < /etc/nginx/templates/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"]
+    ports: ["${GATEWAY_PORT:-8088}:80"]
+    environment: {LEGACY_BACKEND_HOST: "${LEGACY_BACKEND_HOST:-host.docker.internal}", LEGACY_BACKEND_PORT: "${LEGACY_BACKEND_PORT:-3000}"}
+    volumes: [./gateway/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro]
+    extra_hosts: ["host.docker.internal:host-gateway"]
     depends_on:
-      auth-service:
-        condition: service_started
-      academic-service:
-        condition: service_started
-      payment-service:
-        condition: service_started
-      ai-service:
-        condition: service_started
-      ai-orchestrator:
-        condition: service_started
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost/health | grep -q 'gateway'"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
+      auth-service: {condition: service_started}
+      academic-service: {condition: service_started}
+      payment-service: {condition: service_started}
+      evaluation-service: {condition: service_started}
+      rabbitmq: {condition: service_healthy}
   auth-service:
     image: ${AUTH_SERVICE_IMAGE:-phyvathanak/domrov-auth-service:dev}
-    build:
-      context: ../apps/backend/auth-service
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    ports:
-      - "3001:3001"
-    environment:
-      PORT: "3001"
-      DATABASE_URL: postgresql://domrov:domrov@auth-db:5432/auth_db
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-local-access-secret}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-local-refresh-secret}
-      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://domrov:domrov@rabbitmq:5672/%2f}
-      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}
-    depends_on:
-      auth-db:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health/ready || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
+    build: {context: ../apps/backend/auth-service, dockerfile: Dockerfile}
+    ports: ["3001:3001"]
+    environment: {PORT: "3001", DATABASE_URL: "postgresql://domrov:domrov@auth-db:5432/auth_db", JWT_ACCESS_SECRET: "${JWT_ACCESS_SECRET:-local-access-secret}", JWT_REFRESH_SECRET: "${JWT_REFRESH_SECRET:-local-refresh-secret}", RABBITMQ_URL: "${RABBITMQ_URL:-amqp://domrov:domrov@rabbitmq:5672/%2f}", RABBITMQ_EVENTS_EXCHANGE: "${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}"}
+    depends_on: {auth-db: {condition: service_healthy}, rabbitmq: {condition: service_healthy}}
+    healthcheck: {test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health/ready || exit 1"], interval: 10s, timeout: 5s, retries: 10}
   academic-service:
     image: ${ACADEMIC_SERVICE_IMAGE:-phyvathanak/domrov-academic-service:dev}
-    build:
-      context: ../apps/backend/academic-service
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    ports:
-      - "3002:3002"
-    environment:
-      PORT: "3002"
-      DATABASE_URL: postgresql://domrov:domrov@academic-db:5432/academic_db
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-local-access-secret}
-      AI_SERVICE_GRPC_ADDRESS: ai-service:50051
-      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://domrov:domrov@rabbitmq:5672/%2f}
-      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}
-      RABBITMQ_COMMANDS_EXCHANGE: ${RABBITMQ_COMMANDS_EXCHANGE:-domrov.commands}
-    depends_on:
-      academic-db:
-        condition: service_healthy
-      ai-service:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3002/health/ready || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
+    build: {context: ../apps/backend/academic-service, dockerfile: Dockerfile}
+    ports: ["3002:3002"]
+    environment: {PORT: "3002", DATABASE_URL: "postgresql://domrov:domrov@academic-db:5432/academic_db", JWT_ACCESS_SECRET: "${JWT_ACCESS_SECRET:-local-access-secret}", RABBITMQ_URL: "${RABBITMQ_URL:-amqp://domrov:domrov@rabbitmq:5672/%2f}", RABBITMQ_EVENTS_EXCHANGE: "${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}", RABBITMQ_COMMANDS_EXCHANGE: "${RABBITMQ_COMMANDS_EXCHANGE:-domrov.commands}"}
+    depends_on: {academic-db: {condition: service_healthy}, rabbitmq: {condition: service_healthy}}
+    healthcheck: {test: ["CMD-SHELL", "wget -qO- http://localhost:3002/health/ready || exit 1"], interval: 10s, timeout: 5s, retries: 10}
   payment-service:
     image: ${PAYMENT_SERVICE_IMAGE:-phyvathanak/domrov-payment-service:dev}
-    build:
-      context: ../apps/backend/payment-service
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    ports:
-      - "3003:3003"
-    environment:
-      PORT: "3003"
-      DATABASE_URL: postgresql://domrov:domrov@payment-db:5432/payment_db
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-local-access-secret}
-      SERVICE_AUTH_TOKEN: ${SERVICE_AUTH_TOKEN:-local-service-token}
-      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://domrov:domrov@rabbitmq:5672/%2f}
-      RABBITMQ_COMMANDS_EXCHANGE: ${RABBITMQ_COMMANDS_EXCHANGE:-domrov.commands}
-      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}
-    depends_on:
-      payment-db:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3003/health/ready || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  ai-service:
-    image: ${AI_SERVICE_IMAGE:-phyvathanak/domrov-ai-service:dev}
-    build:
-      context: ../apps/backend/ai-service
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    ports:
-      - "${AI_GRPC_PORT:-50052}:50051"
-      - "8080:8080"
-    environment:
-      GRPC_PORT: "50051"
-      HTTP_PORT: "8080"
-      DATABASE_URL: postgresql://domrov:domrov@ai-db:5432/ai_db
-      REDIS_URL: redis://redis:6379/0
-      PAYMENT_SERVICE_URL: http://payment-service:3003
-      PAYMENT_SERVICE_TOKEN: ${SERVICE_AUTH_TOKEN:-local-service-token}
-      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://domrov:domrov@rabbitmq:5672/%2f}
-      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}
-      RABBITMQ_COMMANDS_EXCHANGE: ${RABBITMQ_COMMANDS_EXCHANGE:-domrov.commands}
-    depends_on:
-      ai-db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/ready', timeout=3)"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  ai-worker:
-    image: ${AI_SERVICE_IMAGE:-phyvathanak/domrov-ai-service:dev}
-    build:
-      context: ../apps/backend/ai-service
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    command: ["python", "-m", "app.main", "rabbitmq-worker"]
-    environment:
-      DATABASE_URL: postgresql://domrov:domrov@ai-db:5432/ai_db
-      REDIS_URL: redis://redis:6379/0
-      PAYMENT_SERVICE_URL: http://payment-service:3003
-      PAYMENT_SERVICE_TOKEN: ${SERVICE_AUTH_TOKEN:-local-service-token}
-      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://domrov:domrov@rabbitmq:5672/%2f}
-      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}
-      RABBITMQ_COMMANDS_EXCHANGE: ${RABBITMQ_COMMANDS_EXCHANGE:-domrov.commands}
-    depends_on:
-      ai-service:
-        condition: service_healthy
-      ai-db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-
-  ai-orchestrator:
-    image: ${AI_ORCHESTRATOR_IMAGE:-phyvathanak/domrov-ai-orchestrator:dev}
-    build:
-      context: ../apps/backend/ai-orchestrator
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    ports:
-      - "3004:3004"
-    environment:
-      PORT: "3004"
-      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://domrov:domrov@rabbitmq:5672/%2f}
-      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}
-      RABBITMQ_ORCHESTRATOR_QUEUE: ${RABBITMQ_ORCHESTRATOR_QUEUE:-domrov.ai.orchestrator}
-      RABBITMQ_PREFETCH_COUNT: ${RABBITMQ_PREFETCH_COUNT:-10}
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
+    build: {context: ../apps/backend/payment-service, dockerfile: Dockerfile}
+    ports: ["3003:3003"]
+    environment: {PORT: "3003", DATABASE_URL: "postgresql://domrov:domrov@payment-db:5432/payment_db", JWT_ACCESS_SECRET: "${JWT_ACCESS_SECRET:-local-access-secret}", SERVICE_AUTH_TOKEN: "${SERVICE_AUTH_TOKEN:-local-service-token}", RABBITMQ_URL: "${RABBITMQ_URL:-amqp://domrov:domrov@rabbitmq:5672/%2f}", RABBITMQ_COMMANDS_EXCHANGE: "${RABBITMQ_COMMANDS_EXCHANGE:-domrov.commands}", RABBITMQ_EVENTS_EXCHANGE: "${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}"}
+    depends_on: {payment-db: {condition: service_healthy}, rabbitmq: {condition: service_healthy}}
+    healthcheck: {test: ["CMD-SHELL", "wget -qO- http://localhost:3003/health/ready || exit 1"], interval: 10s, timeout: 5s, retries: 10}
+  evaluation-service:
+    image: ${EVALUATION_SERVICE_IMAGE:-phyvathanak/domrov-evaluation-service:dev}
+    build: {context: ../apps/backend/evaluation-service, dockerfile: Dockerfile}
+    ports: ["3004:3004"]
+    environment: {PORT: "3004", DATABASE_URL: "postgresql://domrov:domrov@evaluation-db:5432/evaluation_db", RABBITMQ_URL: "${RABBITMQ_URL:-amqp://domrov:domrov@rabbitmq:5672/%2f}", RABBITMQ_EVENTS_EXCHANGE: "${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}", RABBITMQ_COMMANDS_EXCHANGE: "${RABBITMQ_COMMANDS_EXCHANGE:-domrov.commands}", RABBITMQ_EVALUATION_QUEUE: "domrov.evaluation.events", RABBITMQ_EVALUATION_WORKER_QUEUE: "domrov.evaluation.worker", EVALUATION_PAYMENT_MODE: "${EVALUATION_PAYMENT_MODE:-disabled}"}
+    depends_on: {evaluation-db: {condition: service_healthy}, rabbitmq: {condition: service_healthy}}
+    healthcheck: {test: ["CMD-SHELL", "wget -qO- http://localhost:3004/health/ready || exit 1"], interval: 10s, timeout: 5s, retries: 10}
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
-    restart: unless-stopped
-    ports:
-      - "${RABBITMQ_PORT:-5672}:5672"
-      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-domrov}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-domrov}
-      RABBITMQ_LOAD_DEFINITIONS: /etc/rabbitmq/definitions.json
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-      - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-
+    ports: ["${RABBITMQ_PORT:-5672}:5672", "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"]
+    environment: {RABBITMQ_DEFAULT_USER: "${RABBITMQ_DEFAULT_USER:-domrov}", RABBITMQ_DEFAULT_PASS: "${RABBITMQ_DEFAULT_PASS:-domrov}", RABBITMQ_LOAD_DEFINITIONS: "/etc/rabbitmq/definitions.json"}
+    volumes: [rabbitmq_data:/var/lib/rabbitmq, ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro]
+    healthcheck: {test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"], interval: 10s, timeout: 5s, retries: 12}
   auth-db:
     image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: auth_db
-      POSTGRES_USER: domrov
-      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-domrov}
+    environment: {POSTGRES_DB: auth_db, POSTGRES_USER: domrov, POSTGRES_PASSWORD: "${AUTH_DB_PASSWORD:-domrov}"}
     volumes: [auth_db_data:/var/lib/postgresql/data]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U domrov -d auth_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U domrov -d auth_db"], interval: 5s, timeout: 5s, retries: 10}
   academic-db:
     image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: academic_db
-      POSTGRES_USER: domrov
-      POSTGRES_PASSWORD: ${ACADEMIC_DB_PASSWORD:-domrov}
+    environment: {POSTGRES_DB: academic_db, POSTGRES_USER: domrov, POSTGRES_PASSWORD: "${ACADEMIC_DB_PASSWORD:-domrov}"}
     volumes: [academic_db_data:/var/lib/postgresql/data]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U domrov -d academic_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U domrov -d academic_db"], interval: 5s, timeout: 5s, retries: 10}
   payment-db:
     image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: payment_db
-      POSTGRES_USER: domrov
-      POSTGRES_PASSWORD: ${PAYMENT_DB_PASSWORD:-domrov}
+    environment: {POSTGRES_DB: payment_db, POSTGRES_USER: domrov, POSTGRES_PASSWORD: "${PAYMENT_DB_PASSWORD:-domrov}"}
     volumes: [payment_db_data:/var/lib/postgresql/data]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U domrov -d payment_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  ai-db:
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U domrov -d payment_db"], interval: 5s, timeout: 5s, retries: 10}
+  evaluation-db:
     image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: ai_db
-      POSTGRES_USER: domrov
-      POSTGRES_PASSWORD: ${AI_DB_PASSWORD:-domrov}
-    volumes: [ai_db_data:/var/lib/postgresql/data]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U domrov -d ai_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  redis:
-    image: redis:7-alpine
-    command: ["redis-server", "--appendonly", "yes"]
-    volumes: [redis_data:/data]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
+    environment: {POSTGRES_DB: evaluation_db, POSTGRES_USER: domrov, POSTGRES_PASSWORD: "${EVALUATION_DB_PASSWORD:-domrov}"}
+    volumes: [evaluation_db_data:/var/lib/postgresql/data]
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U domrov -d evaluation_db"], interval: 5s, timeout: 5s, retries: 10}
 volumes:
   auth_db_data:
   academic_db_data:
   payment_db_data:
-  ai_db_data:
-  redis_data:
+  evaluation_db_data:
   rabbitmq_data:

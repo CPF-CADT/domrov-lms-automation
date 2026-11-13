@@ -21,19 +21,11 @@ spec:
 ---
 apiVersion: v1
 kind: Service
-metadata: {name: ai-service, namespace: domrov}
+metadata: {name: evaluation-service, namespace: domrov}
 spec:
-  selector: {app: ai-api}
+  selector: {app: evaluation-service}
   ports:
-    - {name: http, port: 8080, targetPort: http}
-    - {name: grpc, port: 50051, targetPort: grpc}
----
-apiVersion: v1
-kind: Service
-metadata: {name: ai-orchestrator, namespace: domrov}
-spec:
-  selector: {app: ai-orchestrator}
-  ports: [{name: http, port: 3004, targetPort: http}]
+    - {name: http, port: 3004, targetPort: http}
 ---
 apiVersion: v1
 kind: Service
@@ -65,14 +57,7 @@ spec:
 ---
 apiVersion: v1
 kind: Service
-metadata: {name: ai-db, namespace: domrov}
+metadata: {name: evaluation-db, namespace: domrov}
 spec:
-  selector: {app: ai-db}
+  selector: {app: evaluation-db}
   ports: [{name: postgres, port: 5432, targetPort: postgres}]
----
-apiVersion: v1
-kind: Service
-metadata: {name: redis, namespace: domrov}
-spec:
-  selector: {app: redis}
-  ports: [{name: redis, port: 6379, targetPort: redis}]

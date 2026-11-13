@@ -4,7 +4,7 @@ http {
   upstream auth_service { server auth-service:3001; }
   upstream academic_service { server academic-service:3002; }
   upstream payment_service { server payment-service:3003; }
-  upstream ai_service { server ai-service:8080; }
+  upstream evaluation_service { server evaluation-service:3004; }
   upstream legacy_backend { server ${LEGACY_BACKEND_HOST}:${LEGACY_BACKEND_PORT}; }
 
   map $http_upgrade $connection_upgrade {
@@ -51,15 +51,15 @@ http {
 
     location ^~ /wallet { proxy_pass http://payment_service; }
     location ^~ /payment { proxy_pass http://payment_service; }
-    location ^~ /evaluations { proxy_pass http://ai_service; }
+    location ^~ /evaluations { proxy_pass http://evaluation_service; }
 
     location ^~ /notifications { proxy_pass http://auth_service; }
     location ^~ /admin/users { proxy_pass http://auth_service; }
     location ^~ /admin/wallet { proxy_pass http://payment_service; }
     location ^~ /admin/dashboard { proxy_pass http://academic_service; }
-    location ^~ /admin/evaluations { proxy_pass http://ai_service; }
-    location ^~ /admin/usage { proxy_pass http://ai_service; }
-    location ^~ /admin/logs { proxy_pass http://ai_service; }
+    location ^~ /admin/evaluations { proxy_pass http://evaluation_service; }
+    location ^~ /admin/usage { proxy_pass http://evaluation_service; }
+    location ^~ /admin/logs { proxy_pass http://evaluation_service; }
     # Keep unmatched admin routes available during the remaining extraction.
     location ^~ /admin { proxy_pass http://legacy_backend; }
 
@@ -67,7 +67,7 @@ http {
     location ^~ /api/users { proxy_pass http://auth_service; }
     location ^~ /api/academic { proxy_pass http://academic_service; }
     location ^~ /api/payment { proxy_pass http://payment_service; }
-    location ^~ /api/ai { proxy_pass http://ai_service; }
+    location ^~ /api/ai { proxy_pass http://evaluation_service; }
 
     location / {
       default_type application/json;

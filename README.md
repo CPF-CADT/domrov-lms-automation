@@ -506,10 +506,10 @@ The evaluation flow is asynchronous:
 ```text
 Academic Service stores submission
   -> publishes evaluation request
-  -> AI Service returns evaluationId
-  -> Redis queues the job
-  -> AI Worker executes and evaluates code
-  -> AI Service stores the result
+  -> Evaluation Service returns evaluationId
+  -> RabbitMQ queues the job
+  -> NestJS runner executes the evaluation
+  -> Evaluation Service stores the result
   -> Academic Service exposes the result to the client
 ```
 
@@ -520,13 +520,13 @@ apps/backend/
 ├── auth-service/
 ├── academic-service/
 ├── payment-service/
-└── ai-service/
+└── evaluation-service/
 
 contracts/
 ├── auth/openapi.yaml
 ├── academic/openapi.yaml
 ├── payment/openapi.yaml
-└── ai/evaluation.proto
+└── evaluation/events.md
 
 infra/
 ├── docker-compose.yml
@@ -534,9 +534,8 @@ infra/
     ├── auth-service/
     ├── academic-service/
     ├── payment-service/
-    ├── ai-service/
+    ├── evaluation-service/
     ├── databases/
-    ├── redis/
     ├── ingress/
     └── observability/
 ```
@@ -546,7 +545,7 @@ infra/
 - **Auth Service:** registration, login, refresh tokens, logout, email verification, password reset, OAuth, user profiles, and roles. It owns identity data in `auth_db`. Other services validate JWTs and must not read `auth_db`.
 - **Academic Service:** classes, enrollments, teams, assignments, rubrics, resources, submissions, evaluation status, and academic feedback in `academic_db`.
 - **Payment Service:** credit packages, wallet balances, payments, KHQR verification, transactions, refunds, and credit reservations in `payment_db`. Credit operations require idempotency keys.
-- **AI Service:** code execution, evaluation jobs, AI feedback, retries, timeouts, and results in `ai_db`; Redis is used for queues, retries, locks, and temporary job state. API and worker processes are separate Kubernetes deployments.
+- **Evaluation Service:** evaluation requests, local NestJS runner, results, retries, and status in `evaluation_db`. Internal communication uses RabbitMQ; it has no gRPC, Python, Redis, or shared database dependency.
 
 ### Platform and operations
 

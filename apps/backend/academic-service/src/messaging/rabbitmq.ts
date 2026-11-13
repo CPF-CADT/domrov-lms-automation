@@ -115,7 +115,7 @@ export class EvaluationEventsController {
       eventType: result.status === 'failed' ? 'evaluation.failed' : 'evaluation.completed',
       schemaVersion: 1,
       occurredAt: new Date().toISOString(),
-      producer: 'ai-service',
+      producer: 'academic-service',
       payload: result,
     };
   }

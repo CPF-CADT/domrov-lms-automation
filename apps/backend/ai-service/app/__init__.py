@@ -1,1 +1,0 @@
-"""DOMROV AI evaluation service."""

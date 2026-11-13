@@ -12,36 +12,8 @@ spec:
           image: phyvathanak/domrov-auth-service:dev
           ports: [{name: http, containerPort: 3001}]
           envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
-          env: [{name: PORT, value: "3001"}, {name: RABBITMQ_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: RABBITMQ_URL}}}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: AUTH_DATABASE_URL}}}]
-          readinessProbe: {httpGet: {path: /health/ready, port: http}, initialDelaySeconds: 10, periodSeconds: 10}
-          livenessProbe: {httpGet: {path: /health/live, port: http}, initialDelaySeconds: 20, periodSeconds: 20}
-          resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 500m, memory: 512Mi}}
----
-apiVersion: apps/v1
-kind: Deployment
-metadata: {name: rabbitmq, namespace: domrov}
-spec:
-  replicas: 1
-  selector: {matchLabels: {app: rabbitmq}}
-  template:
-    metadata: {labels: {app: rabbitmq}}
-    spec:
-      containers:
-        - name: rabbitmq
-          image: rabbitmq:3.13-management-alpine
-          ports: [{name: amqp, containerPort: 5672}, {name: management, containerPort: 15672}]
-          env:
-            - {name: RABBITMQ_DEFAULT_USER, value: domrov}
-            - {name: RABBITMQ_DEFAULT_PASS, valueFrom: {secretKeyRef: {name: domrov-secrets, key: RABBITMQ_PASSWORD}}}
-            - {name: RABBITMQ_LOAD_DEFINITIONS, value: /etc/rabbitmq/definitions/definitions.json}
-          volumeMounts:
-            - {name: rabbitmq-definitions, mountPath: /etc/rabbitmq/definitions, readOnly: true}
-          readinessProbe: {tcpSocket: {port: amqp}, initialDelaySeconds: 10, periodSeconds: 10}
-          livenessProbe: {tcpSocket: {port: amqp}, initialDelaySeconds: 20, periodSeconds: 20}
-          resources: {requests: {cpu: 100m, memory: 256Mi}, limits: {cpu: 500m, memory: 512Mi}}
-      volumes:
-        - name: rabbitmq-definitions
-          configMap: {name: rabbitmq-definitions}
+          env: [{name: PORT, value: "3001"}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: AUTH_DATABASE_URL}}}]
+          readinessProbe: {httpGet: {path: /health/ready, port: http}}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -57,10 +29,8 @@ spec:
           image: phyvathanak/domrov-academic-service:dev
           ports: [{name: http, containerPort: 3002}]
           envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
-          env: [{name: PORT, value: "3002"}, {name: RABBITMQ_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: RABBITMQ_URL}}}, {name: JWT_ACCESS_SECRET, valueFrom: {secretKeyRef: {name: domrov-secrets, key: JWT_ACCESS_SECRET}}}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: ACADEMIC_DATABASE_URL}}}]
-          readinessProbe: {httpGet: {path: /health/ready, port: http}, initialDelaySeconds: 10, periodSeconds: 10}
-          livenessProbe: {httpGet: {path: /health/live, port: http}, initialDelaySeconds: 20, periodSeconds: 20}
-          resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 500m, memory: 512Mi}}
+          env: [{name: PORT, value: "3002"}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: ACADEMIC_DATABASE_URL}}}]
+          readinessProbe: {httpGet: {path: /health/ready, port: http}}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -76,62 +46,37 @@ spec:
           image: phyvathanak/domrov-payment-service:dev
           ports: [{name: http, containerPort: 3003}]
           envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
-          env: [{name: PORT, value: "3003"}, {name: RABBITMQ_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: RABBITMQ_URL}}}, {name: JWT_ACCESS_SECRET, valueFrom: {secretKeyRef: {name: domrov-secrets, key: JWT_ACCESS_SECRET}}}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: PAYMENT_DATABASE_URL}}}]
-          readinessProbe: {httpGet: {path: /health/ready, port: http}, initialDelaySeconds: 10, periodSeconds: 10}
-          livenessProbe: {httpGet: {path: /health/live, port: http}, initialDelaySeconds: 20, periodSeconds: 20}
-          resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 500m, memory: 512Mi}}
+          env: [{name: PORT, value: "3003"}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: PAYMENT_DATABASE_URL}}}]
+          readinessProbe: {httpGet: {path: /health/ready, port: http}}
 ---
 apiVersion: apps/v1
 kind: Deployment
-metadata: {name: ai-api, namespace: domrov}
+metadata: {name: evaluation-service, namespace: domrov}
 spec:
   replicas: 2
-  selector: {matchLabels: {app: ai-api}}
+  selector: {matchLabels: {app: evaluation-service}}
   template:
-    metadata: {labels: {app: ai-api}}
+    metadata: {labels: {app: evaluation-service}}
     spec:
       containers:
-        - name: ai-api
-          image: phyvathanak/domrov-ai-service:dev
-          ports: [{name: http, containerPort: 8080}, {name: grpc, containerPort: 50051}]
-          envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
-          env: [{name: HTTP_PORT, value: "8080"}, {name: GRPC_PORT, value: "50051"}, {name: REDIS_URL, valueFrom: {configMapKeyRef: {name: domrov-common, key: REDIS_URL}}}, {name: PAYMENT_SERVICE_URL, valueFrom: {configMapKeyRef: {name: domrov-common, key: PAYMENT_SERVICE_URL}}}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: AI_DATABASE_URL}}}]
-          readinessProbe: {httpGet: {path: /health/ready, port: http}, initialDelaySeconds: 10, periodSeconds: 10}
-          livenessProbe: {httpGet: {path: /health/live, port: http}, initialDelaySeconds: 20, periodSeconds: 20}
-          resources: {requests: {cpu: 200m, memory: 256Mi}, limits: {cpu: 1, memory: 1Gi}}
----
-apiVersion: apps/v1
-kind: Deployment
-metadata: {name: ai-worker, namespace: domrov}
-spec:
-  replicas: 1
-  selector: {matchLabels: {app: ai-worker}}
-  template:
-    metadata: {labels: {app: ai-worker}}
-    spec:
-      containers:
-        - name: ai-worker
-          image: phyvathanak/domrov-ai-service:dev
-          command: ["python", "-m", "app.main", "rabbitmq-worker"]
-          envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
-          env: [{name: HTTP_PORT, value: "8080"}, {name: REDIS_URL, valueFrom: {configMapKeyRef: {name: domrov-common, key: REDIS_URL}}}, {name: PAYMENT_SERVICE_URL, valueFrom: {configMapKeyRef: {name: domrov-common, key: PAYMENT_SERVICE_URL}}}, {name: RABBITMQ_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: RABBITMQ_URL}}}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: AI_DATABASE_URL}}}]
-          resources: {requests: {cpu: 200m, memory: 256Mi}, limits: {cpu: 1, memory: 1Gi}}
----
-apiVersion: apps/v1
-kind: Deployment
-metadata: {name: ai-orchestrator, namespace: domrov}
-spec:
-  replicas: 2
-  selector: {matchLabels: {app: ai-orchestrator}}
-  template:
-    metadata: {labels: {app: ai-orchestrator}}
-    spec:
-      containers:
-        - name: ai-orchestrator
-          image: phyvathanak/domrov-ai-orchestrator:dev
+        - name: evaluation-service
+          image: phyvathanak/domrov-evaluation-service:dev
           ports: [{name: http, containerPort: 3004}]
           envFrom: [{configMapRef: {name: domrov-common}}, {secretRef: {name: domrov-secrets}}]
-          env: [{name: PORT, value: "3004"}, {name: RABBITMQ_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: RABBITMQ_URL}}}]
-          readinessProbe: {httpGet: {path: /api/ai-orchestrator/health/ready, port: http}, initialDelaySeconds: 10, periodSeconds: 10}
-          livenessProbe: {httpGet: {path: /api/ai-orchestrator/health/live, port: http}, initialDelaySeconds: 20, periodSeconds: 20}
-          resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 500m, memory: 512Mi}}
+          env: [{name: PORT, value: "3004"}, {name: DATABASE_URL, valueFrom: {secretKeyRef: {name: domrov-secrets, key: EVALUATION_DATABASE_URL}}}]
+          readinessProbe: {httpGet: {path: /health/ready, port: http}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: rabbitmq, namespace: domrov}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: rabbitmq}}
+  template:
+    metadata: {labels: {app: rabbitmq}}
+    spec:
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:3.13-management-alpine
+          ports: [{name: amqp, containerPort: 5672}, {name: management, containerPort: 15672}]
+          env: [{name: RABBITMQ_DEFAULT_USER, value: domrov}, {name: RABBITMQ_DEFAULT_PASS, valueFrom: {secretKeyRef: {name: domrov-secrets, key: RABBITMQ_PASSWORD}}}]

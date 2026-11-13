@@ -1,51 +1,23 @@
 {
   "rabbit_version": "3.13.0",
-  "users": [],
-  "vhosts": [{"name": "/"}],
-  "permissions": [],
-  "topic_permissions": [],
-  "parameters": [],
-  "global_parameters": [],
-  "policies": [],
+  "users": [], "vhosts": [{"name":"/"}], "permissions": [], "topic_permissions": [], "parameters": [], "global_parameters": [], "policies": [],
   "queues": [
-    {"name": "domrov.ai.orchestrator", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {}},
-    {"name": "ai-evaluation-worker", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {}},
-    {"name": "domrov.academic.evaluation.completed", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {"x-dead-letter-exchange": "domrov.retry", "x-dead-letter-routing-key": "evaluation.completed.retry"}},
-    {"name": "domrov.academic.evaluation.completed.retry", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {"x-message-ttl": 30000, "x-dead-letter-exchange": "domrov.events", "x-dead-letter-routing-key": "evaluation.completed"}},
-    {"name": "domrov.academic.evaluation.completed.dlq", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {}},
-    {"name": "domrov.ai.evaluation.requested", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {"x-dead-letter-exchange": "domrov.retry", "x-dead-letter-routing-key": "evaluation.requested.retry"}},
-    {"name": "domrov.ai.evaluation.requested.retry", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {"x-message-ttl": 30000, "x-dead-letter-exchange": "domrov.events", "x-dead-letter-routing-key": "evaluation.requested"}},
-    {"name": "domrov.ai.evaluation.requested.dlq", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {}},
-    {"name": "domrov.ai.evaluation.failed", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {}},
-    {"name": "domrov.payment.commands", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {"x-dead-letter-exchange": "domrov.retry", "x-dead-letter-routing-key": "payment.command.retry"}},
-    {"name": "domrov.payment.commands.retry", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {"x-message-ttl": 30000, "x-dead-letter-exchange": "domrov.commands", "x-dead-letter-routing-key": "payment.command"}},
-    {"name": "domrov.payment.commands.dlq", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {}},
-    {"name": "domrov.auth.notifications", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {"x-dead-letter-exchange": "domrov.retry", "x-dead-letter-routing-key": "notification.requested.retry"}},
-    {"name": "domrov.auth.notifications.retry", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {"x-message-ttl": 30000, "x-dead-letter-exchange": "domrov.events", "x-dead-letter-routing-key": "notification.requested"}},
-    {"name": "domrov.auth.notifications.dlq", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {}}
+    {"name":"domrov.evaluation.events","vhost":"/","durable":true,"auto_delete":false,"arguments":{}},
+    {"name":"domrov.evaluation.worker","vhost":"/","durable":true,"auto_delete":false,"arguments":{}},
+    {"name":"domrov.payment.commands","vhost":"/","durable":true,"auto_delete":false,"arguments":{}},
+    {"name":"domrov.academic.evaluation.completed","vhost":"/","durable":true,"auto_delete":false,"arguments":{}},
+    {"name":"domrov.auth.notifications","vhost":"/","durable":true,"auto_delete":false,"arguments":{}}
   ],
   "exchanges": [
-    {"name": "domrov.events", "vhost": "/", "type": "topic", "durable": true, "auto_delete": false, "internal": false, "arguments": {}},
-    {"name": "domrov.commands", "vhost": "/", "type": "topic", "durable": true, "auto_delete": false, "internal": false, "arguments": {}},
-    {"name": "domrov.retry", "vhost": "/", "type": "topic", "durable": true, "auto_delete": false, "internal": false, "arguments": {}},
-    {"name": "domrov.dlx", "vhost": "/", "type": "topic", "durable": true, "auto_delete": false, "internal": false, "arguments": {}}
+    {"name":"domrov.events","vhost":"/","type":"topic","durable":true,"auto_delete":false,"internal":false,"arguments":{}},
+    {"name":"domrov.commands","vhost":"/","type":"topic","durable":true,"auto_delete":false,"internal":false,"arguments":{}}
   ],
   "bindings": [
-    {"source": "domrov.events", "vhost": "/", "destination": "domrov.ai.orchestrator", "destination_type": "queue", "routing_key": "evaluation.*", "arguments": {}},
-    {"source": "domrov.events", "vhost": "/", "destination": "ai-evaluation-worker", "destination_type": "queue", "routing_key": "evaluation.job", "arguments": {}},
-    {"source": "domrov.events", "vhost": "/", "destination": "domrov.academic.evaluation.completed", "destination_type": "queue", "routing_key": "evaluation.completed", "arguments": {}},
-    {"source": "domrov.retry", "vhost": "/", "destination": "domrov.academic.evaluation.completed.retry", "destination_type": "queue", "routing_key": "evaluation.completed.retry", "arguments": {}},
-    {"source": "domrov.dlx", "vhost": "/", "destination": "domrov.academic.evaluation.completed.dlq", "destination_type": "queue", "routing_key": "evaluation.completed.dlq", "arguments": {}},
-    {"source": "domrov.events", "vhost": "/", "destination": "domrov.ai.evaluation.requested", "destination_type": "queue", "routing_key": "evaluation.requested", "arguments": {}},
-    {"source": "domrov.retry", "vhost": "/", "destination": "domrov.ai.evaluation.requested.retry", "destination_type": "queue", "routing_key": "evaluation.requested.retry", "arguments": {}},
-    {"source": "domrov.dlx", "vhost": "/", "destination": "domrov.ai.evaluation.requested.dlq", "destination_type": "queue", "routing_key": "evaluation.requested.dlq", "arguments": {}},
-    {"source": "domrov.events", "vhost": "/", "destination": "domrov.ai.evaluation.failed", "destination_type": "queue", "routing_key": "evaluation.failed", "arguments": {}},
-    {"source": "domrov.commands", "vhost": "/", "destination": "domrov.payment.commands", "destination_type": "queue", "routing_key": "credit.*", "arguments": {}},
-    {"source": "domrov.retry", "vhost": "/", "destination": "domrov.payment.commands.retry", "destination_type": "queue", "routing_key": "payment.command.retry", "arguments": {}},
-    {"source": "domrov.dlx", "vhost": "/", "destination": "domrov.payment.commands.dlq", "destination_type": "queue", "routing_key": "payment.command.dlq", "arguments": {}},
-    {"source": "domrov.events", "vhost": "/", "destination": "domrov.auth.notifications", "destination_type": "queue", "routing_key": "notification.requested", "arguments": {}},
-    {"source": "domrov.retry", "vhost": "/", "destination": "domrov.auth.notifications.retry", "destination_type": "queue", "routing_key": "notification.requested.retry", "arguments": {}},
-    {"source": "domrov.dlx", "vhost": "/", "destination": "domrov.auth.notifications.dlq", "destination_type": "queue", "routing_key": "notification.requested.dlq", "arguments": {}}
+    {"source":"domrov.events","vhost":"/","destination":"domrov.evaluation.events","destination_type":"queue","routing_key":"evaluation.requested","arguments":{}},
+    {"source":"domrov.events","vhost":"/","destination":"domrov.evaluation.worker","destination_type":"queue","routing_key":"evaluation.job","arguments":{}},
+    {"source":"domrov.events","vhost":"/","destination":"domrov.academic.evaluation.completed","destination_type":"queue","routing_key":"evaluation.completed","arguments":{}},
+    {"source":"domrov.commands","vhost":"/","destination":"domrov.payment.commands","destination_type":"queue","routing_key":"credit.*","arguments":{}},
+    {"source":"domrov.events","vhost":"/","destination":"domrov.auth.notifications","destination_type":"queue","routing_key":"notification.requested","arguments":{}}
   ],
   "auth_mechanisms": ["PLAIN", "AMQPLAIN", "EXTERNAL"]
 }

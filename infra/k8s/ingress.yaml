@@ -26,7 +26,7 @@ spec:
             backend: {service: {name: payment-service, port: {number: 3003}}}
           - path: /evaluations
             pathType: Prefix
-            backend: {service: {name: ai-service, port: {number: 8080}}}
+            backend: {service: {name: evaluation-service, port: {number: 3004}}}
           - path: /notifications
             pathType: Prefix
             backend: {service: {name: auth-service, port: {number: 3001}}}
@@ -41,13 +41,13 @@ spec:
             backend: {service: {name: academic-service, port: {number: 3002}}}
           - path: /admin/evaluations
             pathType: Prefix
-            backend: {service: {name: ai-service, port: {number: 8080}}}
+            backend: {service: {name: evaluation-service, port: {number: 3004}}}
           - path: /admin/usage
             pathType: Prefix
-            backend: {service: {name: ai-service, port: {number: 8080}}}
+            backend: {service: {name: evaluation-service, port: {number: 3004}}}
           - path: /admin/logs
             pathType: Prefix
-            backend: {service: {name: ai-service, port: {number: 8080}}}
+            backend: {service: {name: evaluation-service, port: {number: 3004}}}
           - path: /api/auth
             pathType: Prefix
             backend: {service: {name: auth-service, port: {number: 3001}}}
@@ -62,7 +62,7 @@ spec:
             backend: {service: {name: payment-service, port: {number: 3003}}}
           - path: /api/ai
             pathType: Prefix
-            backend: {service: {name: ai-service, port: {number: 8080}}}
+            backend: {service: {name: evaluation-service, port: {number: 3004}}}
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
