@@ -18,7 +18,12 @@ directly at individual service ports.
 | `/class`, `/team`, `/assessments`, `/submissions`, `/file` | Academic Service, rewritten to `/api/academic/...` |
 | `/wallet`, `/payment` | Payment Service |
 | `/evaluations` | AI Service HTTP API |
-| `/notifications`, `/admin` | Legacy backend compatibility service |
+| `/notifications` | Auth Service |
+| `/admin/users` | Auth Service |
+| `/admin/wallet` | Payment Service |
+| `/admin/dashboard` | Academic Service |
+| `/admin/evaluations`, `/admin/usage`, `/admin/logs` | AI Service |
+| Unmatched `/admin/*` | Legacy backend compatibility service |
 
 The gateway also keeps `/api/auth`, `/api/users`, `/api/academic`,
 `/api/payment`, and `/api/ai` available for direct service-prefixed testing.
@@ -32,17 +37,17 @@ docker compose -f infra/docker-compose.yml up -d
 curl http://localhost:8088/health
 ```
 
-The default `/notifications` and `/admin` upstream is the existing backend on
-the host at `host.docker.internal:3000`. Override it when needed:
+Only unmatched `/admin/*` requests use the existing backend on the host at
+`host.docker.internal:3000`. Override that fallback when needed:
 
 ```bash
 LEGACY_BACKEND_HOST=legacy-backend LEGACY_BACKEND_PORT=3000 \
   docker compose -f infra/docker-compose.yml up -d gateway
 ```
 
-For Kubernetes, provide a `legacy-backend` Service on port `3000` until
-notifications and admin functionality are extracted. The gateway deliberately
-does not invent new service behavior for those routes.
+For Kubernetes, provide a `legacy-backend` Service on port `3000` only for
+unmatched `/admin/*` routes. The migrated notification and admin paths are
+routed directly to their owning services.
 
 ## WebSockets
 
