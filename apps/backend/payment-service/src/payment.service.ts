@@ -22,6 +22,88 @@ export class PaymentService {
   async wallet(userId: string) { const wallet = await this.wallets.findOne({ where: { userId } }); return wallet ?? this.wallets.save(this.wallets.create({ userId, availableCredits: 0, reservedCredits: 0 })); }
   packagesList() { return this.packages.find({ where: { isActive: true }, order: { sortOrder: 'ASC', price: 'ASC' } }); }
 
+  async adminListPackages() { return this.packages.find({ order: { sortOrder: 'ASC', price: 'ASC' } }); }
+
+  async adminCreatePackage(input: { name: string; description?: string; credits: number; price: number; currency?: string; bonusCredits?: number; sortOrder?: number; isActive?: boolean }) {
+    this.validatePackageInput(input);
+    return this.packages.save(this.packages.create({ name: input.name.trim(), description: input.description?.trim(), credits: input.credits, price: input.price, currency: (input.currency ?? 'USD').toUpperCase(), bonusCredits: input.bonusCredits ?? 0, sortOrder: input.sortOrder ?? 0, isActive: input.isActive ?? true }));
+  }
+
+  async adminUpdatePackage(id: string, input: Partial<{ name: string; description: string; credits: number; price: number; currency: string; bonusCredits: number; sortOrder: number; isActive: boolean }>) {
+    const pkg = await this.packages.findOne({ where: { id } });
+    if (!pkg) throw new NotFoundException('Credit package not found');
+    this.validatePackageInput({ ...pkg, ...input });
+    Object.assign(pkg, input, input.currency ? { currency: input.currency.toUpperCase() } : {});
+    return this.packages.save(pkg);
+  }
+
+  async adminTogglePackage(id: string) {
+    const pkg = await this.packages.findOne({ where: { id } });
+    if (!pkg) throw new NotFoundException('Credit package not found');
+    pkg.isActive = !pkg.isActive;
+    return this.packages.save(pkg);
+  }
+
+  async adminDeletePackage(id: string) {
+    const pkg = await this.packages.findOne({ where: { id } });
+    if (!pkg) throw new NotFoundException('Credit package not found');
+    await this.packages.remove(pkg);
+    return { id, deleted: true };
+  }
+
+  async adminAdjustWallet(input: { userId: string; amount: number; reason: string; description: string; adminId: string }, key: string) {
+    if (!key?.trim()) throw new BadRequestException('Idempotency-Key is required');
+    if (!input.userId || !Number.isFinite(input.amount) || input.amount === 0) throw new BadRequestException('A non-zero amount is required');
+    if (!input.reason?.trim() || !input.description?.trim()) throw new BadRequestException('Reason and description are required');
+    const existing = await this.idempotency.findOne({ where: { key } });
+    if (existing) return existing.response;
+    return this.dataSource.transaction(async manager => {
+      let wallet = await manager.findOne(WalletBalance, { where: { userId: input.userId }, lock: { mode: 'pessimistic_write' } });
+      if (!wallet) wallet = await manager.save(manager.create(WalletBalance, { userId: input.userId, availableCredits: 0, reservedCredits: 0 }));
+      const before = Number(wallet.availableCredits);
+      const after = before + input.amount;
+      if (after < 0) throw new ConflictException('Insufficient credit balance');
+      wallet.availableCredits = after;
+      await manager.save(wallet);
+      const transaction = await manager.save(manager.create(WalletTransaction, { userId: input.userId, amount: Math.abs(input.amount), type: input.amount > 0 ? 'credit' : 'debit', reason: input.reason.trim(), metadata: { adminAction: input.amount > 0 ? 'add_credits' : 'deduct_credits', adminId: input.adminId, description: input.description.trim(), balanceBefore: before, balanceAfter: after } }));
+      const response = { id: transaction.id, userId: input.userId, amount: input.amount, creditBalance: after, balanceBefore: before, balanceAfter: after, type: transaction.type, reason: transaction.reason, description: input.description.trim(), status: 'completed' };
+      await manager.save(manager.create(IdempotencyRecord, { key, operation: 'admin-wallet-adjustment', statusCode: 200, response }));
+      return response;
+    });
+  }
+
+  async adminListTransactions(input: { page?: number; limit?: number; transactionType?: string; userId?: string }) {
+    const page = Math.max(1, Number(input.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(input.limit) || 10));
+    const qb = this.transactions.createQueryBuilder('transaction');
+    if (input.userId) qb.andWhere('transaction.user_id = :userId', { userId: input.userId });
+    if (input.transactionType && input.transactionType !== 'all') {
+      const types = input.transactionType === 'admin_adjustment' ? ['credit', 'debit'] : [input.transactionType];
+      qb.andWhere('transaction.type IN (:...types)', { types });
+    }
+    const [items, total] = await qb.orderBy('transaction.createdAt', 'DESC').skip((page - 1) * limit).take(limit).getManyAndCount();
+    return { data: items.map(t => this.mapAdminTransaction(t)), total, page, limit };
+  }
+
+  async adminGetTransaction(id: string) {
+    const transaction = await this.transactions.findOne({ where: { id } });
+    if (transaction) return this.mapAdminTransaction(transaction);
+    const payment = await this.payments.findOne({ where: { id } });
+    if (payment) return { id: payment.id, userId: payment.userId, amount: Number(payment.amount), currency: payment.currency, status: payment.status === 'completed' ? 'paid' : payment.status, date: payment.createdAt, transactionType: 'payment', payment: { providerReference: payment.providerReference, providerMetadata: payment.providerMetadata, creditPackageId: payment.creditPackageId } };
+    throw new NotFoundException('Transaction not found');
+  }
+
+  private mapAdminTransaction(transaction: WalletTransaction) {
+    const metadata = transaction.metadata ?? {};
+    return { id: transaction.id, userId: transaction.userId, amount: Number(transaction.amount), date: transaction.createdAt, transactionType: metadata.adminAction ? 'admin_adjustment' : transaction.type, adjustmentType: transaction.type, reason: transaction.reason, description: metadata.description, balanceBefore: metadata.balanceBefore, balanceAfter: metadata.balanceAfter, metadata };
+  }
+
+  private validatePackageInput(input: { name?: string; credits?: number; price?: number; currency?: string; bonusCredits?: number }) {
+    if (!input.name?.trim() || !Number.isFinite(Number(input.credits)) || Number(input.credits) <= 0 || !Number.isFinite(Number(input.price)) || Number(input.price) < 0) throw new BadRequestException('Invalid credit package');
+    if (input.currency && !/^[A-Za-z]{3}$/.test(input.currency)) throw new BadRequestException('Currency must be a 3-letter code');
+    if (input.bonusCredits !== undefined && (!Number.isFinite(Number(input.bonusCredits)) || Number(input.bonusCredits) < 0)) throw new BadRequestException('Invalid bonus credits');
+  }
+
   async createPayment(userId: string, packageId: string, key: string) {
     const existing = await this.idempotency.findOne({ where: { key } }); if (existing) return existing.response;
     const pkg = await this.packages.findOne({ where: { id: packageId, isActive: true } }); if (!pkg) throw new NotFoundException('Credit package not found');

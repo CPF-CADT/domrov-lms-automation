@@ -14,6 +14,7 @@ export class WalletBalance {
 export class CreditPackage {
   @PrimaryGeneratedColumn('uuid') id!: string;
   @Column() name!: string;
+  @Column({ type: 'text', nullable: true }) description?: string;
   @Column({ type: 'numeric', precision: 18, scale: 4 }) credits!: number;
   @Column({ type: 'numeric', precision: 18, scale: 4 }) price!: number;
   @Column({ length: 3, default: 'USD' }) currency!: string;
