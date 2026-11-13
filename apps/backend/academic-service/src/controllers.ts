@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { AcademicService } from './academic.service';
-import { CreateAssignmentDto, CreateClassDto, CreateSubmissionDto, CreateTeamDto, AddTeamMemberDto, EnrollDto } from './dto';
+import { CreateAssignmentDto, CreateClassDto, CreateSubmissionDto, CreateTeamDto, AddTeamMemberDto } from './dto';
 import { AuthenticatedRequest, JwtBoundaryGuard } from './auth';
 
 @UseGuards(JwtBoundaryGuard)
@@ -9,7 +9,7 @@ export class ClassesController {
   constructor(private readonly academic: AcademicService) {}
   @Post() create(@Body() input: CreateClassDto, @Req() req: AuthenticatedRequest) { return this.academic.createClass(input, req.user.sub); }
   @Get() list(@Req() req: AuthenticatedRequest) { return this.academic.listClasses(req.user.sub); }
-  @Post(':classId/enrollments') enroll(@Param('classId') classId: string, @Body() input: EnrollDto, @Req() req: AuthenticatedRequest) { return this.academic.enroll(classId, input.userId ?? req.user.sub); }
+  @Post(':classId/enrollments') enroll(@Param('classId') classId: string, @Req() req: AuthenticatedRequest) { return this.academic.enroll(classId, req.user.sub); }
   @Post(':classId/teams') createTeam(@Param('classId') classId: string, @Body() input: CreateTeamDto, @Req() req: AuthenticatedRequest) { return this.academic.createTeam({ ...input, classId }, req.user.sub); }
 }
 
