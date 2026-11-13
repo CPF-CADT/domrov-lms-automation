@@ -4,7 +4,6 @@ The frontend should use one API origin while the backend is being extracted:
 
 ```text
 Local Docker Compose: http://localhost:8088
-Kubernetes:           https://api.domrov.local
 ```
 
 Set the frontend API base URL to the gateway origin. Do not point the frontend
@@ -44,10 +43,6 @@ Only unmatched `/admin/*` requests use the existing backend on the host at
 LEGACY_BACKEND_HOST=legacy-backend LEGACY_BACKEND_PORT=3000 \
   docker compose -f infra/docker-compose.yml up -d gateway
 ```
-
-For Kubernetes, provide a `legacy-backend` Service on port `3000` only for
-unmatched `/admin/*` routes. The migrated notification and admin paths are
-routed directly to their owning services.
 
 ## WebSockets
 

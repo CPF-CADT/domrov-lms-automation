@@ -49,19 +49,19 @@ Acceptance:
 - Contracts identify ownership and request/response shapes.
 - No implementation task depends on an undocumented route.
 
-### WP-1: Auth Service
+### WP-1: User Service
 
-- Create `apps/backend/auth-service`.
+- Create `apps/backend/user`.
 - Move authentication and user functionality from the old NestJS backend.
 - Create `auth_db` migrations.
 - Implement JWT access and refresh token flow.
-- Implement health, readiness, metrics, structured logs, Dockerfile, tests, and Kubernetes manifests.
+- Implement health, readiness, metrics, structured logs, Dockerfile, and tests.
 - Ensure other services validate tokens without importing Auth repositories or entities.
 
 Acceptance:
 
 - Register, login, refresh, logout, and `/users/me` work independently.
-- Auth Service connects only to `auth_db`.
+- User Service connects only to `auth_db`.
 - Auth unit and integration tests pass.
 
 ### WP-2: Academic Service
@@ -71,7 +71,7 @@ Acceptance:
 - Create `academic_db` migrations.
 - Replace direct user-database access with JWT claims or an Auth API client.
 - Add asynchronous evaluation request handling.
-- Implement health, readiness, metrics, structured logs, Dockerfile, tests, and Kubernetes manifests.
+- Implement health, readiness, metrics, structured logs, Dockerfile, and tests.
 
 Acceptance:
 
@@ -86,7 +86,7 @@ Acceptance:
 - Move wallet, credit package, payment, and transaction functionality.
 - Create `payment_db` migrations.
 - Implement credit reservation, commit, release, refund, and idempotency.
-- Implement health, readiness, metrics, structured logs, Dockerfile, tests, and Kubernetes manifests.
+- Implement health, readiness, metrics, structured logs, Dockerfile, and tests.
 
 Acceptance:
 
@@ -95,21 +95,20 @@ Acceptance:
 - Payment Service connects only to `payment_db`.
 - Payment tests pass without the old monolith.
 
-### WP-4: AI Service
+### WP-4: Evaluation Service
 
-- Move or rename the existing `apps/code_eval` into `apps/backend/ai-service`.
-- Create `ai_db` migrations and persistent evaluation records.
-- Preserve gRPC evaluation behavior using `contracts/ai/evaluation.proto`.
-- Add Redis-backed asynchronous jobs, retries, timeouts, and worker separation.
+- Create `apps/backend/evaluation-service`.
+- Create `evaluation_db` migrations and persistent evaluation records.
+- Use RabbitMQ for asynchronous jobs, retries, and result events.
 - Add Payment Service credit reservation integration.
-- Implement health, readiness, metrics, structured logs, Dockerfile, tests, and Kubernetes manifests.
+- Implement health, readiness, metrics, structured logs, Dockerfile, and tests.
 
 Acceptance:
 
 - Evaluation requests return an evaluation ID without waiting for completion.
 - Workers process queued jobs and persist results.
 - Failed jobs are classified and retryable.
-- AI Service connects only to `ai_db` and Redis.
+- Evaluation Service connects only to `evaluation_db` and RabbitMQ.
 - AI tests and gRPC contract tests pass.
 
 ### WP-5: Local platform
@@ -125,24 +124,7 @@ Acceptance:
 - Each service has an independent container and database.
 - The end-to-end submission/evaluation flow works locally.
 
-### WP-6: Kubernetes platform
-
-- Add namespace, Deployments, Services, ConfigMaps, Secrets, HPA, NetworkPolicies, and PodDisruptionBudgets.
-- Add separate `ai-api` and `ai-worker` Deployments.
-- Add Ingress routing.
-- Add PostgreSQL and Redis manifests for the study environment, or documented managed-database configuration for production.
-
-Acceptance:
-
-- Kubernetes deploys all services independently.
-- Readiness and liveness probes work.
-- Internal services are not publicly exposed except through Ingress.
-- A single service can be rolled out or rolled back independently.
-
-### WP-7: Observability and CI/CD
-
-- Add Prometheus metrics and Grafana dashboards.
-- Add Loki/Promtail centralized JSON logging.
+### WP-6: CI/CD
 - Add request IDs and trace IDs across the evaluation flow.
 - Add independent GitHub Actions workflows for each service.
 - Build, test, scan, publish, deploy, smoke-test, and roll back by Git SHA.
@@ -191,16 +173,13 @@ Platform checks:
 ```bash
 docker compose config
 docker compose up --build
-kubectl apply --dry-run=client -f infra/k8s/
 ```
-
-Do not claim a Kubernetes runtime check passed if a cluster is unavailable.
 
 ## Definition of done
 
 - All work packages have met their acceptance criteria.
 - Focused tests pass for every changed service.
-- Docker Compose and Kubernetes manifests validate.
+- Docker Compose validates and starts the local environment.
 - No shared database access remains.
 - The integration flow is demonstrated.
 - README architecture and this task file match the implementation.

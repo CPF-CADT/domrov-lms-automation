@@ -116,14 +116,14 @@ final score.
 
 ## Environment variables
 
-| Variable | Local value | Kubernetes/production |
+| Variable | Local value |
 | --- | --- | --- |
-| `RABBITMQ_URL` | `amqp://domrov:domrov@rabbitmq:5672/%2f` | Secret-managed AMQP URL |
-| `RABBITMQ_EVENTS_EXCHANGE` | `domrov.events` | ConfigMap |
-| `RABBITMQ_COMMANDS_EXCHANGE` | `domrov.commands` | ConfigMap |
-| `RABBITMQ_RETRY_EXCHANGE` | `domrov.retry` | ConfigMap |
-| `RABBITMQ_DLX` | `domrov.dlx` | ConfigMap |
-| `RABBITMQ_PREFETCH_COUNT` | `10` | ConfigMap/tuned per consumer |
+| `RABBITMQ_URL` | `amqp://domrov:domrov@rabbitmq:5672/%2f` |
+| `RABBITMQ_EVENTS_EXCHANGE` | `domrov.events` |
+| `RABBITMQ_COMMANDS_EXCHANGE` | `domrov.commands` |
+| `RABBITMQ_RETRY_EXCHANGE` | `domrov.retry` |
+| `RABBITMQ_DLX` | `domrov.dlx` |
+| `RABBITMQ_PREFETCH_COUNT` | `10` |
 
 The current Compose file passes these variables to each service as platform
 configuration. Service behavior is intentionally unchanged by this platform

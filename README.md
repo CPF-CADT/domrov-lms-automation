@@ -467,7 +467,7 @@ Refactor the backend into four independently deployable microservices while pres
 3. Payment Service
 4. AI Evaluation Service
 
-The frontend remains outside this refactoring. It should access backend functionality through the API Gateway or Kubernetes Ingress.
+The frontend remains outside this refactoring. It should access backend functionality through the API Gateway.
 
 ### Architecture principles
 
@@ -529,14 +529,7 @@ contracts/
 └── evaluation/events.md
 
 infra/
-├── docker-compose.yml
-└── k8s/
-    ├── user/
-    ├── academic-service/
-    ├── payment-service/
-    ├── evaluation-service/
-    ├── databases/
-    ├── ingress/
+└── docker-compose.yml
 ```
 
 ### Service scopes
@@ -549,10 +542,7 @@ infra/
 ### Platform and operations
 
 - Docker Compose runs all services and dependencies locally.
-- Kubernetes deploys each service independently.
-- Kubernetes Ingress is the public API entry point.
-- Prometheus collects metrics and Grafana displays dashboards.
-- Loki and Promtail centralize structured JSON logs.
+- Docker Compose is the local deployment platform.
 - OpenTelemetry request IDs and trace IDs connect the submission-to-evaluation flow.
 - CI/CD tests, scans, builds, publishes, and deploys each service independently.
 - Image tags use the Git SHA; production must not rely only on `latest`.
@@ -568,9 +558,7 @@ infra/
 - Liveness and readiness probes work for every service.
 - Timeouts, retries, and graceful dependency failures are implemented.
 - Docker Compose runs the local environment.
-- Kubernetes runs the production environment.
-- CI/CD produces versioned images and deploys changed services.
-- Centralized logs and Prometheus metrics are visible in Grafana.
+- CI/CD produces versioned container images for each service.
 - The complete flow works: login, assignment submission, credit reservation, evaluation, result delivery, and credit commit/release.
 
 The implementation checklist and execution order are maintained in [TASK.md](TASK.md).
