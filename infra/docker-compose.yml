@@ -1,6 +1,37 @@
 name: domrov
 
 services:
+  gateway:
+    image: nginx:1.27-alpine
+    command: >-
+      /bin/sh -c
+      'envsubst ''$${LEGACY_BACKEND_HOST} $${LEGACY_BACKEND_PORT}''
+      < /etc/nginx/templates/nginx.conf.template
+      > /etc/nginx/nginx.conf && nginx -g "daemon off;"'
+    ports:
+      - "${GATEWAY_PORT:-8088}:80"
+    environment:
+      LEGACY_BACKEND_HOST: ${LEGACY_BACKEND_HOST:-host.docker.internal}
+      LEGACY_BACKEND_PORT: ${LEGACY_BACKEND_PORT:-3000}
+    volumes:
+      - ./gateway/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      auth-service:
+        condition: service_started
+      academic-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+      ai-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/health | grep -q 'gateway'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   auth-service:
     image: ${AUTH_SERVICE_IMAGE:-phyvathanak/domrov-auth-service:dev}
     build:

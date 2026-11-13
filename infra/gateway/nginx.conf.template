@@ -1,0 +1,70 @@
+events {}
+
+http {
+  upstream auth_service { server auth-service:3001; }
+  upstream academic_service { server academic-service:3002; }
+  upstream payment_service { server payment-service:3003; }
+  upstream ai_service { server ai-service:8080; }
+  upstream legacy_backend { server ${LEGACY_BACKEND_HOST}:${LEGACY_BACKEND_PORT}; }
+
+  map $http_upgrade $connection_upgrade {
+    default upgrade;
+    '' close;
+  }
+
+  log_format json_combined escape=json
+    '{"time":"$time_iso8601","request_id":"$request_id",'
+    '"status":$status,"method":"$request_method","uri":"$request_uri",'
+    '"upstream":"$upstream_addr","request_time":$request_time}';
+
+  access_log /var/log/nginx/access.log json_combined;
+  error_log /var/log/nginx/error.log warn;
+
+  server {
+    listen 80;
+    server_name _;
+    client_max_body_size 50m;
+
+    location = /health {
+      add_header Content-Type application/json;
+      return 200 '{"status":"ok","service":"gateway"}';
+    }
+
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Request-ID $request_id;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_read_timeout 120s;
+    proxy_send_timeout 120s;
+
+    location ^~ /auth { proxy_pass http://auth_service; }
+    location ^~ /users { proxy_pass http://auth_service; }
+
+    location ~ ^/(class|team|assessments|submissions|file)(/|$) {
+      rewrite ^/(class|team|assessments|submissions|file)(/|$)(.*)$ /api/academic/$1/$3 break;
+      proxy_pass http://academic_service;
+    }
+
+    location ^~ /wallet { proxy_pass http://payment_service; }
+    location ^~ /payment { proxy_pass http://payment_service; }
+    location ^~ /evaluations { proxy_pass http://ai_service; }
+
+    location ^~ /notifications { proxy_pass http://legacy_backend; }
+    location ^~ /admin { proxy_pass http://legacy_backend; }
+
+    location ^~ /api/auth { proxy_pass http://auth_service; }
+    location ^~ /api/users { proxy_pass http://auth_service; }
+    location ^~ /api/academic { proxy_pass http://academic_service; }
+    location ^~ /api/payment { proxy_pass http://payment_service; }
+    location ^~ /api/ai { proxy_pass http://ai_service; }
+
+    location / {
+      default_type application/json;
+      return 404 '{"statusCode":404,"message":"Gateway route not found"}';
+    }
+  }
+}
