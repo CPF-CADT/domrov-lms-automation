@@ -14,7 +14,10 @@ async function bootstrap() {
     transport: Transport.RMQ,
     options: {
       urls: [config.getOrThrow<string>('RABBITMQ_URL')],
-      queue: config.get<string>('RABBITMQ_ORCHESTRATOR_QUEUE', 'ai-orchestrator'),
+      queue: config.get<string>('RABBITMQ_ORCHESTRATOR_QUEUE', 'domrov.ai.orchestrator'),
+      exchange: config.get<string>('RABBITMQ_EVENTS_EXCHANGE', 'domrov.events'),
+      exchangeType: 'topic',
+      wildcards: true,
       queueOptions: { durable: config.get('RABBITMQ_QUEUE_DURABLE', 'true') === 'true' },
       noAck: false,
       prefetchCount: Number(config.get('RABBITMQ_PREFETCH_COUNT', 10)),
