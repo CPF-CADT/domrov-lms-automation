@@ -24,6 +24,12 @@ def run_worker() -> None:
         Worker([Queue("ai-evaluations")]).work()
 
 
+def run_rabbitmq_worker() -> None:
+    from app.rabbitmq_worker import RabbitMQWorker
+    RabbitMQWorker(settings).run()
+
+
 if __name__ == "__main__":
     import sys
-    (run_worker if len(sys.argv) > 1 and sys.argv[1] == "worker" else run_api)()
+    command = sys.argv[1] if len(sys.argv) > 1 else "api"
+    {"worker": run_worker, "rabbitmq-worker": run_rabbitmq_worker}.get(command, run_api)()

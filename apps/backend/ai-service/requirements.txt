@@ -7,3 +7,4 @@ pytest
 SQLAlchemy
 psycopg[binary]
 uvicorn
+pika
