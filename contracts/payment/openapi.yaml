@@ -147,7 +147,7 @@ components:
       required: [userId, amount, referenceId]
       properties:
         userId: { type: string, format: uuid }
-        amount: { type: number, exclusiveMinimum: 0 }
+        amount: { type: number, minimum: 0, exclusiveMinimum: true }
         referenceId: { type: string, format: uuid, description: Evaluation ID }
     CreditReservation:
       type: object
@@ -161,13 +161,13 @@ components:
       required: [userId, amount, referenceId]
       properties:
         userId: { type: string, format: uuid }
-        amount: { type: number, exclusiveMinimum: 0 }
+        amount: { type: number, minimum: 0, exclusiveMinimum: true }
         referenceId: { type: string, format: uuid, description: Evaluation or payment reference }
     RefundCreditsResponse:
       type: object
       required: [userId, amount, status, referenceId]
       properties:
         userId: { type: string, format: uuid }
-        amount: { type: number, exclusiveMinimum: 0 }
+        amount: { type: number, minimum: 0, exclusiveMinimum: true }
         status: { type: string, enum: [refunded] }
         referenceId: { type: string, format: uuid }

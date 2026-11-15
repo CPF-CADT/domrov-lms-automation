@@ -32,7 +32,7 @@ The gateway also keeps `/api/auth`, `/api/users`, `/api/academic`,
 Start the gateway with the service stack:
 
 ```bash
-docker compose -f infra/docker-compose.yml up -d
+docker compose -f docker-compose.yml up -d
 curl http://localhost:8088/health
 ```
 
@@ -41,7 +41,7 @@ Only unmatched `/admin/*` requests use the existing backend on the host at
 
 ```bash
 LEGACY_BACKEND_HOST=legacy-backend LEGACY_BACKEND_PORT=3000 \
-  docker compose -f infra/docker-compose.yml up -d gateway
+  docker compose -f docker-compose.yml up -d gateway
 ```
 
 ## WebSockets

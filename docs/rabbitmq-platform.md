@@ -13,7 +13,7 @@ for event-based communication. See the [NestJS RabbitMQ documentation](https://d
 
 ## Local broker
 
-`infra/docker-compose.yml` starts:
+`docker-compose.yml` starts:
 
 ```text
 rabbitmq:3.13-management-alpine
