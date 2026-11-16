@@ -153,3 +153,47 @@ end-to-end acceptance: NOT YET VERIFIED.
 
 Task 10 remains open until blockers are resolved
 and the pending workflows are tested.
+
+## 7. Payment Image Reproducibility Verification
+
+**Date:** 2026-11-16
+**Status:** Fresh-database migration test passed
+
+### Image
+
+- Local image: `domrov-payment-service:task10-local`
+- Built from the corrected Payment source.
+- All three migrations confirmed in the compiled image.
+
+### Fresh Database Test
+
+An isolated PostgreSQL 16 container was created
+on a temporary Docker network.
+
+The corrected Payment image successfully executed:
+
+1. InitialPaymentSchema1764000000000
+2. AddCreditPackageDescription1764000001000
+3. UseStringUserIds1764000002000
+
+### Verified Results
+
+- Migration transaction committed successfully.
+- All three migrations appeared in database history.
+- `credit_packages.description` exists as nullable text.
+- Existing Payment infrastructure was not replaced.
+- Git working tree remained clean.
+
+The additional automated SQL assertion was not executed
+because the Docker command did not attach standard input.
+The schema and migration history were verified directly.
+
+### Remaining Deployment Work
+
+- Publish an appropriately versioned Payment image.
+- Verify deployment using the corrected image.
+- Confirm repeat startup against an existing migrated database.
+- Avoid using the mutable `dev` image tag for release tracking.
+
+**Assessment:** Fresh-database migration compatibility verified.
+Full replacement deployment and image publication remain pending.
