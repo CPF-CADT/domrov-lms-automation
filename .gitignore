@@ -75,3 +75,6 @@ __pycache__/
 secrets.json
 upload_secrets.sh
 infrastructure/.db_password
+
+# Local database backups
+.local-backups/
