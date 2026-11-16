@@ -1,210 +1,821 @@
 openapi: 3.0.3
 info:
-  title: DOMROV Auth Service API
-  version: 1.0.0
-  description: Identity, authentication, roles, OAuth, and user profiles.
+  title: DOMROV User/Auth Service API
+  version: 1.1.0
+  description: >-
+    Implemented standalone User Service and existing frontend compatibility API. Paths are literal
+    service paths, without a global /api prefix. Numeric IDs, canonical roles, success/data
+    envelopes, and Nest errors preserve existing consumers; earlier target UUID, student/teacher
+    role, token-pair body, and error-envelope drafts are superseded here. /register alone returns a
+    bare registration summary. Gateway prefix aliases require infrastructure rewrites. Financial
+    aggregation and /users/search are not implemented by this service.
 servers:
-  - url: /api/auth
+  - url: http://localhost:3001
+    description: Standalone local service
+  - url: /
+    description: Gateway origin forwarding literal paths
 tags:
   - name: authentication
   - name: users
+  - name: notifications
+  - name: admin
+  - name: operations
 paths:
-  /sign-up:
+  /auth/register:
     post:
-      tags: [authentication]
-      summary: Legacy registration route retained for the existing frontend
-      operationId: legacySignUp
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/RegisterRequest' }
-      responses:
-        '201': { description: User registered in the legacy success/data envelope }
-        '409': { $ref: '#/components/responses/Conflict' }
-  /register:
-    post:
-      tags: [authentication]
       operationId: register
+      tags:
+        - authentication
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/RegisterRequest' }
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
       responses:
-        '201':
-          description: User registered
+        "201":
+          description: Success
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/User' }
-        '409': { $ref: '#/components/responses/Conflict' }
-  /login:
+              schema:
+                $ref: "#/components/schemas/RegisteredUser"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /auth/sign-up:
     post:
-      tags: [authentication]
+      operationId: legacySignUp
+      tags:
+        - authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignUpResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /auth/login:
+    post:
       operationId: login
+      tags:
+        - authentication
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/LoginRequest' }
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
       responses:
-        '200':
-          description: Tokens issued
+        "200":
+          description: Access token returned; refresh cookie issued
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/TokenPair' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-  /refresh:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+          headers:
+            Set-Cookie:
+              description: >-
+                HttpOnly refresh_token cookie; SameSite=Strict, Secure in production,
+                Max-Age=604800. Raw refresh tokens are never included in the JSON body.
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/verify-email:
     post:
-      tags: [authentication]
+      operationId: verifyEmail
+      tags:
+        - authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyEmailRequest"
+      responses:
+        "200":
+          description: Email verified; access token and message returned; refresh cookie issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationResponse"
+          headers:
+            Set-Cookie:
+              description: >-
+                HttpOnly refresh_token cookie; SameSite=Strict, Secure in production,
+                Max-Age=604800. Raw refresh tokens are never included in the JSON body.
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /auth/refresh:
+    post:
       operationId: refresh
+      tags:
+        - authentication
+      description: Body refreshToken takes precedence over the refresh_token cookie.
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/RefreshRequest' }
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      parameters:
+        - name: refresh_token
+          in: cookie
+          schema:
+            type: string
       responses:
-        '200':
-          description: Access token refreshed
+        "200":
+          description: Access token refreshed; refresh cookie rotated
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/TokenPair' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-  /refresh-token:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+          headers:
+            Set-Cookie:
+              description: >-
+                HttpOnly refresh_token cookie; SameSite=Strict, Secure in production,
+                Max-Age=604800. Raw refresh tokens are never included in the JSON body.
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/refresh-token:
     post:
-      tags: [authentication]
-      summary: Legacy cookie-based refresh route retained for the existing frontend
       operationId: legacyRefresh
+      tags:
+        - authentication
       parameters:
         - name: refresh_token
           in: cookie
           required: true
-          schema: { type: string }
+          schema:
+            type: string
       responses:
-        '200': { description: Access token refreshed in the legacy success/data envelope }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-  /logout:
+        "200":
+          description: Legacy access token response; refresh cookie rotated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyRefreshResponse"
+          headers:
+            Set-Cookie:
+              description: >-
+                HttpOnly refresh_token cookie; SameSite=Strict, Secure in production,
+                Max-Age=604800. Raw refresh tokens are never included in the JSON body.
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/logout:
     post:
-      tags: [authentication]
-      security: [{ bearerAuth: [] }]
       operationId: logout
+      tags:
+        - authentication
+      security:
+        - bearerAuth: []
       parameters:
         - name: X-Refresh-Token
           in: header
-          required: true
-          schema: { type: string }
+          schema:
+            type: string
+        - name: refresh_token
+          in: cookie
+          schema:
+            type: string
+      description: >-
+        Requires an access JWT. X-Refresh-Token takes precedence over the cookie. An already revoked
+        supplied session returns 404.
       responses:
-        '204': { description: Session revoked }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-  /verify-email:
-    post:
-      tags: [authentication]
-      operationId: verifyEmail
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/VerifyEmailRequest' }
-      responses:
-        '200':
-          description: Email verified and tokens issued
+        "200":
+          description: >-
+            Session revoked if supplied; cookie cleared. No refresh token returns the same success
+            envelope.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/TokenPair' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-  /request-password-reset:
+              schema:
+                $ref: "#/components/schemas/LogoutResponse"
+          headers:
+            Set-Cookie:
+              description: Expires refresh_token cookie
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /auth/request-password-reset:
     post:
-      tags: [authentication]
       operationId: requestPasswordReset
+      tags:
+        - authentication
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [email]
-              properties: { email: { type: string, format: email } }
+              $ref: "#/components/schemas/EmailRequest"
       responses:
-        '200': { description: Reset request accepted }
-  /resend-verification:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+      description: >-
+        Generic response for unknown accounts, cooldown, and SMTP delivery failure; database
+        failures can still return 500.
+  /auth/resend-verification:
     post:
-      tags: [authentication]
       operationId: resendVerification
+      tags:
+        - authentication
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [email]
-              properties: { email: { type: string, format: email } }
+              $ref: "#/components/schemas/EmailRequest"
       responses:
-        '200': { description: Verification code sent in the legacy success/data envelope }
-  /reset-password:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /auth/reset-password:
     post:
-      tags: [authentication]
       operationId: resetPassword
+      tags:
+        - authentication
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/ResetPasswordRequest' }
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
       responses:
-        '200': { description: Password reset completed }
-        '400': { $ref: '#/components/responses/BadRequest' }
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /auth/{provider}/login:
+    get:
+      operationId: oauthLogin
+      tags:
+        - authentication
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - google
+              - github
+      responses:
+        "302":
+          description: Redirect to provider authorization
+          headers:
+            Location:
+              schema:
+                type: string
+        "503":
+          $ref: "#/components/responses/Unavailable"
+  /auth/{provider}/callback:
+    get:
+      operationId: oauthCallback
+      tags:
+        - authentication
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - google
+              - github
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Set refresh cookie and redirect to FRONTEND_URL/auth/callback
+          headers:
+            Location:
+              schema:
+                type: string
+            Set-Cookie:
+              description: >-
+                HttpOnly refresh_token cookie; SameSite=Strict, Secure in production,
+                Max-Age=604800. Raw refresh tokens are never included in the JSON body.
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/Unavailable"
   /users/me:
     get:
-      tags: [users]
-      security: [{ bearerAuth: [] }]
       operationId: getCurrentUser
+      tags:
+        - users
+      security:
+        - bearerAuth: []
       responses:
-        '200':
-          description: Current user
+        "200":
+          description: Current identity profile
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/User' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
     patch:
-      tags: [users]
-      security: [{ bearerAuth: [] }]
       operationId: updateCurrentUser
+      tags:
+        - users
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/UpdateUserRequest' }
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
       responses:
-        '200':
-          description: Updated user
+        "200":
+          description: Message and updated user
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/User' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+              schema:
+                $ref: "#/components/schemas/ProfileUpdateResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /users/details:
+    get:
+      operationId: legacyUserDetails
+      tags:
+        - users
+      security:
+        - bearerAuth: []
+      description: >-
+        Identity-only alias for /users/me. Wallet, balance, purchases and academic aggregation are
+        outside this service.
+      responses:
+        "200":
+          description: Current identity profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /users/change-password:
     post:
-      tags: [users]
-      security: [{ bearerAuth: [] }]
       operationId: changePassword
+      tags:
+        - users
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/ChangePasswordRequest' }
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
       responses:
-        '200': { description: Password changed }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+        "200":
+          description: Password changed; refresh sessions revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags:
+        - notifications
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Up to 100 notifications, newest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /notifications/unread:
+    get:
+      operationId: unreadNotifications
+      tags:
+        - notifications
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Up to 100 notifications, newest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags:
+        - notifications
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Notification marked read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /admin/users:
+    get:
+      operationId: listAdminUsers
+      tags:
+        - admin
+      security:
+        - bearerAuth: []
+      description: >-
+        Admin or SuperAdmin required. Status and role filters accept canonical or lowercase values;
+        all means no filter.
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: search
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - all
+              - ACTIVE
+              - INACTIVE
+              - BANNED
+              - active
+              - inactive
+              - banned
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum:
+              - all
+              - SuperAdmin
+              - Admin
+              - Support
+              - User
+              - superadmin
+              - admin
+              - support
+              - user
+        - name: verified
+          in: query
+          schema:
+            type: string
+            enum:
+              - all
+              - "true"
+              - "false"
+              - verified
+              - unverified
+        - name: joinDateFrom
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: joinDateTo
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum:
+              - newest
+              - oldest
+            default: newest
+      responses:
+        "200":
+          description: Identity profiles only; no financial aggregation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /admin/users/{id}:
+    get:
+      operationId: getAdminUser
+      tags:
+        - admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Identity profile; Admin or SuperAdmin required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deactivateUser
+      tags:
+        - admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Soft deactivation; SuperAdmin required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeactivationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /admin/users/{id}/status:
+    patch:
+      operationId: updateUserStatus
+      tags:
+        - admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStatusRequest"
+      responses:
+        "200":
+          description: Updated profile with reason echo and updatedAt alias; Admin or SuperAdmin required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusUpdateResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /admin/users/{id}/role:
+    patch:
+      operationId: updateUserRole
+      tags:
+        - admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRoleRequest"
+      responses:
+        "200":
+          description: Updated identity profile; SuperAdmin required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /health/live:
     get:
       operationId: liveness
-      responses: { '200': { description: Process is alive } }
+      tags:
+        - operations
+      responses:
+        "200":
+          description: Process is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - service
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - ok
+                  service:
+                    type: string
+                    enum:
+                      - user
   /health/ready:
     get:
       operationId: readiness
-      responses: { '200': { description: Ready }, '503': { description: Not ready } }
+      tags:
+        - operations
+      responses:
+        "200":
+          description: Database schema is queryable and RabbitMQ command connection is available
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - database
+                  - rabbitmq
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - ok
+                      - not_ready
+                  database:
+                    type: string
+                    enum:
+                      - connected
+                      - disconnected
+                      - unavailable_or_schema_mismatch
+                  rabbitmq:
+                    type: string
+                    enum:
+                      - connected
+                      - unavailable
+        "503":
+          description: Database, schema, RabbitMQ, or shutdown not ready
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - database
+                  - rabbitmq
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - ok
+                      - not_ready
+                  database:
+                    type: string
+                    enum:
+                      - connected
+                      - disconnected
+                      - unavailable_or_schema_mismatch
+                  rabbitmq:
+                    type: string
+                    enum:
+                      - connected
+                      - unavailable
   /metrics:
     get:
       operationId: metrics
-      responses: { '200': { description: Prometheus metrics } }
+      tags:
+        - operations
+      responses:
+        "200":
+          description: Process gauge only; does not indicate dependency readiness
+          content:
+            text/plain; version=0.0.4:
+              schema:
+                type: string
+              example: |
+                # HELP auth_service_up Auth service process status
+                # TYPE auth_service_up gauge
+                auth_service_up 1
 components:
   securitySchemes:
     bearerAuth:
@@ -214,89 +825,601 @@ components:
   schemas:
     RegisterRequest:
       type: object
-      required: [email, password, firstName, lastName]
+      required:
+        - firstName
+        - lastName
+        - email
+        - password
+        - confirmPassword
       properties:
-        email: { type: string, format: email }
-        password: { type: string, format: password, minLength: 8 }
-        firstName: { type: string, minLength: 1 }
-        lastName: { type: string, minLength: 1 }
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        gender:
+          type: string
+        dob:
+          type: string
+          description: ISO 8601 date or date-time accepted; persisted as a PostgreSQL date.
+        phoneNumber:
+          type: string
+          maxLength: 50
+        profilePictureUrl:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: Must contain an uppercase letter, a digit, and a special character.
+        confirmPassword:
+          type: string
+          minLength: 1
     LoginRequest:
       type: object
-      required: [email, password]
+      required:
+        - email
+        - password
       properties:
-        email: { type: string, format: email }
-        password: { type: string, format: password }
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    EmailRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
     RefreshRequest:
       type: object
-      required: [refreshToken]
       properties:
-        refreshToken: { type: string, minLength: 1 }
-    TokenPair:
-      type: object
-      required: [accessToken, refreshToken]
-      properties:
-        accessToken: { type: string }
-        refreshToken: { type: string }
-        expiresIn: { type: integer, format: int32, minimum: 1 }
-    User:
-      type: object
-      required: [id, email, firstName, lastName, role]
-      properties:
-        id: { type: string, format: uuid }
-        email: { type: string, format: email }
-        firstName: { type: string }
-        lastName: { type: string }
-        role: { type: string, enum: [student, teacher, admin] }
-    UpdateUserRequest:
-      type: object
-      properties:
-        firstName: { type: string }
-        lastName: { type: string }
-    ChangePasswordRequest:
-      type: object
-      required: [currentPassword, newPassword, confirmPassword]
-      properties:
-        currentPassword: { type: string }
-        newPassword: { type: string, minLength: 8 }
-        confirmPassword: { type: string }
+        refreshToken:
+          type: string
+          minLength: 1
     VerifyEmailRequest:
       type: object
-      required: [email, otp]
+      required:
+        - email
+        - otp
       properties:
-        email: { type: string, format: email }
-        otp: { type: string, pattern: '^\\d{6}$' }
+        email:
+          type: string
+          format: email
+        otp:
+          type: string
+          pattern: ^[0-9]{6}$
     ResetPasswordRequest:
       type: object
-      required: [email, otp, newPassword]
+      required:
+        - email
+        - otp
+        - newPassword
       properties:
-        email: { type: string, format: email }
-        otp: { type: string, pattern: '^\\d{6}$' }
-        newPassword: { type: string, minLength: 8 }
+        email:
+          type: string
+          format: email
+        otp:
+          type: string
+          pattern: ^[0-9]{6}$
+        newPassword:
+          type: string
+          format: password
+          minLength: 8
+          description: Must contain an uppercase letter, a digit, and a special character.
+    ChangePasswordRequest:
+      type: object
+      required:
+        - currentPassword
+        - newPassword
+        - confirmPassword
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+          format: password
+          minLength: 8
+          description: Must contain an uppercase letter, a digit, and a special character.
+        confirmPassword:
+          type: string
+    UpdateProfileRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        gender:
+          type: string
+        dob:
+          type: string
+          description: ISO 8601 date or date-time accepted; persisted as a PostgreSQL date.
+        phoneNumber:
+          type: string
+        profilePictureUrl:
+          type: string
+    RegisteredUser:
+      type: object
+      required:
+        - userId
+        - firstName
+        - lastName
+        - email
+      properties:
+        userId:
+          type: integer
+          minimum: 1
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+    SignUpResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: "#/components/schemas/RegisteredUser"
+    TokenResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          required:
+            - accessToken
+            - expiresIn
+          properties:
+            accessToken:
+              type: string
+            expiresIn:
+              type: string
+              example: 20h
+    VerificationResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          required:
+            - accessToken
+            - expiresIn
+            - message
+          properties:
+            accessToken:
+              type: string
+            expiresIn:
+              type: string
+              example: 20h
+            message:
+              type: string
+    LegacyRefreshResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          required:
+            - status
+            - accessToken
+            - issuedAt
+          properties:
+            status:
+              type: string
+              enum:
+                - success
+            accessToken:
+              type: string
+            issuedAt:
+              type: integer
+              description: Unix time in seconds
+    LogoutResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          required:
+            - status
+            - message
+          properties:
+            status:
+              type: string
+              enum:
+                - success
+            message:
+              type: string
+    MessageResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          required:
+            - message
+          properties:
+            message:
+              type: string
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - firstName
+        - lastName
+        - role
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        gender:
+          type: string
+          nullable: true
+        dob:
+          type: string
+          nullable: true
+          format: date
+        phoneNumber:
+          type: string
+          nullable: true
+        profilePictureUrl:
+          type: string
+          nullable: true
+        isVerified:
+          type: boolean
+        isTwoFactorEnable:
+          type: boolean
+        status:
+          $ref: "#/components/schemas/UserStatus"
+        role:
+          $ref: "#/components/schemas/SystemRole"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    UserResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: "#/components/schemas/User"
+    UserStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - INACTIVE
+        - BANNED
+    SystemRole:
+      type: string
+      enum:
+        - SuperAdmin
+        - Admin
+        - Support
+        - User
+    ProfileUpdateResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          required:
+            - message
+            - user
+          properties:
+            message:
+              type: string
+            user:
+              $ref: "#/components/schemas/User"
+    AdminUser:
+      allOf:
+        - $ref: "#/components/schemas/User"
+        - type: object
+          required:
+            - joinDate
+          properties:
+            joinDate:
+              type: string
+              format: date-time
+    AdminUserResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: "#/components/schemas/AdminUser"
+    AdminListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          required:
+            - data
+            - total
+            - page
+            - limit
+            - filtered
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/AdminUser"
+            total:
+              type: integer
+            page:
+              type: integer
+            limit:
+              type: integer
+            filtered:
+              type: boolean
+    UpdateStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - INACTIVE
+            - BANNED
+            - active
+            - inactive
+            - banned
+        reason:
+          type: string
+          description: Accepted and echoed for compatibility; not persisted.
+    UpdateRoleRequest:
+      type: object
+      required:
+        - role
+      properties:
+        role:
+          type: string
+          enum:
+            - SuperAdmin
+            - Admin
+            - Support
+            - User
+            - superadmin
+            - admin
+            - support
+            - user
+    StatusUpdateResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          allOf:
+            - $ref: "#/components/schemas/AdminUser"
+            - type: object
+              required:
+                - reason
+                - updatedAt
+              properties:
+                reason:
+                  type: string
+                  nullable: true
+                updatedAt:
+                  type: string
+                  format: date-time
+    DeactivationResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          required:
+            - message
+            - deletedUserId
+          properties:
+            message:
+              type: string
+            deletedUserId:
+              type: integer
+              minimum: 1
+    Notification:
+      type: object
+      required:
+        - id
+        - userId
+        - title
+        - type
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        userId:
+          type: integer
+          minimum: 1
+        type:
+          type: string
+          enum:
+            - info
+            - warning
+            - alert
+        status:
+          type: string
+          enum:
+            - unread
+            - read
+        title:
+          type: string
+        message:
+          type: string
+          nullable: true
+        actionUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    NotificationListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
     Error:
       type: object
-      required: [error]
+      required:
+        - statusCode
+        - message
       properties:
+        statusCode:
+          type: integer
+        message:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
         error:
-          type: object
-          required: [code, message, requestId]
-          properties:
-            code: { type: string }
-            message: { type: string }
-            requestId: { type: string }
-            details: { type: array, items: {} }
+          type: string
   responses:
-    Unauthorized:
-      description: Authentication failed
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
-    Conflict:
-      description: Resource already exists
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
     BadRequest:
-      description: Request validation failed
+      description: Validation or operation rejected
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/Error' }
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Authentication required or invalid
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Insufficient role
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource or session not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: Email already registered
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unavailable:
+      description: OAuth provider not configured
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

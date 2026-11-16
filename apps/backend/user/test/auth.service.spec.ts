@@ -10,6 +10,8 @@ import { MailerService } from '../src/mailer/mailer.service'
 import { OAuthAccount } from '../src/entities/oauth-account.entity'
 import * as bcrypt from 'bcrypt'
 import { AuthEventsPublisher } from '../src/messaging/rabbitmq'
+import { randomBytes } from 'crypto'
+import { OtpTestStore } from './support/otp-store'
 
 const createUsersMock = () => ({
   findOne: jest.fn<
@@ -23,11 +25,14 @@ const createUsersMock = () => ({
 describe('AuthService', () => {
   let service: AuthService
   let users: ReturnType<typeof createUsersMock>
-  let otps: jest.Mocked<Pick<Repository<UserEmailOtp>, 'findOne'>>
+  let otpUser: User | null
   let refreshTokens: jest.Mocked<Pick<Repository<UserRefreshToken>, 'delete'>>
 
   beforeEach(async () => {
     users = createUsersMock()
+    otpUser = null
+    const otpStore = new OtpTestStore(() => otpUser)
+    const otpSecret = randomBytes(32).toString('hex')
     const module = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -43,12 +48,7 @@ describe('AuthService', () => {
         },
         {
           provide: getRepositoryToken(UserEmailOtp),
-          useValue: {
-            findOne: jest.fn(),
-            save: jest.fn(),
-            create: jest.fn((input) => input),
-            delete: jest.fn(),
-          },
+          useValue: otpStore,
         },
         {
           provide: getRepositoryToken(OAuthAccount),
@@ -75,7 +75,7 @@ describe('AuthService', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn((_key, fallback) => fallback),
+            get: jest.fn((key, fallback) => key === 'OTP_HASH_SECRET' ? otpSecret : fallback),
             getOrThrow: jest.fn(() => 'test-secret'),
           },
         },
@@ -84,7 +84,6 @@ describe('AuthService', () => {
       ],
     }).compile()
     service = module.get(AuthService)
-    otps = module.get(getRepositoryToken(UserEmailOtp))
     refreshTokens = module.get(getRepositoryToken(UserRefreshToken))
   })
 
@@ -116,7 +115,7 @@ describe('AuthService', () => {
   it('resends verification through the existing auth database and mailer boundary', async () => {
     const user = { id: 1, email: 'sok@example.com', isVerified: false } as User
     users.findOne.mockResolvedValue(user)
-    otps.findOne.mockResolvedValue(null)
+    otpUser = user
     await expect(service.resendVerification(user.email)).resolves.toEqual({
       message: 'Verification OTP sent successfully',
     })
@@ -141,12 +140,14 @@ describe('AuthService', () => {
       service.updateProfile(1, {
         firstName: 'Sokha',
         phoneNumber: '0123456789',
+        dob: '2000-01-01T00:00:00.000Z',
       }),
     ).resolves.toMatchObject({ message: 'Profile updated successfully' })
     expect(users.save).toHaveBeenCalledWith(
       expect.objectContaining({
         firstName: 'Sokha',
         phoneNumber: '0123456789',
+        dob: '2000-01-01T00:00:00.000Z',
       }),
     )
   })

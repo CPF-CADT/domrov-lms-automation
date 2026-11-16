@@ -19,10 +19,13 @@ import { AdminRoleGuard, SuperAdminRoleGuard } from './admin/admin-role.guard'
 import { ClientsModule, Transport } from '@nestjs/microservices'
 import { AUTH_EVENTS_CLIENT, AuthEventsPublisher } from './messaging/rabbitmq'
 import { JwtService, type JwtSignOptions } from '@nestjs/jwt'
+import { validateOtpConfiguration } from './auth/otp.config'
+import { authDataSourceOptions } from './database/data-source'
+import { ReadinessService } from './health/readiness.service'
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, validate: validateOtpConfiguration }),
     ClientsModule.registerAsync([
       {
         name: AUTH_EVENTS_CLIENT,
@@ -52,16 +55,8 @@ import { JwtService, type JwtSignOptions } from '@nestjs/jwt'
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        type: 'postgres',
+        ...authDataSourceOptions,
         url: config.getOrThrow<string>('DATABASE_URL'),
-        entities: [
-          User,
-          UserRefreshToken,
-          UserEmailOtp,
-          OAuthAccount,
-          Notification,
-        ],
-        synchronize: false,
       }),
     }),
     TypeOrmModule.forFeature([
@@ -89,6 +84,7 @@ import { JwtService, type JwtSignOptions } from '@nestjs/jwt'
     AuthEventsPublisher,
     AdminRoleGuard,
     SuperAdminRoleGuard,
+    ReadinessService,
     {
       provide: 'ACCESS_JWT_SERVICE',
       inject: [ConfigService],

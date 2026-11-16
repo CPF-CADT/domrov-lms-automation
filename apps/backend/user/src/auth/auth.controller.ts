@@ -48,8 +48,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async logout(@Req() request: Request & { user: { sub: number }; cookies?: Record<string, string> }, @Headers('x-refresh-token') headerRefreshToken?: string, @Res({ passthrough: true }) response?: Response) {
     const refreshToken = headerRefreshToken ?? request.cookies?.refresh_token;
-    if (!refreshToken) return;
-    await this.auth.logout(request.user.sub, refreshToken);
+    if (refreshToken) await this.auth.logout(request.user.sub, refreshToken);
     response?.clearCookie('refresh_token', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' });
     return { success: true, data: { status: 'success', message: 'Logged out from current device' } };
   }

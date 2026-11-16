@@ -3,6 +3,7 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
   Optional,
   ServiceUnavailableException,
@@ -12,8 +13,15 @@ import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
 import * as bcrypt from 'bcrypt'
-import { randomInt } from 'crypto'
-import { Repository } from 'typeorm'
+import {
+  createHash,
+  createHmac,
+  randomInt,
+  randomUUID,
+  timingSafeEqual,
+} from 'crypto'
+import { EntityManager, MoreThan, Repository } from 'typeorm'
+import { otpHashSecret } from './otp.config'
 import {
   ChangePasswordRequest,
   CompletePasswordResetRequest,
@@ -36,8 +44,15 @@ export interface AuthUser {
   role: SystemRole
 }
 
+interface RefreshClaims extends AuthUser {
+  jti: string
+  exp: number
+}
+
 @Injectable()
 export class AuthService {
+  private readonly otpSecret: string
+
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(UserRefreshToken)
@@ -51,7 +66,9 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly mailer: MailerService,
     @Optional() private readonly events?: AuthEventsPublisher,
-  ) {}
+  ) {
+    this.otpSecret = otpHashSecret(config)
+  }
 
   async register(input: RegisterRequest) {
     if (input.password !== input.confirmPassword)
@@ -67,6 +84,8 @@ export class AuthService {
       email,
       password: await bcrypt.hash(input.password, 10),
       gender: input.gender,
+      dob: input.dob ? new Date(input.dob) : undefined,
+      phoneNumber: input.phoneNumber,
       profilePictureUrl: input.profilePictureUrl,
       status: UserStatus.ACTIVE,
       role: SystemRole.USER,
@@ -102,26 +121,56 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string) {
-    let payload: AuthUser
+    let payload: RefreshClaims
     try {
-      payload = await this.refreshJwt.verifyAsync<AuthUser>(refreshToken)
+      payload = await this.refreshJwt.verifyAsync<RefreshClaims>(refreshToken)
+      if (
+        !payload ||
+        !Number.isSafeInteger(payload.sub) ||
+        payload.sub <= 0 ||
+        typeof payload.jti !== 'string' ||
+        !payload.jti ||
+        !Number.isSafeInteger(payload.exp) ||
+        payload.exp <= Math.floor(Date.now() / 1000)
+      )
+        throw new Error('Invalid refresh claims')
     } catch {
       throw new UnauthorizedException('Refresh token is invalid or expired')
     }
+    const tokenHash = this.hashRefreshToken(refreshToken)
     const session = await this.refreshTokens.findOne({
-      where: { userId: payload.sub, refreshToken },
+      where: { userId: payload.sub, tokenHash },
       relations: { user: true },
     })
-    if (!session || session.expiresAt <= new Date())
+    if (
+      !session ||
+      session.expiresAt <= new Date() ||
+      !session.user ||
+      session.user.id !== payload.sub ||
+      session.user.status !== UserStatus.ACTIVE
+    )
       throw new UnauthorizedException('Refresh token is invalid or expired')
-    const accessToken = await this.accessJwt.signAsync({
-      sub: session.user.id,
-      email: session.user.email,
-      role: session.user.role,
-    })
+    const {
+      accessToken,
+      refreshToken: nextToken,
+      expiresAt,
+    } = await this.createTokenPair(session.user)
+    // Compare and replace in one SQL statement. A concurrent rotation or logout
+    // removes the matching hash, so only the winning request can return tokens.
+    const result = await this.refreshTokens.update(
+      {
+        id: session.id,
+        userId: payload.sub,
+        tokenHash,
+        expiresAt: MoreThan(new Date()),
+      },
+      { tokenHash: this.hashRefreshToken(nextToken), expiresAt },
+    )
+    if (result.affected !== 1)
+      throw new UnauthorizedException('Refresh token is invalid or expired')
     return {
       accessToken,
-      refreshToken,
+      refreshToken: nextToken,
       expiresIn: this.config.get<string>('JWT_ACCESS_EXPIRES_IN', '20h'),
     }
   }
@@ -254,7 +303,10 @@ export class AuthService {
   }
 
   async logout(userId: number, refreshToken: string) {
-    const result = await this.refreshTokens.delete({ userId, refreshToken })
+    const result = await this.refreshTokens.delete({
+      userId,
+      tokenHash: this.hashRefreshToken(refreshToken),
+    })
     if (!result.affected)
       throw new NotFoundException('Session not found or already expired')
   }
@@ -330,54 +382,72 @@ export class AuthService {
     const user = await this.findUserByEmail(input.email)
     if (user.isVerified)
       throw new BadRequestException('Email is already verified')
-    const record = await this.otps.findOne({
-      where: { userId: user.id, purpose: OtpPurpose.VERIFICATION },
-    })
-    if (!record || record.expiresAt <= new Date() || record.otp !== input.otp)
+    const verified = await this.consumeOtp(
+      user.id,
+      OtpPurpose.VERIFICATION,
+      input.otp,
+      async (manager, lockedUser) => {
+        if (lockedUser.isVerified)
+          throw new BadRequestException('Email is already verified')
+        lockedUser.isVerified = true
+        await manager.save(User, lockedUser)
+      },
+    )
+    if (!verified)
       throw new BadRequestException('Invalid or expired verification code')
-    user.isVerified = true
-    await this.users.save(user)
-    await this.otps.delete(record.id)
-    return this.issueTokens(user)
+    return this.issueTokens(verified)
   }
 
   async requestPasswordReset(input: PasswordResetRequest) {
     const user = await this.users.findOne({
       where: { email: input.email.toLowerCase() },
     })
-    if (user) await this.sendOtp(user, OtpPurpose.PASSWORD_RESET)
+    if (user) {
+      try {
+        // Cooldown and SMTP failure must not disclose account existence.
+        await this.sendOtp(user, OtpPurpose.PASSWORD_RESET)
+      } catch (error) {
+        if (
+          !(error instanceof BadRequestException) &&
+          !(error instanceof InternalServerErrorException)
+        )
+          throw error
+      }
+    }
     return { message: 'If the email exists, a password reset code was sent.' }
   }
 
   async resetPassword(input: CompletePasswordResetRequest) {
     this.validatePassword(input.newPassword)
-    const user = await this.findUserByEmail(input.email)
-    const record = await this.otps.findOne({
-      where: { userId: user.id, purpose: OtpPurpose.PASSWORD_RESET },
+    const user = await this.users.findOne({
+      where: { email: input.email.toLowerCase() },
     })
-    if (!record || record.expiresAt <= new Date() || record.otp !== input.otp)
+    // Do the same password work for known and unknown accounts.
+    const password = await bcrypt.hash(input.newPassword, 10)
+    const reset =
+      user &&
+      (await this.consumeOtp(
+        user.id,
+        OtpPurpose.PASSWORD_RESET,
+        input.otp,
+        async (manager, lockedUser) => {
+          lockedUser.password = password
+          await manager.save(User, lockedUser)
+          await manager.delete(UserRefreshToken, { userId: lockedUser.id })
+        },
+      ))
+    if (!reset)
       throw new BadRequestException('Invalid or expired password reset code')
-    user.password = await bcrypt.hash(input.newPassword, 10)
-    await this.users.save(user)
-    await this.otps.delete(record.id)
-    await this.refreshTokens.delete({ userId: user.id })
     return { message: 'Password reset successfully' }
   }
 
   private async issueTokens(user: User) {
-    const payload: AuthUser = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-    }
-    const accessToken = await this.accessJwt.signAsync(payload)
-    const refreshToken = await this.refreshJwt.signAsync(payload)
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    const { accessToken, refreshToken, expiresAt } =
+      await this.createTokenPair(user)
     await this.refreshTokens.save(
       this.refreshTokens.create({
-        user,
         userId: user.id,
-        refreshToken,
+        tokenHash: this.hashRefreshToken(refreshToken),
         expiresAt,
       }),
     )
@@ -388,21 +458,114 @@ export class AuthService {
     }
   }
 
+  private async createTokenPair(user: User) {
+    if (user.status !== UserStatus.ACTIVE)
+      throw new UnauthorizedException('User account is not active')
+    const payload: AuthUser = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    }
+    const accessToken = await this.accessJwt.signAsync(payload)
+    const refreshToken = await this.refreshJwt.signAsync({
+      ...payload,
+      jti: randomUUID(),
+    })
+    const claims = this.refreshJwt.decode<RefreshClaims>(refreshToken)
+    if (!claims || !Number.isSafeInteger(claims.exp))
+      throw new Error('Refresh JWT must contain an expiration claim')
+    const expiresAt = new Date(claims.exp * 1000)
+    if (!Number.isFinite(expiresAt.getTime()) || expiresAt <= new Date())
+      throw new Error('Refresh JWT must have a future expiration')
+    return { accessToken, refreshToken, expiresAt }
+  }
+
+  private hashRefreshToken(token: string) {
+    return createHash('sha256').update(token).digest('hex')
+  }
+
   private async sendOtp(user: User, purpose: OtpPurpose) {
-    const otp = randomInt(100000, 1000000).toString()
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
-    let record = await this.otps.findOne({ where: { userId: user.id } })
-    if (!record)
-      record = this.otps.create({
-        user,
-        userId: user.id,
-        otp,
-        purpose,
-        expiresAt,
+    await this.otps.manager.transaction(async (manager) => {
+      // Lock the parent even when no OTP exists: serializes first issuance,
+      // resends, and consumption across all service instances.
+      const lockedUser = await manager.findOne(User, {
+        where: { id: user.id },
+        lock: { mode: 'pessimistic_write' },
       })
-    else Object.assign(record, { otp, purpose, expiresAt })
-    await this.otps.save(record)
-    await this.mailer.sendOtp(user.email, otp, purpose)
+      if (!lockedUser) throw new BadRequestException('Invalid or expired code')
+      if (purpose === OtpPurpose.VERIFICATION && lockedUser.isVerified)
+        throw new BadRequestException('Email is already verified')
+      const existing = await manager.findOne(UserEmailOtp, {
+        where: { userId: user.id },
+        lock: { mode: 'pessimistic_write' },
+      })
+      const now = new Date()
+      if (existing && now.getTime() - existing.issuedAt.getTime() < 60_000)
+        throw new BadRequestException(
+          'Please wait 60 seconds before requesting another code',
+        )
+      const otp = randomInt(100000, 1000000).toString()
+      const record = manager.create(UserEmailOtp, {
+        ...(existing ? { id: existing.id } : {}),
+        userId: user.id,
+        otpHash: this.hashOtp(user.id, purpose, otp),
+        purpose,
+        failedAttempts: 0,
+        issuedAt: now,
+        expiresAt: new Date(now.getTime() + 10 * 60 * 1000),
+      })
+      await manager.save(UserEmailOtp, record)
+      // A failed SMTP operation rolls back issuance, including its cooldown.
+      await this.mailer.sendOtp(user.email, otp, purpose)
+    })
+  }
+
+  private hashOtp(userId: number, purpose: OtpPurpose, code: string) {
+    return createHmac('sha256', this.otpSecret)
+      .update(JSON.stringify(['domrov-otp-v1', userId, purpose, code]))
+      .digest('hex')
+  }
+
+  private async consumeOtp(
+    userId: number,
+    purpose: OtpPurpose,
+    code: string,
+    apply: (manager: EntityManager, user: User) => Promise<void>,
+  ): Promise<User | null> {
+    return this.otps.manager.transaction(async (manager) => {
+      const user = await manager.findOne(User, {
+        where: { id: userId },
+        lock: { mode: 'pessimistic_write' },
+      })
+      const record = await manager.findOne(UserEmailOtp, {
+        where: { userId, purpose },
+        lock: { mode: 'pessimistic_write' },
+      })
+      const now = new Date()
+      if (
+        !user ||
+        !record ||
+        record.expiresAt <= now ||
+        record.failedAttempts >= 5
+      )
+        return null
+      const candidate = Buffer.from(this.hashOtp(userId, purpose, code), 'hex')
+      const matches =
+        /^[a-f0-9]{64}$/.test(record.otpHash) &&
+        timingSafeEqual(Buffer.from(record.otpHash, 'hex'), candidate)
+      if (!matches) {
+        record.failedAttempts += 1
+        if (record.failedAttempts >= 5) record.expiresAt = now
+        await manager.save(UserEmailOtp, record)
+        // Return, then throw outside the transaction so the counter commits.
+        return null
+      }
+      record.expiresAt = now
+      await manager.save(UserEmailOtp, record)
+      await apply(manager, user)
+      // Retain issuedAt even after consumption to enforce the resend cooldown.
+      return user
+    })
   }
 
   private async findUserByEmail(email: string) {

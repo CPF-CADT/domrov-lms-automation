@@ -38,8 +38,16 @@ export class AdminUserService {
     if (query.status)
       builder.andWhere('user.status = :status', { status: query.status })
     if (query.role) builder.andWhere('user.role = :role', { role: query.role })
+    if (query.verified)
+      builder.andWhere('user.isVerified = :verified', {
+        verified: ['true', 'verified'].includes(query.verified),
+      })
+    if (query.joinDateFrom)
+      builder.andWhere('user.created_at >= :from', { from: query.joinDateFrom })
+    if (query.joinDateTo)
+      builder.andWhere('user.created_at <= :to', { to: query.joinDateTo })
     const [users, total] = await builder
-      .orderBy('user.created_at', 'DESC')
+      .orderBy('user.created_at', query.sortBy === 'oldest' ? 'ASC' : 'DESC')
       .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount()
@@ -48,6 +56,7 @@ export class AdminUserService {
       total,
       page,
       limit,
+      filtered: Boolean(query.search || query.status || query.role || query.verified || query.joinDateFrom || query.joinDateTo),
     }
   }
 
@@ -60,7 +69,8 @@ export class AdminUserService {
   async updateStatus(userId: number, input: UpdateUserStatusRequest) {
     const user = await this.find(userId)
     user.status = input.status
-    return this.publicUser(await this.users.save(user))
+    const saved = await this.users.save(user)
+    return { ...this.publicUser(saved), reason: input.reason ?? null, updatedAt: saved.updated_at }
   }
 
   async updateRole(userId: number, input: UpdateUserRoleRequest) {
@@ -73,7 +83,7 @@ export class AdminUserService {
     const user = await this.find(userId)
     user.status = UserStatus.INACTIVE
     await this.users.save(user)
-    return { message: 'User deactivated successfully' }
+    return { message: 'User deactivated successfully', deletedUserId: userId }
   }
 
   private find(userId: number) {
@@ -97,6 +107,7 @@ export class AdminUserService {
       isTwoFactorEnable: user.isTwoFactorEnable,
       status: user.status,
       role: user.role,
+      joinDate: user.created_at,
       created_at: user.created_at,
       updated_at: user.updated_at,
     }

@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, Length, Matches, MinLength } from 'class-validator';
+import { IsDateString, IsEmail, IsOptional, IsString, Length, Matches, MinLength } from 'class-validator';
 
 export class RegisterRequest {
   @IsString()
@@ -23,6 +23,15 @@ export class RegisterRequest {
   @IsOptional()
   @IsString()
   gender?: string;
+
+  @IsOptional()
+  @IsDateString()
+  dob?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 50)
+  phoneNumber?: string;
 
   @IsOptional()
   @IsString()
@@ -87,6 +96,10 @@ export class UpdateProfileRequest {
   @IsOptional()
   @IsString()
   gender?: string;
+
+  @IsOptional()
+  @IsDateString()
+  dob?: string;
 
   @IsOptional()
   @IsString()
