@@ -56,11 +56,11 @@ export default function CreditPurchaseClient() {
 
         console.log("🔌 Initiating WebSocket connection...");
         console.log("📍 Frontend running on:", window.location.origin);
-        console.log("🎯 Backend URL:", import.meta.env.VITE_API_URL || 'http://localhost:3000');
+        console.log("🎯 Backend URL:", import.meta.env.VITE_API_URL || 'http://localhost:8088');
         console.log("👤 User ID:", user.id);
 
         // ✅ Only create one socket - match PaymentComponent pattern
-        const newSocket: Socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3000', {
+        const newSocket: Socket = io(import.meta.env.VITE_API_URL || 'http://localhost:8088', {
             query: { userId: user.id },
             transports: ["websocket"],
         });

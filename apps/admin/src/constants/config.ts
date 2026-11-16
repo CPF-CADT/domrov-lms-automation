@@ -4,7 +4,7 @@ export const APP_NAME = 'Domrov';
 export const APP_VERSION = '1.0.0';
 
 // API Configuration
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8088';
 export const API_TIMEOUT = 30000; // 30 seconds
 
 // Routes
