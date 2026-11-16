@@ -141,7 +141,6 @@ jobs:
   deploy-admin:
     if: ${{ false }}
     needs: detect-changes
-    if: needs.detect-changes.outputs.admin == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -175,7 +174,6 @@ jobs:
   deploy-client:
     if: ${{ false }}
     needs: detect-changes
-    if: needs.detect-changes.outputs.client == 'true'
     runs-on: ubuntu-latest
 
     steps:
