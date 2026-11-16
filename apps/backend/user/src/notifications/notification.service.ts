@@ -1,29 +1,34 @@
-import { Injectable, NotFoundException, Optional } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, Repository } from 'typeorm';
-import { Notification, NotificationStatus, NotificationType } from '../entities/notification.entity';
-import { User } from '../entities/user.entity';
-import { AuthEventsPublisher } from '../messaging/rabbitmq';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common'
+import { InjectRepository } from '@nestjs/typeorm'
+import { Repository } from 'typeorm'
+import {
+  Notification,
+  NotificationStatus,
+  NotificationType,
+} from '../entities/notification.entity'
+import { User } from '../entities/user.entity'
+import { AuthEventsPublisher } from '../messaging/rabbitmq'
 
 export interface CreateNotificationInput {
-  userId: number;
-  title: string;
-  message?: string;
-  actionUrl?: string;
-  type?: NotificationType;
+  userId: number
+  title: string
+  message?: string
+  actionUrl?: string
+  type?: NotificationType
 }
 
 @Injectable()
 export class NotificationService {
   constructor(
-    @InjectRepository(Notification) private readonly notifications: Repository<Notification>,
+    @InjectRepository(Notification)
+    private readonly notifications: Repository<Notification>,
     @InjectRepository(User) private readonly users: Repository<User>,
     @Optional() private readonly events?: AuthEventsPublisher,
   ) {}
 
   async create(input: CreateNotificationInput) {
-    const user = await this.users.findOne({ where: { id: input.userId } });
-    if (!user) throw new NotFoundException('User not found');
+    const user = await this.users.findOne({ where: { id: input.userId } })
+    if (!user) throw new NotFoundException('User not found')
     const notification = this.notifications.create({
       user,
       userId: input.userId,
@@ -32,10 +37,21 @@ export class NotificationService {
       actionUrl: input.actionUrl,
       type: input.type ?? NotificationType.INFO,
       status: NotificationStatus.UNREAD,
-    });
-    const saved = await this.notifications.save(notification);
-    void this.events?.publish('notification.created', { notificationId: saved.id, userId: saved.userId, title: saved.title, message: saved.message, type: saved.type, actionUrl: saved.actionUrl }, String(saved.id));
-    return saved;
+    })
+    const saved = await this.notifications.save(notification)
+    void this.events?.publish(
+      'notification.created',
+      {
+        notificationId: saved.id,
+        userId: saved.userId,
+        title: saved.title,
+        message: saved.message,
+        type: saved.type,
+        actionUrl: saved.actionUrl,
+      },
+      String(saved.id),
+    )
+    return saved
   }
 
   listForUser(userId: number) {
@@ -43,7 +59,7 @@ export class NotificationService {
       where: { userId },
       order: { createdAt: 'DESC' },
       take: 100,
-    });
+    })
   }
 
   unreadForUser(userId: number) {
@@ -51,16 +67,18 @@ export class NotificationService {
       where: { userId, status: NotificationStatus.UNREAD },
       order: { createdAt: 'DESC' },
       take: 100,
-    });
+    })
   }
 
   async markAsRead(userId: number, notificationId: number) {
-    const notification = await this.notifications.findOne({ where: { id: notificationId, userId } });
-    if (!notification) throw new NotFoundException('Notification not found');
+    const notification = await this.notifications.findOne({
+      where: { id: notificationId, userId },
+    })
+    if (!notification) throw new NotFoundException('Notification not found')
     if (notification.status !== NotificationStatus.READ) {
-      notification.status = NotificationStatus.READ;
-      await this.notifications.save(notification);
+      notification.status = NotificationStatus.READ
+      await this.notifications.save(notification)
     }
-    return { message: 'Notification marked as read' };
+    return { message: 'Notification marked as read' }
   }
 }
