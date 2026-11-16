@@ -2,8 +2,9 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig, type AxiosResp
 import { STORAGE_KEYS, storage } from '@/lib/Storage';
 
 const axiosInstance = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000',
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8088',
     timeout: 30000,
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
     },

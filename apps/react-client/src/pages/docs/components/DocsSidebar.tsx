@@ -1,5 +1,5 @@
 import SidebarGroup from "@/components/primitives/SidebarGroup";
-import { USER_TYPES, PLATFORM_FEATURES } from "@/config/Documentation";
+import { USER_TYPES, PLATFORM_FEATURES } from "@/config/documentation";
 
 /**
  * DocsSidebar - Navigation sidebar for documentation page.

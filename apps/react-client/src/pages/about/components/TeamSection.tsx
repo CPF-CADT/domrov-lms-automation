@@ -1,6 +1,6 @@
 import SectionHeader from "@/components/data-display/SectionHeader";
 import SectionWrapper from "@/components/primitives/SectionWrapper";
-import { TEAM_MEMBERS } from "@/config/About";
+import { TEAM_MEMBERS } from "@/config/about";
 import TeamCard from "./TeamCard";
 
 /**

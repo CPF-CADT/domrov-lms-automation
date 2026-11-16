@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/Toast";
-import assessmentService from "@/services/AssessmentService";
-import fileUploadService from "@/services/FileUploadService";
+import assessmentService from "@/services/assessmentService";
+import fileUploadService from "@/services/fileUploadService";
 import { storage } from "@/lib/Storage";
 import { routes } from "@/lib/routes";
 

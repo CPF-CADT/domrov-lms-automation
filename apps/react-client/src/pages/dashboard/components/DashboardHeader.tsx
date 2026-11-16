@@ -2,7 +2,7 @@
 
 import { Link } from "react-router-dom";
 import ProfileDropdown from "@/components/data-display/ProfileDropdown";
-import type { StatusFilter } from "@/types/ClassCard";
+import type { StatusFilter } from "@/types/classCard";
 
 interface DashboardHeaderProps {
   activeStatus: StatusFilter;

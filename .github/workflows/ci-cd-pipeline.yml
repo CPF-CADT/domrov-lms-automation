@@ -1,14 +1,18 @@
-name: CI/CD Deploy
+name: Legacy CI/CD Deploy (Disabled)
 
+# Legacy monolithic deployment is disabled while the
+# microservice deployment pipeline is being prepared.
+# Do not re-enable until integration testing is approved.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-############################################################
-# DETECT CHANGES
-############################################################
+  ############################################################
+  # DETECT CHANGES
+  ############################################################
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
@@ -36,9 +40,9 @@ jobs:
             client:
               - 'apps/react-client/**'
 
-############################################################
-# TEST NESTJS
-############################################################
+  ############################################################
+  # TEST NESTJS
+  ############################################################
   test-nestjs:
     needs: detect-changes
     if: needs.detect-changes.outputs.nestjs == 'true'
@@ -60,10 +64,11 @@ jobs:
         working-directory: ./apps/backend_nest
         run: npm run test:ci
 
-############################################################
-# BUILD & PUSH DOCKER IMAGES
-############################################################
+  ############################################################
+  # BUILD & PUSH DOCKER IMAGES
+  ############################################################
   build-and-push:
+    if: ${{ false }}
     needs: [detect-changes, test-nestjs]
     runs-on: ubuntu-latest
 
@@ -99,10 +104,11 @@ jobs:
             phyvathanak/code_eval:latest
             phyvathanak/code_eval:${{ github.sha }}
 
-############################################################
-# DEPLOY VIA DOCKER COMPOSE (ONE EC2)
-############################################################
+  ############################################################
+  # DEPLOY VIA DOCKER COMPOSE (ONE EC2)
+  ############################################################
   deploy:
+    if: ${{ false }}
     needs: build-and-push
     runs-on: ubuntu-latest
 
@@ -129,12 +135,12 @@ jobs:
             # Cleanup
             docker image prune -af
 
-############################################################
-# ADMIN FRONTEND 
-############################################################
+  ############################################################
+  # ADMIN FRONTEND
+  ############################################################
   deploy-admin:
+    if: ${{ false }}
     needs: detect-changes
-    if: needs.detect-changes.outputs.admin == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -162,12 +168,12 @@ jobs:
           AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET_ADMIN }}
           SOURCE_DIR: ./apps/admin/dist
 
-############################################################
-# CLIENT FRONTEND 
-############################################################
+  ############################################################
+  # CLIENT FRONTEND
+  ############################################################
   deploy-client:
+    if: ${{ false }}
     needs: detect-changes
-    if: needs.detect-changes.outputs.client == 'true'
     runs-on: ubuntu-latest
 
     steps:

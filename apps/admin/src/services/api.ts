@@ -3,7 +3,7 @@
 import type { UserDetailDto, AddUserCreditsDto, DeductUserCreditsDto } from '../types/admin-users';
 import type { TransactionResponseDto, TransactionListResponseDto } from '../types/admin-wallet';
 console.log('VITE_API_URL:', import.meta.env.VITE_API_URL);
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8088';
 const API_TIMEOUT = 30000; // 30 seconds
 
 interface ApiOptions {

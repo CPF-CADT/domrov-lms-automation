@@ -9,8 +9,8 @@ import StatusFilters from "@/pages/dashboard/components/StatusFilters";
 import JoinClassModal from "@/pages/dashboard/components/JoinClassModal";
 import DeleteConfirmModal from "@/pages/dashboard/components/DeleteConfirmModal";
 import { useDashboardFilters } from "@/hooks/useDashboardFilters";
-import classService from "@/services/ClassService";
-import type { ClassCard } from "@/types/ClassCard";
+import classService from "@/services/classService";
+import type { ClassCard } from "@/types/classCard";
 import { routes } from "@/lib/routes";
 
 interface ClassesDetailProps {

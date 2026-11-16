@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/Toast";
-import assessmentService from "@/services/AssessmentService";
-import teamService from "@/services/TeamService";
-import type { TeamResponseDto } from "@/types/Team";
-import { SubmissionType, SubmissionMethod } from "@/types/Enums";
-import type { UpdateAssessmentDto } from "@/types/Assessment";
+import assessmentService from "@/services/assessmentService";
+import teamService from "@/services/teamService";
+import type { TeamResponseDto } from "@/types/team";
+import { SubmissionType, SubmissionMethod } from "@/types/enums";
+import type { UpdateAssessmentDto } from "@/types/assessment";
 import { storage } from "@/lib/Storage";
 import { routes } from "@/lib/routes";
 

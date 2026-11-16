@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import fileService from "@/services/FileService";
-import type { CloudinaryUploadResponse } from "@/types/File";
+import fileService from "@/services/fileService";
+import type { CloudinaryUploadResponse } from "@/types/file";
 
 interface ImageUploadProps {
     /** Callback when image is successfully uploaded */

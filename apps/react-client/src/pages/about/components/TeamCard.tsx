@@ -1,6 +1,6 @@
 import Icon from "@/components/data-display/Icon";
 import CardBase from "@/components/primitives/CardBase";
-import type { TeamMember } from "@/config/About";
+import type { TeamMember } from "@/config/about";
 
 interface TeamCardProps {
   member: TeamMember;

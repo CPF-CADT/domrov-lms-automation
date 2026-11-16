@@ -2,7 +2,7 @@ import Icon from "@/components/data-display/Icon";
 import SectionWrapper from "@/components/primitives/SectionWrapper";
 import GuideCard from "@/components/primitives/GuideCard";
 import Timeline from "@/components/primitives/Timeline";
-import { GRADING_STEPS } from "@/config/Documentation";
+import { GRADING_STEPS } from "@/config/documentation";
 
 
 /**

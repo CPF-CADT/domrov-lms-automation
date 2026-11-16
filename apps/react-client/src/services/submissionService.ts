@@ -1,4 +1,4 @@
-import axiosInstance from '@/lib/AxiosInstance';
+import axiosInstance from '@/lib/axiosInstance';
 
 import type {
     SubmissionStatusItemDto,
@@ -12,7 +12,7 @@ import type {
     UpdateFeedbackResponseDto,
     FeedbackItemDto,
     GradeSubmissionDTO,
-} from '@/types/Submission';
+} from '@/types/submission';
 
 /**
  * Get my submission status for all assessments in a class (Student)

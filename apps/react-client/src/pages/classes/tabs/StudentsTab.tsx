@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { getClassStudents } from "@/services/ClassService";
+import { getClassStudents } from "@/services/classService";
 
 interface Student {
   id: number;

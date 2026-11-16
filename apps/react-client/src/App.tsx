@@ -30,8 +30,8 @@ import AIEvaluationPage from '@/pages/ai-evaluation/AIEvaluationPage';
 import StudentGeneralTab from "@/pages/classes/tabs/StudentGeneralTab";
 import StudentAssignmentTab from "@/pages/classes/tabs/StudentAssignmentTab";
 import UserProfilePage from '@/pages/dashboard/ProfilePage';
-import classService from '@/services/ClassService';
-import { UserRole } from '@/types/Enums';
+import classService from '@/services/classService';
+import { UserRole } from '@/types/enums';
 import { routes } from '@/lib/routes';
 
 /**

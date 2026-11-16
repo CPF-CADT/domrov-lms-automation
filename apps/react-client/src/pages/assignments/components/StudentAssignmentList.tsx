@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, Clock, AlertCircle, Award } from "lucide-react";
-import { getAssessmentsByClass } from "@/services/AssessmentService";
-import submissionService from "@/services/SubmissionService";
-import type { SubmissionStatusItemDto } from "@/types/Submission";
-import type { AssessmentListItemDto } from "@/types/Assessment";
+import { getAssessmentsByClass } from "@/services/assessmentService";
+import submissionService from "@/services/submissionService";
+import type { SubmissionStatusItemDto } from "@/types/submission";
+import type { AssessmentListItemDto } from "@/types/assessment";
 import { routes } from "@/lib/routes";
 
 interface StudentAssignmentListProps {

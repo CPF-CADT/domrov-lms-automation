@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import AssignmentCard from "./AssignmentCard";
-import { getAssessmentsByClass } from "@/services/AssessmentService";
-import assessmentService from "@/services/AssessmentService";
+import { getAssessmentsByClass } from "@/services/assessmentService";
+import assessmentService from "@/services/assessmentService";
 import { useToast } from "@/components/Toast";
 
 interface AssignmentListProps {

@@ -4,6 +4,7 @@ http {
   map $http_origin $cors_origin {
     default "";
     "http://localhost:5173" $http_origin;
+    "http://localhost:5174" $http_origin;
   }
 
   upstream user_service { server user:3001; }
@@ -65,6 +66,15 @@ http {
       proxy_pass http://academic_service;
     }
 
+    # Payment real-time notifications (Socket.IO)
+    location ^~ /socket.io/ {
+      proxy_pass http://payment_service;
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection $connection_upgrade;
+      proxy_read_timeout 120s;
+    }
+
     location ^~ /wallet { proxy_pass http://payment_service; }
     location = /credit-packages { proxy_pass http://payment_service; }
     location ^~ /payment { proxy_pass http://payment_service; }
@@ -85,11 +95,42 @@ http {
     # Keep unmatched admin routes available during the remaining extraction.
     location ^~ /admin { proxy_pass http://legacy_backend; }
 
-    location ^~ /api/auth { proxy_pass http://user_service; }
-    location ^~ /api/users { proxy_pass http://user_service; }
+    location = /api/auth {
+      return 308 /auth$is_args$args;
+    }
+
+    location ^~ /api/auth/ {
+      rewrite ^/api/auth(/.*)$ /auth$1 break;
+      proxy_pass http://user_service;
+    }
+
+    location = /api/users {
+      return 308 /users$is_args$args;
+    }
+
+    location ^~ /api/users/ {
+      rewrite ^/api/users(/.*)$ /users$1 break;
+      proxy_pass http://user_service;
+    }
     location ^~ /api/academic { proxy_pass http://academic_service; }
-    location ^~ /api/payment { proxy_pass http://payment_service; }
-    location ^~ /api/ai { proxy_pass http://evaluation_service; }
+
+    location = /api/payment {
+        return 308 /payment$is_args$args;
+    }
+
+    location ^~ /api/payment/ {
+        rewrite ^/api/payment/(.*)$ /$1 break;
+        proxy_pass http://payment_service;
+    }
+
+    location = /api/ai {
+        return 308 /ai$is_args$args;
+    }
+
+    location ^~ /api/ai/ {
+        rewrite ^/api/ai/(.*)$ /$1 break;
+        proxy_pass http://evaluation_service;
+    }
 
     location / {
       default_type application/json;

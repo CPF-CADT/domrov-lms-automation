@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import authService from "@/services/AuthService";
+import authService from "@/services/authService";
 import { STORAGE_KEYS, storage } from "@/lib/Storage";
 
 interface VerificationState {

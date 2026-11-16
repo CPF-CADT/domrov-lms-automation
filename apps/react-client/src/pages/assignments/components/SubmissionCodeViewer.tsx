@@ -1,11 +1,11 @@
 import Editor from "@monaco-editor/react";
 import { ChevronDown, ChevronRight, FileCode2, FileText, Folder, FolderOpen, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import evaluationService from "@/services/EvaluationService";
-import submissionService from "@/services/SubmissionService";
-import type { FileContentDto, FolderNodeDto } from "@/types/Evaluation";
-import type { EvaluationFeedbackItemDto, FeedbackItemDto } from "@/types/Submission";
-import { FeedbackType } from "@/types/Enums";
+import evaluationService from "@/services/evaluationService";
+import submissionService from "@/services/submissionService";
+import type { FileContentDto, FolderNodeDto } from "@/types/evaluation";
+import type { EvaluationFeedbackItemDto, FeedbackItemDto } from "@/types/submission";
+import { FeedbackType } from "@/types/enums";
 
 export interface SubmissionCodeViewerProps {
   submissionId: string | number;

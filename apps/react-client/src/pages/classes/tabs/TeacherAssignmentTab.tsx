@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Plus, Edit2, Eye, Trash2, Loader2, AlertTriangle } from "lucide-react";
-import assessmentService from "@/services/AssessmentService";
-import type { AssessmentListItemDto } from "@/types/Assessment";
+import assessmentService from "@/services/assessmentService";
+import type { AssessmentListItemDto } from "@/types/assessment";
 import { routes } from "@/lib/routes";
 
 /**

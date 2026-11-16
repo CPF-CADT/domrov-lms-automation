@@ -1,5 +1,5 @@
 
-import axiosInstance from '@/lib/AxiosInstance';
+import axiosInstance from '@/lib/axiosInstance';
 import type {
   AssessmentListItemDto,
   AssessmentDetailDto,
@@ -11,7 +11,7 @@ import type {
   TeamTrackingItemDto,
   IndividualTrackingItemDto,
   AssessmentStatsResponseDto,
-} from '@/types/Assessment';
+} from '@/types/assessment';
 
 /**
  * Get assessments for a specific class

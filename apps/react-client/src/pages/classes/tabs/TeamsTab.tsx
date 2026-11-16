@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import CreateTeamModal from "../components/CreateTeamModal";
-import teamService from "@/services/TeamService";
-import { getClassStudents } from "@/services/ClassService";
-import type { TeamResponseDto } from "@/types/Team";
+import teamService from "@/services/teamService";
+import { getClassStudents } from "@/services/classService";
+import type { TeamResponseDto } from "@/types/team";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
