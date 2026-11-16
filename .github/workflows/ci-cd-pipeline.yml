@@ -68,6 +68,7 @@ jobs:
   # BUILD & PUSH DOCKER IMAGES
   ############################################################
   build-and-push:
+    if: ${{ false }}
     needs: [detect-changes, test-nestjs]
     runs-on: ubuntu-latest
 
@@ -107,6 +108,7 @@ jobs:
   # DEPLOY VIA DOCKER COMPOSE (ONE EC2)
   ############################################################
   deploy:
+    if: ${{ false }}
     needs: build-and-push
     runs-on: ubuntu-latest
 
@@ -137,6 +139,7 @@ jobs:
   # ADMIN FRONTEND
   ############################################################
   deploy-admin:
+    if: ${{ false }}
     needs: detect-changes
     if: needs.detect-changes.outputs.admin == 'true'
     runs-on: ubuntu-latest
@@ -170,6 +173,7 @@ jobs:
   # CLIENT FRONTEND
   ############################################################
   deploy-client:
+    if: ${{ false }}
     needs: detect-changes
     if: needs.detect-changes.outputs.client == 'true'
     runs-on: ubuntu-latest
