@@ -103,8 +103,24 @@ http {
       proxy_pass http://user_service;
     }
     location ^~ /api/academic { proxy_pass http://academic_service; }
-    location ^~ /api/payment { proxy_pass http://payment_service; }
-    location ^~ /api/ai { proxy_pass http://evaluation_service; }
+
+    location = /api/payment {
+        return 308 /payment$is_args$args;
+    }
+
+    location ^~ /api/payment/ {
+        rewrite ^/api/payment/(.*)$ /$1 break;
+        proxy_pass http://payment_service;
+    }
+
+    location = /api/ai {
+        return 308 /ai$is_args$args;
+    }
+
+    location ^~ /api/ai/ {
+        rewrite ^/api/ai/(.*)$ /$1 break;
+        proxy_pass http://evaluation_service;
+    }
 
     location / {
       default_type application/json;
