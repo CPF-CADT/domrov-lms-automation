@@ -14,8 +14,8 @@ import {
 } from "lucide-react";
 import MainNavigation from "@/components/navigation/MainNavigation";
 import ClassSidebar from "@/pages/classes/components/ClassSidebar";
-import { getAssessmentDetails, deleteAssessment } from "@/services/AssessmentService";
-import type { AssessmentDetailDto } from "@/types/Assessment";
+import { getAssessmentDetails, deleteAssessment } from "@/services/assessmentService";
+import type { AssessmentDetailDto } from "@/types/assessment";
 import { routes } from "@/lib/routes";
 
 function formatDate(value?: string | Date) {

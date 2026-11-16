@@ -4,12 +4,12 @@ import { ArrowLeft, Upload, Link2, FileText, Eye, AlertTriangle, Sparkles, Chevr
 import Dialog from "@/components/Dialog";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
 import { RubricEditor, type RubricItem } from "./RubricEditor";
-import assessmentService from "@/services/AssessmentService";
-import teamService from "@/services/TeamService";
-import type { TeamResponseDto } from "@/types/Team";
-import fileUploadService from "@/services/FileUploadService";
-import { SubmissionType, SubmissionMethod } from "@/types/Enums";
-import type { UpdateAssessmentDto } from "@/types/Assessment";
+import assessmentService from "@/services/assessmentService";
+import teamService from "@/services/teamService";
+import type { TeamResponseDto } from "@/types/team";
+import fileUploadService from "@/services/fileUploadService";
+import { SubmissionType, SubmissionMethod } from "@/types/enums";
+import type { UpdateAssessmentDto } from "@/types/assessment";
 import { storage } from "@/lib/Storage";
 import { routes } from "@/lib/routes";
 

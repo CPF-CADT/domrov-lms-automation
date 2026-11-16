@@ -1,6 +1,6 @@
 // /api/wallet/wallet.api.ts
 
-import axiosInstance from "@/lib/AxiosInstance";
+import axiosInstance from "@/lib/axiosInstance";
 import type {
   WalletBalanceResponseDto,
   TransactionHistoryResponseDto,

@@ -1,5 +1,5 @@
-import axiosInstance from '@/lib/AxiosInstance';
-import type { LocalUploadResponse } from '@/types/File';
+import axiosInstance from '@/lib/axiosInstance';
+import type { LocalUploadResponse } from '@/types/file';
 
 export interface PresignedUrlResponse {
     presignedUrl: string;

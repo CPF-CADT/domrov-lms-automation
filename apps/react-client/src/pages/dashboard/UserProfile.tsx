@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { STORAGE_KEYS, storage } from "@/lib/Storage";
-import userService from "@/services/UserService";
+import userService from "@/services/userService";
 
 const transactions = [
   { id: 19,  amount: 2712.72, reason: "AI Usage",    balanceBefore: 18293.79, balanceAfter: 15581.02, date: "3/8/2026" },

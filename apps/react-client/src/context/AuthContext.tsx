@@ -7,8 +7,8 @@ import {
     useRef,
     type ReactNode,
 } from 'react';
-import authService from '@/services/AuthService';
-import userService from '@/services/UserService';
+import authService from '@/services/authService';
+import userService from '@/services/userService';
 import { STORAGE_KEYS, storage } from '@/lib/Storage';
 import AppLoadingScreen from '@/components/feedback/AppLoadingScreen';
 

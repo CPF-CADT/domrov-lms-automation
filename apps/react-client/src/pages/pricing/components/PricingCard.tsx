@@ -1,7 +1,7 @@
 import CardBase from "@/components/primitives/CardBase";
 import PrimaryButton from "@/components/primitives/PrimaryButton";
 import FeatureList from "@/components/primitives/FeatureList";
-import type { PricingTier } from "@/config/Pricing";
+import type { PricingTier } from "@/config/pricing";
 
 interface PricingCardProps {
   tier: PricingTier;

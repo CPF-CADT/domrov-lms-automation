@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Loader2, Trash2, CheckCircle2, XCircle } from "lucide-react";
 import { EyeIcon, EyeOffIcon } from "./Icons";
-import evaluationService from "@/services/EvaluationService";
-import type { AIProviderDto, UserAIKeyResponseDto } from "@/types/Ai";
+import evaluationService from "@/services/evaluationService";
+import type { AIProviderDto, UserAIKeyResponseDto } from "@/types/ai";
 
 // ─── Static model presets ─────────────────────────────────────────────────────
 const PRESET_MODELS: Record<string, { value: string; label: string }[]> = {

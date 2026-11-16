@@ -1,4 +1,4 @@
-import { PRICING_TIERS } from "@/config/Pricing";
+import { PRICING_TIERS } from "@/config/pricing";
 import FeaturedPricingCard from "./FeaturedPricingCard";
 import PricingCard from "./PricingCard";
 

@@ -1,4 +1,4 @@
-import type { StatusFilter } from "@/types/ClassCard";
+import type { StatusFilter } from "@/types/classCard";
 
 interface StatusFiltersProps {
   activeStatus: StatusFilter;

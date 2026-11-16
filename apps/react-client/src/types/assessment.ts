@@ -1,4 +1,4 @@
-import type { SubmissionType, SubmissionMethod, AIModelSelectionMode } from './Enums';
+import type { SubmissionType, SubmissionMethod, AIModelSelectionMode } from './enums';
 
 export interface Assessment {
   assessment_id: number;

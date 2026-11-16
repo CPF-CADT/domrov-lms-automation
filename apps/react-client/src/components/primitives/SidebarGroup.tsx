@@ -1,5 +1,5 @@
 import SidebarItem from "@/components/primitives/SidebarItem";
-import type { NavItem } from "@/config/Documentation";
+import type { NavItem } from "@/config/documentation";
 
 interface SidebarGroupProps {
   title: string;
