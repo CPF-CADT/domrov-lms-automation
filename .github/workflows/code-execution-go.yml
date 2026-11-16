@@ -1,0 +1,49 @@
+name: Code Execution Go CI
+
+on:
+  push:
+    paths:
+      - 'apps/backend/code-execution-go/**'
+      - '.github/workflows/code-execution-go.yml'
+  pull_request:
+    paths:
+      - 'apps/backend/code-execution-go/**'
+      - '.github/workflows/code-execution-go.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Test and build Go service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/backend/code-execution-go
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/code-execution-go/go.mod
+          cache-dependency-path: apps/backend/code-execution-go/go.sum
+
+      - name: Verify formatting
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            gofmt -l .
+            exit 1
+          fi
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Build service
+        run: go build -o /tmp/domrov-code-execution ./cmd/server

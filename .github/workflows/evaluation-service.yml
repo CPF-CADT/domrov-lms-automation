@@ -1,0 +1,43 @@
+name: Evaluation Service CI
+
+on:
+  push:
+    paths:
+      - 'apps/backend/evaluation/**'
+      - '.github/workflows/evaluation-service.yml'
+  pull_request:
+    paths:
+      - 'apps/backend/evaluation/**'
+      - '.github/workflows/evaluation-service.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Test and build Evaluation service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/backend/evaluation
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/backend/evaluation/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build service
+        run: npm run build
