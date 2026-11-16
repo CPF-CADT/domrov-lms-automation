@@ -85,8 +85,23 @@ http {
     # Keep unmatched admin routes available during the remaining extraction.
     location ^~ /admin { proxy_pass http://legacy_backend; }
 
-    location ^~ /api/auth { proxy_pass http://user_service; }
-    location ^~ /api/users { proxy_pass http://user_service; }
+    location = /api/auth {
+      return 308 /auth$is_args$args;
+    }
+
+    location ^~ /api/auth/ {
+      rewrite ^/api/auth(/.*)$ /auth$1 break;
+      proxy_pass http://user_service;
+    }
+
+    location = /api/users {
+      return 308 /users$is_args$args;
+    }
+
+    location ^~ /api/users/ {
+      rewrite ^/api/users(/.*)$ /users$1 break;
+      proxy_pass http://user_service;
+    }
     location ^~ /api/academic { proxy_pass http://academic_service; }
     location ^~ /api/payment { proxy_pass http://payment_service; }
     location ^~ /api/ai { proxy_pass http://evaluation_service; }
