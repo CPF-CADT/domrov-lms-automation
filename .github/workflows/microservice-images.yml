@@ -1,0 +1,164 @@
+name: Build Microservice Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Microservice to build'
+        required: true
+        type: choice
+        options:
+          - user
+          - academic
+          - payment
+          - evaluation
+          - code-execution
+
+      publish:
+        description: 'Publish image to Docker Hub'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate selected microservice
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        if: inputs.service != 'code-execution'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set up Go
+        if: inputs.service == 'code-execution'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/code-execution-go/go.mod
+
+      - name: Validate Node.js microservice
+        if: inputs.service != 'code-execution'
+        env:
+          SERVICE: ${{ inputs.service }}
+        run: |
+          set -e
+
+          case "$SERVICE" in
+            user|academic|payment|evaluation)
+              SERVICE_DIR="apps/backend/$SERVICE"
+              ;;
+            *)
+              echo "Unsupported service: $SERVICE"
+              exit 1
+              ;;
+          esac
+
+          cd "$SERVICE_DIR"
+
+          npm ci
+          npm test
+          npm run build
+
+      - name: Validate Go microservice
+        if: inputs.service == 'code-execution'
+        working-directory: apps/backend/code-execution-go
+        run: |
+          set -e
+
+          test -z "$(gofmt -l .)"
+          go test ./...
+          go vet ./...
+          go build -o /tmp/domrov-code-execution ./cmd/server
+
+  build:
+    name: Build Docker image
+    needs: validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure selected service
+        id: config
+        env:
+          SELECTED_SERVICE: ${{ inputs.service }}
+        run: |
+          set -e
+
+          case "$SELECTED_SERVICE" in
+            user)
+              echo "context=apps/backend/user" >> "$GITHUB_OUTPUT"
+              echo "image=domrov-user" >> "$GITHUB_OUTPUT"
+              ;;
+            academic)
+              echo "context=apps/backend/academic" >> "$GITHUB_OUTPUT"
+              echo "image=domrov-academic-service" >> "$GITHUB_OUTPUT"
+              ;;
+            payment)
+              echo "context=apps/backend/payment" >> "$GITHUB_OUTPUT"
+              echo "image=domrov-payment-service" >> "$GITHUB_OUTPUT"
+              ;;
+            evaluation)
+              echo "context=apps/backend/evaluation" >> "$GITHUB_OUTPUT"
+              echo "image=domrov-evaluation-service" >> "$GITHUB_OUTPUT"
+              ;;
+            code-execution)
+              echo "context=apps/backend/code-execution-go" >> "$GITHUB_OUTPUT"
+              echo "image=domrov-code-execution" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unsupported service: $SELECTED_SERVICE"
+              exit 1
+              ;;
+          esac
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate Docker Hub configuration
+        if: inputs.publish == true
+        env:
+          DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -z "$DOCKER_USERNAME" ]; then
+            echo "Missing DOCKER_USERNAME repository variable"
+            exit 1
+          fi
+
+          if [ -z "$DOCKERHUB_TOKEN" ]; then
+            echo "Missing DOCKERHUB_TOKEN repository secret"
+            exit 1
+          fi
+
+      - name: Log in to Docker Hub
+        if: inputs.publish == true
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build Docker image only
+        if: inputs.publish != true
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ steps.config.outputs.context }}
+          push: false
+          tags: domrov/${{ steps.config.outputs.image }}:${{ github.sha }}
+
+      - name: Build and publish Docker image
+        if: inputs.publish == true
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ steps.config.outputs.context }}
+          push: true
+          tags: ${{ vars.DOCKER_USERNAME }}/${{ steps.config.outputs.image }}:${{ github.sha }}
