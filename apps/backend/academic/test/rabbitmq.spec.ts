@@ -1,10 +1,11 @@
 import { Test } from '@nestjs/testing';
+import { RmqContext } from '@nestjs/microservices';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { EvaluationEventsController, EvaluationPublisher, AI_RABBITMQ_CLIENT } from '../src/messaging/rabbitmq';
 import { Submission } from '../src/entities';
 import { of } from 'rxjs';
 
-const context = () => { const channel = { ack: jest.fn(), nack: jest.fn() }; return { getChannelRef: () => channel, getMessage: () => ({}) } as any; };
+const context = () => { const channel = { ack: jest.fn(), nack: jest.fn() }; return new RmqContext([{}, channel, 'evaluation.completed']); };
 
 describe('Academic RabbitMQ integration', () => {
   it('publishes an enveloped evaluation.requested message', async () => {
@@ -21,7 +22,7 @@ describe('Academic RabbitMQ integration', () => {
     const save = jest.fn().mockResolvedValue(submission);
     const module = await Test.createTestingModule({ controllers: [EvaluationEventsController], providers: [{ provide: getRepositoryToken(Submission), useValue: { findOneBy: jest.fn().mockResolvedValue(submission), save } }] }).compile();
     const channel = context();
-    await module.get(EvaluationEventsController).completed({ payload: { evaluationId: 'eval-1', submissionId: 'sub-1', status: 'COMPLETED', score: 90, feedback: 'Good' } } as any, channel);
+    await module.get(EvaluationEventsController).completed({ messageId: 'eval-1', correlationId: 'eval-1', idempotencyKey: 'evaluation:eval-1', eventType: 'evaluation.completed', schemaVersion: 1, occurredAt: new Date().toISOString(), producer: 'ai-service', payload: { evaluationId: 'eval-1', submissionId: 'sub-1', status: 'COMPLETED', score: 90, feedback: 'Good' } }, channel);
     expect(submission).toMatchObject({ evaluationId: 'eval-1', status: 'COMPLETED', score: 90, feedback: 'Good' });
     expect(save).toHaveBeenCalled();
     expect(channel.getChannelRef().ack).toHaveBeenCalled();

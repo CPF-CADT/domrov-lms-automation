@@ -1,7 +1,7 @@
 FROM node:22-alpine AS build
 WORKDIR /app
-COPY package.json ./
-RUN npm install --ignore-scripts
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts
 COPY tsconfig.json tsconfig.build.json nest-cli.json ./
 COPY src ./src
 RUN npm run build
@@ -9,8 +9,8 @@ RUN npm run build
 FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
-COPY package.json ./
-RUN npm install --omit=dev --ignore-scripts && npm cache clean --force
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 COPY --from=build /app/dist ./dist
 RUN mkdir -p /data/files && chown -R node:node /data
 USER node

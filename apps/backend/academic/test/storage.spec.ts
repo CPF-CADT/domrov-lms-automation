@@ -16,7 +16,7 @@ describe('Academic storage compatibility', () => {
     root = await mkdtemp(join(tmpdir(), 'academic-storage-'));
     adapter = new LocalStorageAdapter({ get: jest.fn().mockReturnValue(root) } as unknown as ConfigService);
     storage = Object.create(AcademicStorageService.prototype) as AcademicStorageService;
-    (storage as any).adapter = adapter;
+    Object.assign(storage, { adapter });
   });
 
   afterEach(async () => fs.rm(root, { recursive: true, force: true }));
@@ -48,8 +48,7 @@ describe('Academic storage compatibility', () => {
       save: jest.fn(async (value) => ({ id: 'resource-1', ...value })),
     };
     const service = Object.create(AcademicService.prototype) as AcademicService;
-    (service as any).storage = storage;
-    (service as any).resources = resourceRepo;
+    Object.assign(service, { storage, resources: resourceRepo });
 
     const resource = await service.createResource({ key, filename: 'notes.txt', contentType: 'text/plain' }, 'user-1');
     expect(resource).toMatchObject({ id: 'resource-1', url: key, title: 'notes.txt', storageProvider: 'local', size: 5 });

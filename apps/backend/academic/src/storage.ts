@@ -62,8 +62,8 @@ export class LocalStorageAdapter implements StorageAdapter {
   }
 
   async exists(key: string): Promise<boolean> {
-    try { await fs.access(this.path(key)); return true; } catch (error: any) {
-      if (error?.code === 'ENOENT') return false;
+    try { await fs.access(this.path(key)); return true; } catch (error: unknown) {
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT') return false;
       throw error;
     }
   }
@@ -108,7 +108,7 @@ export class R2StorageAdapter implements StorageAdapter {
 
   async save(key: string, body: NodeJS.ReadableStream, metadata: StoredObjectMetadata): Promise<void> {
     this.ensureConfigured();
-    await this.client.send(new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: body as any, ContentType: metadata.contentType }));
+    await this.client.send(new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: body as Readable, ContentType: metadata.contentType }));
   }
 
   async exists(key: string): Promise<boolean> {
@@ -125,7 +125,7 @@ export class R2StorageAdapter implements StorageAdapter {
     this.ensureConfigured();
     const result = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
     if (!result.Body) throw new NotFoundException('File not found in storage');
-    return { stream: Readable.from(result.Body as any), contentType: result.ContentType ?? 'application/octet-stream', size: result.ContentLength };
+    return { stream: Readable.from(result.Body as AsyncIterable<Uint8Array>), contentType: result.ContentType ?? 'application/octet-stream', size: result.ContentLength };
   }
 
   async createUploadUrl(key: string, contentType: string): Promise<string> {

@@ -5,19 +5,19 @@ import { AcademicClass, Assignment, Enrollment, Resource, Rubric, Submission, Te
 
 const repository = (overrides: Record<string, unknown> = {}) => ({
   findOneBy: jest.fn(), findBy: jest.fn().mockResolvedValue([]), find: jest.fn().mockResolvedValue([]),
-  create: jest.fn((value: any) => value), save: jest.fn(async (value: any) => ({ id: value.id ?? 'generated', ...value })),
+  create: jest.fn((value: Record<string, unknown>) => value), save: jest.fn(async (value: Record<string, unknown>) => ({ id: value.id ?? 'generated', ...value })),
   countBy: jest.fn().mockResolvedValue(0), delete: jest.fn(), remove: jest.fn(), ...overrides,
 });
 
 async function serviceWith(overrides: Record<string, unknown> = {}) {
-  const repos: any = {
+  const repos = {
     classes: repository(overrides.classes as Record<string, unknown>), enrollments: repository(overrides.enrollments as Record<string, unknown>),
     teams: repository(overrides.teams as Record<string, unknown>), members: repository(overrides.members as Record<string, unknown>),
     assignments: repository(overrides.assignments as Record<string, unknown>), rubrics: repository(overrides.rubrics as Record<string, unknown>),
     resources: repository(overrides.resources as Record<string, unknown>), submissions: repository(overrides.submissions as Record<string, unknown>),
   };
-  const repoProviders = [[AcademicClass, repos.classes], [Enrollment, repos.enrollments], [Team, repos.teams], [TeamMember, repos.members],
-    [Assignment, repos.assignments], [Rubric, repos.rubrics], [Resource, repos.resources], [Submission, repos.submissions]]
+  const repoProviders = ([[AcademicClass, repos.classes], [Enrollment, repos.enrollments], [Team, repos.teams], [TeamMember, repos.members],
+    [Assignment, repos.assignments], [Rubric, repos.rubrics], [Resource, repos.resources], [Submission, repos.submissions]] as const)
     .map(([token, value]) => ({ provide: getRepositoryToken(token), useValue: value }));
   const module = await Test.createTestingModule({ providers: [AcademicService, { provide: 'EvaluationClient', useValue: { requestEvaluation: jest.fn() } }, ...repoProviders] }).compile();
   return { service: module.get(AcademicService), repos };
