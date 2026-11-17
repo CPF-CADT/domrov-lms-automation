@@ -26,23 +26,25 @@ permissions:
 jobs:
   validate:
     name: Validate selected microservice
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Node.js
         if: inputs.service != 'code-execution'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
+          package-manager-cache: false
 
       - name: Set up Go
         if: inputs.service == 'code-execution'
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: apps/backend/code-execution-go/go.mod
+          cache-dependency-path: apps/backend/code-execution-go/go.sum
 
       - name: Validate Node.js microservice
         if: inputs.service != 'code-execution'
@@ -82,11 +84,11 @@ jobs:
   build:
     name: Build Docker image
     needs: validate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Configure selected service
         id: config
@@ -123,7 +125,7 @@ jobs:
           esac
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Validate Docker Hub configuration
         if: inputs.publish == true
@@ -143,14 +145,14 @@ jobs:
 
       - name: Log in to Docker Hub
         if: inputs.publish == true
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ vars.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build Docker image only
         if: inputs.publish != true
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ steps.config.outputs.context }}
           push: false
@@ -158,7 +160,7 @@ jobs:
 
       - name: Build and publish Docker image
         if: inputs.publish == true
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ steps.config.outputs.context }}
           push: true
