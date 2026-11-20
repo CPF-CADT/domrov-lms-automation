@@ -3,7 +3,7 @@ events {}
 http {
   map $http_origin $cors_origin {
     default "";
-    "http://localhost:5173" $http_origin;
+    "${AUTH_CORS_ORIGIN}" $http_origin;
   }
 
   upstream user_service { server user:3001; }
@@ -84,6 +84,8 @@ http {
     location ^~ /admin/logs { proxy_pass http://evaluation_service; }
     # Keep unmatched admin routes available during the remaining extraction.
     location ^~ /admin { proxy_pass http://legacy_backend; }
+
+    location ^~ /socket.io/ { proxy_pass http://payment_service; proxy_buffering off; }
 
     location ^~ /api/auth { proxy_pass http://user_service; }
     location ^~ /api/users { proxy_pass http://user_service; }

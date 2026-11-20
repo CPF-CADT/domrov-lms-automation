@@ -1,5 +1,19 @@
 # React + TypeScript + Vite
 
+## API URL configuration
+
+Vite development uses `VITE_API_URL` from `.env` (defaults to the local Compose gateway at `http://localhost:8088`). The Docker image reads `API_BASE_URL` when its container starts, so the same image can be promoted between environments without rebuilding it.
+
+Build the image once, then set the public API origin on each deployment:
+
+```sh
+docker build -t domrov-client ./apps/react-client
+docker run -d --restart unless-stopped -p 80:80 \
+  -e API_BASE_URL=https://api.domrov.app domrov-client
+```
+
+Use an HTTPS API URL in production. This variable is public configuration; do not put credentials or tokens in it.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

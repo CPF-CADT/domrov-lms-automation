@@ -1,17 +1,11 @@
 "use client";
 
 import React from 'react';
+import { API_BASE_URL } from '@/lib/apiBaseUrl';
 
-interface GoogleOAuthButtonProps {
-    redirectUrl?: string; // backend OAuth endpoint
-}
-
-const GoogleOAuthButton: React.FC<GoogleOAuthButtonProps> = ({
-    redirectUrl = `${import.meta.env.VITE_API_URL}/auth/google/login/`,
-}) => {
+const GoogleOAuthButton: React.FC = () => {
     const handleLogin = (): void => {
-        // Direct redirect without popup
-        window.location.href = redirectUrl;
+        window.location.assign(`${API_BASE_URL}/auth/google/login/`);
     };
 
     return (

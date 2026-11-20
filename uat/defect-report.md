@@ -97,7 +97,7 @@
 - Reproducibility: Reproduced
 - Expected: Local Admin UAT uses the local gateway.
 - Actual: `apps/admin/.env` points to `https://api.domrov.app`; local login initially returned `Failed to fetch`.
-- Evidence: Local UAT succeeded only when the dev server was started with a temporary `VITE_API_URL=http://localhost:3000` override.
+- Evidence: Local UAT succeeded only when the dev server was started with a temporary `VITE_API_URL=http://localhost:8088` override.
 - Classification: Environment/configuration defect.
 
 ## DEF-006 — Admin accepts a normal user at the UI boundary

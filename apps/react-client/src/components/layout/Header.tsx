@@ -1,6 +1,8 @@
 "use client";
 
 import { Link, useLocation } from "react-router-dom";
+import { useState } from "react";
+import { Menu, X } from "lucide-react";
 import { CTA_LINK, NAV_LINKS, type NavLinkItem } from "@/config/Navigation";
 import { useAuth } from "@/context/AuthContext";
 import ProfileDropdown from "@/components/data-display/ProfileDropdown";
@@ -12,9 +14,54 @@ const isActivePath = (pathname: string, path: string) => pathname === path;
  * Header - Main navigation header with logo, nav links, and CTA.
  * Sticky positioned with blur backdrop effect.
  */
-export default function Header() {
+export default function Header({ variant = "default" }: { variant?: "default" | "landing" }) {
   const location = useLocation();
   const { isAuthenticated, user } = useAuth();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  if (variant === "landing") {
+    const publicLinks = [
+      { href: "/#how-it-works", label: "How it works" },
+      { href: "/pricing", label: "Pricing" },
+      { href: "/docs", label: "User Guide" },
+    ];
+
+    return (
+      <header className="landing-header">
+        <div className="landing-header-inner">
+          <Link to="/" className="landing-brand" aria-label="Domrov LMS home">
+            <span className="landing-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M13.826 30.574c2.894-.691 6.398-1.096 10.174-1.096 3.776 0 7.28.405 10.174 1.096 2.74.654 5.823 2.193 7.182 3.262L24.849 7.36a1 1 0 0 0-1.698 0L6.644 33.836c1.36-1.069 4.441-2.608 7.182-3.262Z" fill="currentColor"/></svg></span>
+            <span>Domrov <small>LMS</small></span>
+          </Link>
+
+          <nav className="landing-nav" aria-label="Main navigation">
+            {publicLinks.map((link) => <a key={link.href} href={link.href}>{link.label}</a>)}
+          </nav>
+          <Link to={isAuthenticated ? "/dashboard" : "/login"} className="landing-header-cta">
+            {isAuthenticated ? "Dashboard" : "Log in"}
+          </Link>
+          <button
+            type="button"
+            className="landing-menu-toggle"
+            aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-expanded={mobileOpen}
+            aria-controls="landing-mobile-nav"
+            onClick={() => setMobileOpen((open) => !open)}
+          >
+            {mobileOpen ? <X size={21} /> : <Menu size={21} />}
+          </button>
+        </div>
+        {mobileOpen && (
+          <nav id="landing-mobile-nav" className="landing-mobile-nav" aria-label="Mobile navigation">
+            {publicLinks.map((link) => <a key={link.href} href={link.href} onClick={() => setMobileOpen(false)}>{link.label}</a>)}
+            <Link to={isAuthenticated ? "/dashboard" : "/login"} onClick={() => setMobileOpen(false)}>
+              {isAuthenticated ? "Dashboard" : "Log in"}
+            </Link>
+          </nav>
+        )}
+      </header>
+    );
+  }
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-blue-100 shadow-sm">

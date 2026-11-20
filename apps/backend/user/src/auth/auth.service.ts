@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { randomInt } from 'crypto';
+import { randomInt, timingSafeEqual } from 'crypto';
 import { Repository } from 'typeorm';
 import { ChangePasswordRequest, CompletePasswordResetRequest, LoginRequest, PasswordResetRequest, RegisterRequest, UpdateProfileRequest, VerifyEmailRequest } from './auth.dto';
 import { OtpPurpose, UserEmailOtp } from '../entities/user-email-otp.entity';
@@ -78,18 +78,20 @@ export class AuthService {
     return { accessToken, refreshToken, expiresIn: this.config.get<string>('JWT_ACCESS_EXPIRES_IN', '20h') };
   }
 
-  async oauthAuthorizationUrl(provider: string) {
+  async oauthAuthorizationUrl(provider: string, state?: string) {
     const normalized = provider.toLowerCase();
     const config = this.oauthConfig(normalized);
     if (!config) throw new ServiceUnavailableException(`OAuth provider ${provider} is not configured`);
-    const params = new URLSearchParams({ client_id: config.clientId, redirect_uri: config.callbackUrl, response_type: 'code', scope: config.scope, state: normalized });
+    if (!state) throw new BadRequestException('OAuth state is required');
+    const params = new URLSearchParams({ client_id: config.clientId, redirect_uri: config.callbackUrl, response_type: 'code', scope: config.scope, state });
     return `${config.authorizationUrl}?${params.toString()}`;
   }
 
-  async oauthCallback(provider: string, code: string) {
+  async oauthCallback(provider: string, code: string, returnedState?: string, cookieState?: string) {
     const normalized = provider.toLowerCase();
     const config = this.oauthConfig(normalized);
     if (!config) throw new ServiceUnavailableException(`OAuth provider ${provider} is not configured`);
+    this.validateOAuthState(returnedState, cookieState);
     if (!code) throw new UnauthorizedException('OAuth authorization code is required');
     const tokenResponse = await fetch(config.tokenUrl, {
       method: 'POST',
@@ -115,6 +117,28 @@ export class AuthService {
       await this.oauthAccounts.save(this.oauthAccounts.create({ provider: normalized, accountId: normalizedProfile.id, user, userId: user.id }));
     }
     return this.issueTokens(user);
+  }
+
+  frontendOAuthCallbackUrl(): string {
+    const configuredUrl = this.config.get<string>('FRONTEND_URL');
+    const frontendUrl = configuredUrl || (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173');
+    if (!frontendUrl) throw new ServiceUnavailableException('FRONTEND_URL is required in production');
+    let parsed: URL;
+    try { parsed = new URL(frontendUrl); }
+    catch { throw new ServiceUnavailableException('FRONTEND_URL must be an absolute URL'); }
+    if (process.env.NODE_ENV === 'production' && parsed.protocol !== 'https:') {
+      throw new ServiceUnavailableException('FRONTEND_URL must use HTTPS in production');
+    }
+    return new URL('/auth/callback', parsed).toString();
+  }
+
+  private validateOAuthState(returnedState?: string, cookieState?: string) {
+    if (!returnedState || !cookieState) throw new UnauthorizedException('OAuth state is missing or expired');
+    const returned = Buffer.from(returnedState);
+    const stored = Buffer.from(cookieState);
+    if (returned.length !== stored.length || !timingSafeEqual(returned, stored)) {
+      throw new UnauthorizedException('OAuth state is invalid');
+    }
   }
 
   async logout(userId: number, refreshToken: string) {
@@ -243,6 +267,12 @@ export class AuthService {
     const clientSecret = this.config.get<string>(`${prefix}_CLIENT_SECRET`) ?? this.config.get<string>(`${legacyPrefix}_CLIENT_SECRET`);
     const callbackUrl = this.config.get<string>(`${prefix}_CALLBACK_URL`) ?? this.config.get<string>(`${legacyPrefix}_CALLBACK_URL`);
     if (!clientId || !clientSecret || !callbackUrl) return undefined;
+    let parsedCallback: URL;
+    try { parsedCallback = new URL(callbackUrl); }
+    catch { throw new ServiceUnavailableException(`${prefix}_CALLBACK_URL must be an absolute URL`); }
+    if (process.env.NODE_ENV === 'production' && parsedCallback.protocol !== 'https:') {
+      throw new ServiceUnavailableException(`${prefix}_CALLBACK_URL must use HTTPS in production`);
+    }
     return provider === 'google'
       ? { clientId, clientSecret, callbackUrl, scope: 'openid email profile', authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth', tokenUrl: 'https://oauth2.googleapis.com/token', profileUrl: 'https://openidconnect.googleapis.com/v1/userinfo' }
       : { clientId, clientSecret, callbackUrl, scope: 'read:user user:email', authorizationUrl: 'https://github.com/login/oauth/authorize', tokenUrl: 'https://github.com/login/oauth/access_token', profileUrl: 'https://api.github.com/user' };

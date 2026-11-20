@@ -6,21 +6,12 @@ export default function Khqr({
     amount = 0,
     qrValue = ""
 }) {
-    // Debug: Log props received
-    console.log("🎨 Khqr component received:", { name, amount, qrValue, qrValueLength: qrValue?.length });
-
     // ✅ Validate QR string: Must start with "0002" and be long enough (KHQR format)
     const isValidQRString = qrValue && typeof qrValue === 'string' && 
                            qrValue.startsWith("0002") && 
                            qrValue.length > 20;
 
     if (!isValidQRString) {
-        console.warn("⚠️  Invalid or missing QR value - not rendering QR code", { 
-            received: qrValue,
-            isString: typeof qrValue === 'string',
-            length: qrValue?.length,
-            startsWithCorrectPrefix: qrValue?.startsWith("0002")
-        });
         return (
             <div className="w-full max-w-sm mx-auto rounded-lg overflow-hidden shadow-lg border border-yellow-200 bg-yellow-50">
                 <div className="bg-yellow-600 p-4 text-white font-bold text-lg rounded-t-lg">
@@ -34,14 +25,7 @@ export default function Khqr({
     }
 
     return (
-        <div className="w-full max-w-sm mx-auto rounded-lg overflow-hidden shadow-lg border border-gray-200 bg-white">
-            {/* Header with Red Background */}
-            <div className="bg-red-600 p-4 sm:p-6 text-white font-bold text-xl sm:text-2xl rounded-t-lg flex justify-between items-center">
-                <span>KHQR Payment</span>
-                {/* Decorative triangle */}
-                <div className="w-0 h-0 border-t-[40px] sm:border-t-[50px] border-t-transparent border-l-[40px] sm:border-l-[50px] border-l-white -mt-4 -mr-4 sm:-mt-6 sm:-mr-6"></div>
-            </div>
-
+        <div className="w-full max-w-sm mx-auto overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
             {/* Amount Section */}
             <div className="px-6 py-4 text-center border-b border-dashed border-gray-300">
                 <h2 className="text-xl sm:text-2xl text-black font-semibold">{name}</h2>
@@ -61,11 +45,6 @@ export default function Khqr({
                             width: "100%",
                         }}
                     >
-                        {(() => {
-                            console.log("🔄 Rendering QRCode component with value:", qrValue);
-                            return null;
-                        })()}
-
                         <QRCode
                             size={256}
                             style={{ height: "auto", maxWidth: "100%", width: "100%" }}

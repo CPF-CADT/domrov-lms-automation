@@ -1,6 +1,7 @@
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import SignUpForm from "@/pages/auth/components/SignUpForm";
+import "@/pages/public-pages.css";
 
 /**
  * Signup - Signup page component.
@@ -8,12 +9,12 @@ import SignUpForm from "@/pages/auth/components/SignUpForm";
  */
 export default function Signup() {
   return (
-    <div className="flex flex-col h-screen bg-white font-sans text-slate-800 overflow-hidden">
-      <Header />
-      <div className="flex-1 flex items-center justify-center overflow-y-auto">
+    <div className="public-site-page public-auth-page min-h-screen flex flex-col font-sans">
+      <Header variant="landing" />
+      <main className="public-auth-main flex-1 flex items-center justify-center">
         <SignUpForm />
-      </div>
-      <Footer />
+      </main>
+      <Footer variant="landing" />
     </div>
   );
 }

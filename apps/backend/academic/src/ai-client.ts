@@ -2,7 +2,19 @@ import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { EvaluationPublisher } from './messaging/rabbitmq';
 
-export interface EvaluationRequest { submissionId: string; assignmentId: string; userId: string; resourceId: string; language?: string; }
+export interface EvaluationRequest {
+  submissionId: string;
+  assignmentId: string;
+  userId: string;
+  billingUserId: string;
+  resourceId: string;
+  language?: string;
+  assignmentTitle: string;
+  instruction: string;
+  maxScore: number;
+  rubric: Array<{ definition: string; criterion?: string; totalScore: number }>;
+  files: Array<{ path: string; content: string }>;
+}
 export interface EvaluationClient { requestEvaluation(input: EvaluationRequest): Promise<{ evaluationId: string; status: 'queued' | 'pending' }>; }
 
 @Injectable()

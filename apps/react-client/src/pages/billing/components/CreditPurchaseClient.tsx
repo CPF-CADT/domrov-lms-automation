@@ -3,26 +3,17 @@ import { useState, useEffect, useRef } from "react";
 import { io, type Socket } from "socket.io-client";
 import type { CreditPackageResponseDto } from "@/types/WalletTypes";
 import walletService from "@/services/WalletApi";
-import { startPayment } from "@/services/PaymentFlowApi";
-import { useAuth } from "@/context/AuthContext";
+import { deletePendingPayment, getPaymentHistory, getPaymentStatus, startPayment, uploadPaymentProof, type UserPayment } from "@/services/PaymentFlowApi";
+import { STORAGE_KEYS, storage } from "@/lib/Storage";
+import { API_BASE_URL } from "@/lib/apiBaseUrl";
 import Khqr from "./Khqr";
 
 const CUSTOM_PRICE_RATE = 0.00157302;
 const PAYMENT_TIMEOUT = 300000;
 const SUCCESS_DISPLAY_TIME = 3000;
-
-interface QRReadyPayload {
-    qr: string;
-}
-
-interface PaymentStatusPayload {
-    status: string;
-}
+type PaymentStatusEvent = { paymentId: string; status: "VERIFYING" | "PAID" | "UNPAID" | "FAILED"; message?: string };
 
 export default function CreditPurchaseClient() {
-    // --- Auth Context ---
-    const { user } = useAuth();
-
     // --- Package & Token States ---
     const [currentTokens, setCurrentTokens] = useState<number>(0);
     const [packages, setPackages] = useState<CreditPackageResponseDto[]>([]);
@@ -37,112 +28,102 @@ export default function CreditPurchaseClient() {
     // --- Payment Modal States ---
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-    const [paymentData, setPaymentData] = useState<{ paymentId: number; message: string } | null>(null);
+    const [paymentData, setPaymentData] = useState<{ paymentId: string; message: string; packageName?: string; amount?: number; currency?: string } | null>(null);
     const [isCheckingStatus, setIsCheckingStatus] = useState(false);
     const [paymentSuccess, setPaymentSuccess] = useState(false);
     const [paymentError, setPaymentError] = useState<string | null>(null);
     const [paymentTimeout, setPaymentTimeout] = useState(false);
-    // const [showTimeoutTransition, setShowTimeoutTransition] = useState(false);
+    const [selectedProof, setSelectedProof] = useState<File | null>(null);
+    const [isUploadingProof, setIsUploadingProof] = useState(false);
+    const [paymentHistory, setPaymentHistory] = useState<UserPayment[]>([]);
+    const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+    const [historyError, setHistoryError] = useState<string | null>(null);
+    const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
 
     // --- Refs ---
     const paymentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const activePaymentIdRef = useRef<string | null>(null);
+    const paymentSocketRef = useRef<Socket | null>(null);
+    const paymentSuccessHandledRef = useRef<string | null>(null);
 
-    // ✅ Connect WebSocket on mount
+    // Keep the authenticated socket scoped to the active QR and receipt flow.
     useEffect(() => {
-        if (!user?.id) {
-            console.log("⚠️  Waiting for user ID...");
+        if (!isPaymentModalOpen || !paymentData) {
             return;
         }
 
-        console.log("🔌 Initiating WebSocket connection...");
-        console.log("📍 Frontend running on:", window.location.origin);
-        console.log("🎯 Backend URL:", import.meta.env.VITE_API_URL || 'http://localhost:3000');
-        console.log("👤 User ID:", user.id);
+        const token = storage.get(STORAGE_KEYS.token);
+        if (!token) {
+            setPaymentError("Your session has expired. Sign in again to verify this payment.");
+            return;
+        }
 
-        // ✅ Only create one socket - match PaymentComponent pattern
-        const newSocket: Socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3000', {
-            query: { userId: user.id },
-            transports: ["websocket"],
+        const socket = io(API_BASE_URL, {
+            auth: { token },
+            reconnectionAttempts: Infinity,
         });
-
-        newSocket.on("connect", () => {
-            console.log("✅ Socket connected successfully");
-            console.log("📡 Socket ID:", newSocket.id);
-        });
-
-        newSocket.on("disconnect", () => {
-            console.log("❌ Socket disconnected");
-        });
-
-        newSocket.on("connect_error", (err) => {
-            console.error("❌ Connection error:", err.message);
-            console.error("🔍 Full error:", err);
-        });
-
-        // Listen for QR code from WebSocket
-        newSocket.on("QR_READY", (payload: QRReadyPayload) => {
-            console.log("✅ QR Ready from WebSocket - Raw payload:", payload);
-            console.log("📊 QR Payload analysis:", {
-                hasQr: !!payload.qr,
-                qrType: typeof payload.qr,
-                qrLength: typeof payload.qr === 'string' ? payload.qr.length : 'N/A',
-                isValidQR: typeof payload.qr === 'string' && payload.qr.length > 10,
-            });
-
-            // ✅ Validate: Must be a non-empty string
-            if (!payload.qr || typeof payload.qr !== 'string') {
-                console.error("❌ Invalid QR: Not a string", { received: payload.qr, type: typeof payload.qr });
-                setPaymentError("QR code generation failed - invalid format");
-                setIsProcessingPayment(false);
-                return;
-            }
-
-            // ✅ Validate: Must look like a QR string (KHQR starts with "0002" or is long enough)
-            if (payload.qr.length < 20 || (!payload.qr.startsWith("0002") && payload.qr.length < 50)) {
-                console.error("❌ Invalid QR format: String too short or wrong prefix", {
-                    length: payload.qr.length,
-                    startsWith: payload.qr.substring(0, 10)
-                });
-                setPaymentError("Invalid QR code format from server");
-                setIsProcessingPayment(false);
-                return;
-            }
-
-            console.log("✅ QR value is valid KHQR string, storing in paymentData...");
-            console.log("📌 QR string preview:", payload.qr.substring(0, 50) + "...");
-
-            // ✅ Only set paymentData when we have a valid QR from WebSocket
-            setPaymentData({
-                paymentId: 0,
-                message: payload.qr,
-            });
-            setIsProcessingPayment(false);
-        });
-
-        // Listen for payment status from WebSocket
-        newSocket.on("PAYMENT_STATUS", (payload: PaymentStatusPayload) => {
-            console.log("📦 Payment Status:", payload.status);
-            if (payload.status === "PAID" || payload.status === "SUCCESS") {
-                handlePaymentSuccess();
-            }
-        });
-
-        // 🔒 Cleanup on unmount
-        return () => {
-            console.log("🧹 Cleaning up WebSocket connection");
-            if (newSocket.connected) {
-                newSocket.disconnect();
+        paymentSocketRef.current = socket;
+        let statusRequestInFlight = false;
+        const reconcileStatus = async () => {
+            if (statusRequestInFlight || activePaymentIdRef.current !== paymentData.paymentId) return;
+            statusRequestInFlight = true;
+            try {
+                const current = await getPaymentStatus(paymentData.paymentId);
+                if (activePaymentIdRef.current !== paymentData.paymentId) return;
+                if (current.status === "paid") {
+                    socket.disconnect();
+                    if (paymentSocketRef.current === socket) paymentSocketRef.current = null;
+                    handlePaymentSuccess();
+                    void refreshPaymentHistory();
+                } else if (current.status === "verifying") {
+                    setIsCheckingStatus(true);
+                } else {
+                    setIsCheckingStatus(false);
+                    if (current.status === "failed") setPaymentError("Receipt verification failed. Please upload the receipt again.");
+                }
+            } catch {
+                // Status refresh is best-effort; keep the QR and receipt flow usable.
+            } finally {
+                statusRequestInFlight = false;
             }
         };
-    }, [user?.id]); // ✅ Reconnect if user ID changes
-
-    // ✅ Setup payment timeout when QR code arrives (WebSocket will send PAYMENT_STATUS event)
-    useEffect(() => {
-        if (paymentData?.message && isPaymentModalOpen) {
-            console.log("🎯 Valid QR code received from WebSocket, waiting for PAYMENT_STATUS event...");
-            setupPaymentTimeout();
-        }
-    }, [paymentData?.message, isPaymentModalOpen]);
+        socket.on("connect", () => {
+            void reconcileStatus();
+        });
+        const onReturnToPage = () => void reconcileStatus();
+        window.addEventListener("focus", onReturnToPage);
+        window.addEventListener("online", onReturnToPage);
+        socket.on("connect_error", (err: Error) => {
+            if (err.message === "Authentication required" || err.message === "Invalid access token") {
+                setPaymentError("Your session has expired. Sign in again to verify this payment.");
+            }
+        });
+        socket.on("PAYMENT_STATUS", (event: PaymentStatusEvent) => {
+            if (!event.paymentId || event.paymentId !== activePaymentIdRef.current) return;
+            if (event.status === "VERIFYING") {
+                setIsCheckingStatus(true);
+                setPaymentError(null);
+            } else if (event.status === "PAID") {
+                socket.disconnect();
+                if (paymentSocketRef.current === socket) paymentSocketRef.current = null;
+                handlePaymentSuccess();
+                void refreshPaymentHistory();
+            } else {
+                setIsCheckingStatus(false);
+                setPaymentError(event.message || (event.status === "UNPAID"
+                    ? "No matching Bakong payment was found. Check the receipt and upload it again."
+                    : "Receipt verification failed. Please try again."));
+                if (paymentTimeoutRef.current) clearTimeout(paymentTimeoutRef.current);
+            }
+        });
+        return () => {
+            window.removeEventListener("focus", onReturnToPage);
+            window.removeEventListener("online", onReturnToPage);
+            socket.removeAllListeners();
+            socket.disconnect();
+            if (paymentSocketRef.current === socket) paymentSocketRef.current = null;
+        };
+    }, [isPaymentModalOpen, paymentData?.paymentId]);
 
     // --- Load Packages & Balance ---
     useEffect(() => {
@@ -157,6 +138,8 @@ export default function CreditPurchaseClient() {
                 ]);
 
                 const extractedBalance =
+                    (balanceData as any)?.credits ??
+                    (balanceData as any)?.availableCredits ??
                     (balanceData as any)?.balance ??
                     (balanceData as any)?.creditBalance ??
                     (balanceData as any)?.data?.balance ??
@@ -171,7 +154,18 @@ export default function CreditPurchaseClient() {
                     rawPackages = (packagesData as any).data || (packagesData as any).items || [];
                 }
 
-                const activePackages = rawPackages.filter(pkg => pkg.isActive !== false);
+                // PostgreSQL numeric columns are often serialized as strings.
+                // Normalize API values here so rendering and payment calculations
+                // receive numbers, as the DTO promises.
+                const activePackages = rawPackages
+                    .filter(pkg => pkg.isActive !== false)
+                    .map(pkg => ({
+                        ...pkg,
+                        price: Number(pkg.price),
+                        credits: Number(pkg.credits ?? pkg.tokens ?? 0),
+                        bonusCredits: Number(pkg.bonusCredits ?? 0),
+                    }))
+                    .filter(pkg => Number.isFinite(pkg.price) && Number.isFinite(pkg.credits));
                 setPackages(activePackages);
 
                 if (activePackages.length > 0) {
@@ -216,7 +210,11 @@ export default function CreditPurchaseClient() {
 
     // --- Handle Payment Success ---
     const handlePaymentSuccess = () => {
-        console.log("✅ Payment success - WebSocket PAYMENT_STATUS event received");
+        const paymentId = activePaymentIdRef.current;
+        if (paymentId && paymentSuccessHandledRef.current === paymentId) return;
+        if (paymentId) paymentSuccessHandledRef.current = paymentId;
+        paymentSocketRef.current?.disconnect();
+        paymentSocketRef.current = null;
         setPaymentSuccess(true);
         setIsCheckingStatus(false);
 
@@ -228,6 +226,9 @@ export default function CreditPurchaseClient() {
             setIsPaymentModalOpen(false);
             setPaymentSuccess(false);
             setPaymentData(null);
+            setSelectedProof(null);
+            activePaymentIdRef.current = null;
+            paymentSuccessHandledRef.current = null;
             setPaymentTimeout(false);
             loadBalance();
         }, SUCCESS_DISPLAY_TIME);
@@ -238,6 +239,8 @@ export default function CreditPurchaseClient() {
         try {
             const balanceData = await walletService.getWalletBalance();
             const extractedBalance =
+                (balanceData as any)?.credits ??
+                (balanceData as any)?.availableCredits ??
                 (balanceData as any)?.balance ??
                 (balanceData as any)?.creditBalance ??
                 (balanceData as any)?.data?.balance ??
@@ -248,9 +251,62 @@ export default function CreditPurchaseClient() {
         }
     };
 
-    // --- Setup payment timeout (WebSocket only) ---
+    const refreshPaymentHistory = async () => {
+        setIsHistoryLoading(true);
+        try {
+            const result = await getPaymentHistory(1, 10);
+            setPaymentHistory(result.payments);
+            setHistoryError(null);
+        } catch (err) {
+            setHistoryError(err instanceof Error ? err.message : "Unable to load payment history.");
+        } finally {
+            setIsHistoryLoading(false);
+        }
+    };
+
+    const handleResumeReceiptUpload = (payment: UserPayment) => {
+        if (payment.status !== 'pending') return;
+        if (paymentTimeoutRef.current) clearTimeout(paymentTimeoutRef.current);
+        activePaymentIdRef.current = payment.id;
+        paymentSuccessHandledRef.current = null;
+        setPaymentData({ paymentId: payment.id, message: '', packageName: payment.packageName, amount: payment.amount, currency: payment.currency });
+        setSelectedProof(null);
+        setPaymentError(null);
+        setPaymentTimeout(false);
+        setPaymentSuccess(false);
+        setIsCheckingStatus(false);
+        setIsProcessingPayment(false);
+        setIsPaymentModalOpen(true);
+    };
+
+    const handleDeletePayment = async (paymentId: string) => {
+        setDeletingPaymentId(paymentId);
+        setHistoryError(null);
+        try {
+            await deletePendingPayment(paymentId);
+            await refreshPaymentHistory();
+        } catch (err) {
+            setHistoryError(err instanceof Error ? err.message : 'Unable to delete this payment.');
+        } finally {
+            setDeletingPaymentId(null);
+        }
+    };
+
+    const refreshPaymentRecord = async (paymentId: string) => {
+        try {
+            const updated = await getPaymentStatus(paymentId);
+            setPaymentHistory((current) => current.map((item) => item.id === paymentId ? updated : item));
+        } catch (err) {
+            setHistoryError(err instanceof Error ? err.message : "Unable to refresh this payment.");
+        }
+    };
+
+    useEffect(() => {
+        void refreshPaymentHistory();
+    }, []);
+
+    // --- Setup a timeout for the socket response after a receipt is uploaded ---
     const setupPaymentTimeout = () => {
-        console.log("⏱️  Setting up payment timeout (5 minutes)...");
         setIsCheckingStatus(true);
         setPaymentError(null);
         setPaymentTimeout(false);
@@ -262,7 +318,6 @@ export default function CreditPurchaseClient() {
 
         // Set timeout: if WebSocket doesn't emit PAYMENT_STATUS within 5 minutes, show error
         paymentTimeoutRef.current = setTimeout(() => {
-            console.log("❌ Payment timeout: No PAYMENT_STATUS received from WebSocket");
             setIsCheckingStatus(false);
             setPaymentTimeout(true);
         }, PAYMENT_TIMEOUT);
@@ -280,14 +335,17 @@ export default function CreditPurchaseClient() {
             setIsProcessingPayment(true);
             setPaymentError(null);
             setPaymentTimeout(false);
-            setPaymentData(null); // ✅ Clear old data, wait for WebSocket QR_READY
-            // setShowTimeoutTransition(false);
+            setPaymentData(null);
+            setSelectedProof(null);
+            activePaymentIdRef.current = null;
+            paymentSuccessHandledRef.current = null;
 
             try {
-                const response = await startPayment(Number(selectedPackId));
-                // ✅ Don't set paymentData here - wait for WebSocket QR_READY event
-                // The backend will emit QR_READY with actual QR code
-                console.log("📤 Payment initiated, waiting for QR from WebSocket...", response);
+                const response = await startPayment(selectedPackId);
+                if (!response.id || !response.qr) throw new Error("Payment service did not return a QR code");
+                activePaymentIdRef.current = response.id;
+                setPaymentData({ paymentId: response.id, message: response.qr, packageName: response.packageName, amount: Number(response.amount) });
+                setIsProcessingPayment(false);
             } catch (err) {
                 setError(err instanceof Error ? err.message : "Failed to initiate payment.");
                 setIsProcessingPayment(false);
@@ -298,26 +356,85 @@ export default function CreditPurchaseClient() {
         }
     };
 
+    const handleUploadProof = async () => {
+        if (!paymentData || !selectedProof) return;
+        setIsUploadingProof(true);
+        setupPaymentTimeout();
+        try {
+            const result = await uploadPaymentProof(paymentData.paymentId, selectedProof);
+            if (result.status === "PAID") {
+                handlePaymentSuccess();
+                void refreshPaymentHistory();
+            } else if (result.status === "UNPAID" || result.status === "FAILED") {
+                if (paymentTimeoutRef.current) clearTimeout(paymentTimeoutRef.current);
+                setIsCheckingStatus(false);
+                setPaymentError("No matching completed Bakong payment was found. Check the receipt and try again.");
+            } else {
+                await handleRefreshPaymentStatus();
+            }
+        } catch (err) {
+            if (paymentTimeoutRef.current) clearTimeout(paymentTimeoutRef.current);
+            setIsCheckingStatus(false);
+            setPaymentError(err instanceof Error ? err.message : "Could not verify this receipt");
+            // The upload response may be lost while the server finishes verification.
+            // Preserve the upload/OCR error unless reconciliation confirms payment.
+            void handleRefreshPaymentStatus(true);
+        } finally {
+            setIsUploadingProof(false);
+        }
+    };
+
+    const handleRefreshPaymentStatus = async (quiet = false) => {
+        if (!paymentData) return;
+        try {
+            const current = await getPaymentStatus(paymentData.paymentId);
+            if (current.status === "paid") {
+                handlePaymentSuccess();
+                void refreshPaymentHistory();
+            } else if (current.status === "verifying") {
+                setIsCheckingStatus(true);
+            } else {
+                if (current.status === "failed") {
+                    setIsCheckingStatus(false);
+                    if (paymentTimeoutRef.current) clearTimeout(paymentTimeoutRef.current);
+                    setPaymentError("Receipt verification failed. You can upload the receipt again.");
+                } else if (!quiet) {
+                    setIsCheckingStatus(false);
+                    if (paymentTimeoutRef.current) clearTimeout(paymentTimeoutRef.current);
+                    setPaymentError("Payment is not confirmed yet. You can check again or upload the receipt.");
+                }
+            }
+        } catch (err) {
+            if (!quiet) setPaymentError(err instanceof Error ? err.message : "Unable to refresh payment status.");
+        }
+    };
+
+    // If a receipt is being checked while the socket is reconnecting, poll the
+    // persisted status briefly so a lost event cannot strand a completed payment.
+    useEffect(() => {
+        if (!isPaymentModalOpen || !paymentData || !isCheckingStatus) return;
+        const timer = setInterval(() => void handleRefreshPaymentStatus(true), 5000);
+        return () => clearInterval(timer);
+    }, [isPaymentModalOpen, isCheckingStatus, paymentData?.paymentId]);
+
     // --- Retry Payment ---
     const handleRetryPayment = () => {
         setPaymentTimeout(false);
-        // setShowTimeoutTransition(false);
         setPaymentError(null);
-        setPaymentData(null);
-        setIsProcessingPayment(true);
-
-        // Reinitiate payment
-        handleProcessPayment();
+        if (selectedProof) void handleUploadProof();
     };
 
     // --- Close Modal ---
     const handleCloseModal = () => {
+        paymentSocketRef.current?.disconnect();
+        paymentSocketRef.current = null;
         setIsPaymentModalOpen(false);
         if (paymentTimeoutRef.current) clearTimeout(paymentTimeoutRef.current);
         setIsCheckingStatus(false);
         setPaymentData(null);
+        setSelectedProof(null);
+        activePaymentIdRef.current = null;
         setPaymentTimeout(false);
-        // setShowTimeoutTransition(false);
         setPaymentSuccess(false);
     };
 
@@ -326,7 +443,7 @@ export default function CreditPurchaseClient() {
             <div className="flex items-center justify-center flex-1 min-h-[50vh]">
                 <div className="text-center">
                     <div className="w-8 h-8 mx-auto mb-4 border-4 rounded-full animate-spin border-slate-900 border-t-transparent"></div>
-                    <p className="text-slate-500">Loading token packages...</p>
+                <p className="text-slate-500">Loading credit packages...</p>
                 </div>
             </div>
         );
@@ -339,13 +456,13 @@ export default function CreditPurchaseClient() {
                 {/* HEADER */}
                 <div className="flex items-center justify-between gap-6 p-4 mb-6 bg-white rounded-lg">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900">AI Token Center</h1>
-                        <p className="text-slate-500 text-xs mt-0.5">Top up your account for academic evaluations.</p>
+                        <h1 className="text-2xl font-bold text-slate-900">AI Evaluation Credits</h1>
+                        <p className="text-slate-500 text-xs mt-0.5">Paid credits are used after your free monthly evaluations.</p>
                     </div>
                     <div className="text-right">
                         <p className="text-xs font-bold tracking-wider uppercase text-slate-400">Your Balance</p>
                         <p className="text-2xl font-bold text-blue-600">{currentTokens.toLocaleString()}</p>
-                        <p className="text-xs text-slate-400">Tokens</p>
+                        <p className="text-xs text-slate-400">Credits</p>
                     </div>
                 </div>
 
@@ -364,7 +481,7 @@ export default function CreditPurchaseClient() {
                     {/* LEFT COLUMN - PACKAGES (2 cols) */}
                     <div className="lg:col-span-2">
                         <h2 className="flex items-center gap-2 mb-6 text-xs font-bold tracking-widest uppercase text-slate-900">
-                            <span className="text-lg text-blue-600">|</span> SELECT A PACKAGE
+                            <span className="text-lg text-blue-600">|</span> SELECT A CREDIT PACKAGE
                         </h2>
 
                         {/* Package Grid - 3 columns */}
@@ -394,7 +511,7 @@ export default function CreditPurchaseClient() {
                                             <p className="mb-1 text-3xl font-bold text-slate-900">
                                                 {tokens.toLocaleString()}
                                             </p>
-                                            <p className="mb-4 text-xs text-slate-600">Tokens</p>
+                                            <p className="mb-4 text-xs text-slate-600">Evaluation credits</p>
 
                                             <div className="flex items-center justify-between">
                                                 <p className="text-xl font-bold text-blue-600">${pack.price.toFixed(2)}</p>
@@ -416,13 +533,13 @@ export default function CreditPurchaseClient() {
                             })}
                         </div>
 
-                        {/* CUSTOM TOKEN CALCULATOR */}
+                            {/* CUSTOM CREDIT CALCULATOR */}
                         <div className="p-6 bg-white border rounded-2xl border-slate-200">
                             {/* TOP ROW - Title & Input & Button */}
                             <div className="flex items-start justify-between gap-6 mb-6">
                                 {/* LEFT - Title & Description */}
                                 <div className="flex-shrink-0 min-w-fit">
-                                    <h3 className="mb-1 text-base font-bold text-slate-900">Custom<br />Token<br />Calculator</h3>
+                                    <h3 className="mb-1 text-base font-bold text-slate-900">Custom<br />Credit<br />Calculator</h3>
                                     <p className="text-xs leading-relaxed text-slate-500">Perfect for specific grading cycles or large batches.</p>
                                 </div>
 
@@ -439,7 +556,7 @@ export default function CreditPurchaseClient() {
                                             placeholder="Enter amount"
                                             className="px-4 py-2.5 text-sm border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 w-56 pr-20 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&]:appearance-none"
                                         />
-                                        <span className="absolute text-xs font-semibold -translate-y-1/2 pointer-events-none right-4 top-1/2 text-slate-400">TOKENS</span>
+                                        <span className="absolute text-xs font-semibold -translate-y-1/2 pointer-events-none right-4 top-1/2 text-slate-400">CREDITS</span>
                                     </div>
                                     <button
                                         onClick={() => setSelectedPackId("custom")}
@@ -476,7 +593,7 @@ export default function CreditPurchaseClient() {
                             {/* PACKAGE INFO */}
                             <div className="pb-6 mb-6 border-b border-slate-200">
                                 <p className="mb-1 text-sm text-slate-600">{summaryName}</p>
-                                <p className="mb-2 text-sm font-semibold text-slate-900">{summaryTokens.toLocaleString()} AI Evaluation Tokens</p>
+                                <p className="mb-2 text-sm font-semibold text-slate-900">{summaryTokens.toLocaleString()} AI evaluation credits</p>
                             </div>
 
                             {/* PRICING BREAKDOWN */}
@@ -536,7 +653,7 @@ export default function CreditPurchaseClient() {
                                         className="w-5 h-5 rounded border-slate-300 text-blue-600 cursor-pointer mt-0.5"
                                     />
                                     <span className="text-xs leading-relaxed text-slate-600 group-hover:text-slate-900">
-                                        I agree to the <span className="font-semibold text-slate-900">Terms & Conditions</span>. Tokens are valid for 12 months.
+                                        I agree to the <span className="font-semibold text-slate-900">Terms & Conditions</span>. Purchased credits are valid for 12 months.
                                     </span>
                                 </label>
                             </div>
@@ -568,33 +685,105 @@ export default function CreditPurchaseClient() {
                 </div>
             </div>
 
+            <section className="mt-8 rounded-xl border border-slate-200 bg-white p-5" aria-labelledby="payment-history-heading">
+                <div className="mb-4 flex items-center justify-between gap-4">
+                    <div>
+                        <h2 id="payment-history-heading" className="text-lg font-bold text-slate-900">Payment history</h2>
+                        <p className="text-sm text-slate-500">Receipts and credit purchases linked to your account.</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => void refreshPaymentHistory()}
+                        disabled={isHistoryLoading}
+                        className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                    >
+                        {isHistoryLoading ? "Refreshing…" : "Refresh"}
+                    </button>
+                </div>
+                {historyError && <p className="mb-3 text-sm text-red-600">{historyError}</p>}
+                {isHistoryLoading && paymentHistory.length === 0 ? (
+                    <p className="py-5 text-sm text-slate-500">Loading payment history…</p>
+                ) : paymentHistory.length === 0 ? (
+                    <p className="py-5 text-sm text-slate-500">No credit purchases yet.</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full min-w-[640px] text-left text-sm">
+                            <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                                <tr>
+                                    <th className="py-3 pr-4">Package</th>
+                                    <th className="py-3 pr-4">Amount</th>
+                                    <th className="py-3 pr-4">Credits</th>
+                                    <th className="py-3 pr-4">Status</th>
+                                    <th className="py-3">Date</th>
+                                <th className="py-3">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {paymentHistory.map((payment) => (
+                                    <tr key={payment.id} className="border-b border-slate-100 last:border-0">
+                                        <td className="py-3 pr-4 font-medium text-slate-900">{payment.packageName}</td>
+                                        <td className="py-3 pr-4 text-slate-700">{payment.currency} {payment.amount.toFixed(2)}</td>
+                                        <td className="py-3 pr-4 text-slate-700">{payment.credits.toLocaleString()}</td>
+                                        <td className="py-3 pr-4">
+                                            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${payment.status === "paid" ? "bg-green-100 text-green-700" : payment.status === "verifying" ? "bg-blue-100 text-blue-700" : payment.status === "failed" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                                                {payment.status}
+                                            </span>
+                                        </td>
+                                        <td className="py-3 text-slate-500">{new Date(payment.createdAt).toLocaleString()}</td>
+                                        <td className="py-3">
+                                            {payment.status !== "paid" && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void refreshPaymentRecord(payment.id)}
+                                                    className="font-semibold text-blue-700 hover:underline"
+                                                >
+                                                    Refresh status
+                                                </button>
+                                            )}
+                                            {payment.status === "pending" && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleResumeReceiptUpload(payment)}
+                                                    className="ml-4 font-semibold text-blue-700 hover:underline"
+                                                >
+                                                    Upload receipt
+                                                </button>
+                                            )}
+                                            {payment.status === "pending" && (
+                                                <button
+                                                    type="button"
+                                                    disabled={deletingPaymentId !== null}
+                                                    onClick={() => void handleDeletePayment(payment.id)}
+                                                    className="ml-4 font-semibold text-red-600 hover:underline disabled:opacity-50"
+                                                >
+                                                    {deletingPaymentId === payment.id ? "Deleting…" : "Delete"}
+                                                </button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </section>
+
             {/* --- PAYMENT MODAL --- */}
             {isPaymentModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-                    <div className="flex flex-col w-full max-w-sm overflow-hidden duration-200 bg-white shadow-xl rounded-2xl animate-in fade-in zoom-in">
+                    <div className="relative flex flex-col w-full max-w-sm overflow-hidden duration-200 bg-white shadow-xl rounded-2xl animate-in fade-in zoom-in">
+                        <button
+                            type="button"
+                            aria-label="Close payment"
+                            onClick={handleCloseModal}
+                            className="absolute right-3 top-3 z-10 rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
 
-                        {/* Header */}
-                        <div className="bg-[#E5223A] px-6 py-4 flex items-center justify-between text-white">
-                            <div className="flex items-center gap-2">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                    <path d="M2 17L12 22L22 17" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                    <path d="M2 12L12 17L22 12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
-                                <span className="font-bold tracking-wide">KHQR Payment</span>
-                            </div>
-                            <button
-                                onClick={handleCloseModal}
-                                className="transition-colors text-white/80 hover:text-white"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-
-                        {/* Body */}
-                        <div className="flex flex-col items-center p-6 text-center">
+                        <div className="flex flex-col items-center p-5 pt-12 text-center">
 
                             {isProcessingPayment ? (
                                 // Loading
@@ -611,7 +800,7 @@ export default function CreditPurchaseClient() {
                                         </svg>
                                     </div>
                                     <p className="mb-2 text-lg font-semibold text-green-600">Payment Successful!</p>
-                                    <p className="text-sm text-slate-500">Your tokens have been added to your account</p>
+                                    <p className="text-sm text-slate-500">Your credits have been added to your account</p>
                                 </div>
                             ) : paymentTimeout ? (
                                 // Timeout
@@ -621,65 +810,72 @@ export default function CreditPurchaseClient() {
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
                                     </div>
-                                    <p className="mb-2 text-lg font-semibold text-orange-600">Payment Timeout</p>
-                                    <p className="mb-6 text-sm text-slate-500">The QR code has expired. Please try again or contact support.</p>
+                                    <p className="mb-2 text-lg font-semibold text-orange-600">Payment is still processing</p>
+                                    <p className="mb-6 text-sm text-slate-500">If you have already paid, upload the receipt again to recheck it.</p>
 
-                                    <div className="flex w-full gap-3">
-                                        <button
-                                            onClick={handleCloseModal}
-                                            className="flex-1 py-2.5 rounded-lg border border-slate-200 text-slate-600 font-medium text-sm hover:bg-slate-50 transition-colors"
-                                        >
-                                            Cancel
-                                        </button>
+                                    <div className="w-full">
                                         <button
                                             onClick={handleRetryPayment}
-                                            className="flex-1 py-2.5 rounded-lg bg-[#E5223A] text-white font-medium text-sm hover:bg-[#d41c33] shadow-sm transition-colors"
+                                            className="w-full py-2.5 rounded-lg bg-[#E5223A] text-white font-medium text-sm hover:bg-[#d41c33] shadow-sm transition-colors"
+                                            disabled={!selectedProof}
                                         >
-                                            Retry Payment
+                                            Upload receipt again
                                         </button>
                                     </div>
                                 </div>
                             ) : (
                                 // QR Display
                                 <>
-                                    {paymentData && (
+                                    {paymentData?.message && (
                                         <div className="w-full mb-6">
                                             <Khqr
-                                                name={summaryName}
-                                                amount={summaryPrice}
+                                                name={paymentData.packageName ?? summaryName}
+                                                amount={paymentData.amount ?? summaryPrice}
                                                 qrValue={paymentData.message}
                                             />
                                         </div>
                                     )}
 
-                                    {/* Status Info */}
-                                    <div className="w-full p-3 mb-6 transition-all duration-300 border border-blue-200 rounded-lg bg-blue-50">
-                                        {isCheckingStatus ? (
-                                            <div className="flex items-center gap-2 text-sm text-blue-700">
-                                                <div className="w-3 h-3 border-2 border-blue-600 rounded-full animate-spin border-t-transparent"></div>
-                                                <span>Waiting for payment confirmation...</span>
-                                            </div>
-                                        ) : paymentError ? (
-                                            <p className="text-sm text-red-700">{paymentError}</p>
-                                        ) : (
-                                            <p className="text-sm text-blue-700">Scan the QR code with your banking app to complete payment</p>
-                                        )}
-                                    </div>
+                                    {paymentData && !paymentData.message && (
+                                        <div className="mb-6 w-full text-left">
+                                            <h2 className="text-lg font-semibold text-slate-900">{paymentData.packageName}</h2>
+                                            <p className="mt-1 text-sm text-slate-600">{paymentData.currency} {paymentData.amount?.toFixed(2)}</p>
+                                            <p className="mt-2 text-sm text-slate-500">Upload your receipt to verify this payment.</p>
+                                        </div>
+                                    )}
 
-                                    {/* Actions */}
-                                    <div className="flex w-full gap-3">
-                                        <button
-                                            onClick={handleCloseModal}
-                                            disabled={isCheckingStatus}
-                                            className="w-full py-2.5 rounded-lg border border-slate-200 text-slate-600 font-medium text-sm hover:bg-slate-50 disabled:opacity-50 transition-colors"
-                                        >
-                                            {isCheckingStatus ? "Waiting for payment..." : "Cancel"}
-                                        </button>
-                                    </div>
+                                    {paymentData && (
+                                        <div className="w-full mb-5 text-left">
+                                            <label htmlFor="payment-proof" className="block mb-2 text-sm font-semibold text-slate-800">
+                                                Payment receipt
+                                            </label>
+                                            <input
+                                                id="payment-proof"
+                                                type="file"
+                                                accept="image/jpeg,image/png,image/webp"
+                                                disabled={isCheckingStatus || isUploadingProof}
+                                                onChange={(event) => setSelectedProof(event.target.files?.[0] ?? null)}
+                                                className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-700 hover:file:bg-slate-200 disabled:opacity-50"
+                                            />
+                                            <p className="mt-1 text-xs text-slate-500">JPG, PNG, or WebP · Max 5 MB</p>
+                                            {selectedProof && <p className="mt-1 truncate text-xs text-slate-600">Selected: {selectedProof.name}</p>}
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleUploadProof()}
+                                                disabled={!selectedProof || isCheckingStatus || isUploadingProof}
+                                                className="w-full mt-3 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                                            >
+                                                {isUploadingProof ? "Checking receipt…" : "Upload receipt"}
+                                            </button>
+                                        </div>
+                                    )}
 
-                                    <p className="mt-4 text-xs text-slate-400">
-                                        ✅ Waiting for payment via WebSocket • Expires in 5 minutes
-                                    </p>
+                                    {(isCheckingStatus || paymentError) && (
+                                        <div className={`w-full rounded-lg p-3 mb-4 text-sm ${paymentError ? "bg-red-50 text-red-700" : "bg-blue-50 text-blue-700"}`}>
+                                            {paymentError ?? "Verifying payment…"}
+                                        </div>
+                                    )}
+
                                 </>
                             )}
                         </div>

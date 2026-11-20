@@ -1,7 +1,11 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import MainNavigation from "@/components/navigation/MainNavigation";
 import AIEvaluationSettings from "@/pages/ai-evaluation/components/AIEvaluationSettings";
 import ProfileDropdown from "@/components/data-display/ProfileDropdown";
+import evaluationService from "@/services/EvaluationService";
+
+type FreeQuota = { model: string; limit: number; used: number; remaining: number };
 
 /**
  * AIEvaluationPage - Configure AI evaluation settings for the system.
@@ -9,6 +13,11 @@ import ProfileDropdown from "@/components/data-display/ProfileDropdown";
  */
 export default function AIEvaluationPage() {
   const navigate = useNavigate();
+  const [freeQuota, setFreeQuota] = useState<FreeQuota | null>(null);
+
+  useEffect(() => {
+    evaluationService.getFreeEvaluationQuota().then(setFreeQuota).catch(() => setFreeQuota(null));
+  }, []);
 
   const handleSave = (config: any) => {
     console.log("AI Config saved:", config);
@@ -43,8 +52,14 @@ export default function AIEvaluationPage() {
                 AI Evaluation Settings
               </h1>
               <p className="text-slate-600">
-                Configure the AI models and API settings used for automated grading and feedback.
+                Configure options for automated grading and feedback.
               </p>
+            </div>
+
+            <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">
+              <p className="font-semibold">Included local model: Qwen2.5 7B Instruct via Ollama</p>
+              {freeQuota && <p className="mt-1">Free evaluations this month: {freeQuota.remaining} of {freeQuota.limit} remaining.</p>}
+              <p className="mt-1 text-blue-800">The shared local model is used for grading. Saved personal provider settings are not yet selected by assignment evaluations.</p>
             </div>
 
             <AIEvaluationSettings onSave={handleSave} onCancel={handleCancel} />

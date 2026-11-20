@@ -8,6 +8,11 @@ import { AsyncEvaluationClient, EvaluationClient } from './ai-client';
 import { AcademicStorageService } from './storage';
 import { Readable } from 'node:stream';
 import { createHash } from 'node:crypto';
+import AdmZip from 'adm-zip';
+import { extname } from 'node:path';
+
+const EVALUATION_SOURCE_EXTENSIONS = new Set(['.py', '.js', '.jsx', '.ts', '.tsx', '.java', '.c', '.h', '.cpp', '.hpp', '.go', '.rb', '.php', '.cs', '.html', '.css', '.sql', '.txt']);
+const MAX_EVALUATION_SOURCE_BYTES = 80_000;
 
 @Injectable()
 export class AcademicService {
@@ -97,7 +102,7 @@ export class AcademicService {
 
   async saveDraft(assignmentId: string, input: CreateSubmissionDto, userId: string) { return this.saveSubmission(assignmentId, input, userId, 'DRAFT'); }
   async submitAssignment(assignmentId: string, input: CreateSubmissionDto, userId: string) { return this.saveSubmission(assignmentId, input, userId, 'SUBMITTED'); }
-  private async saveSubmission(assignmentId: string, input: CreateSubmissionDto, userId: string, status: string) { const assignment = await this.assignments.findOneBy({ id: assignmentId }); if (!assignment) throw new NotFoundException('Assignment not found'); await this.requireMember(assignment.classId, userId); let submission = await this.submissions.findOneBy({ assignmentId, userId }); if (!submission) submission = this.submissions.create({ assignmentId, userId, resourceId: input.resourceId ?? undefined as any, language: input.language, teamId: input.teamId, comments: input.comments, status }); else Object.assign(submission, { resourceId: input.resourceId ?? submission.resourceId, language: input.language ?? submission.language, teamId: input.teamId ?? submission.teamId, comments: input.comments ?? submission.comments, status }); if (status === 'SUBMITTED') submission.submittedAt = new Date(); const saved = await this.submissions.save(submission); if (status === 'SUBMITTED' && assignment.aiEvaluationEnabled && input.resourceId) { try { const evaluation = await this.evaluationClient.requestEvaluation({ submissionId: saved.id, assignmentId, userId, resourceId: input.resourceId, language: input.language }); saved.evaluationId = evaluation.evaluationId; saved.status = evaluation.status; await this.submissions.save(saved); } catch { saved.status = 'PENDING'; await this.submissions.save(saved); } } return { submissionId: saved.id, status: saved.status }; }
+  private async saveSubmission(assignmentId: string, input: CreateSubmissionDto, userId: string, status: string) { const assignment = await this.assignments.findOneBy({ id: assignmentId }); if (!assignment) throw new NotFoundException('Assignment not found'); await this.requireMember(assignment.classId, userId); let submission = await this.submissions.findOneBy({ assignmentId, userId }); if (!submission) submission = this.submissions.create({ assignmentId, userId, resourceId: input.resourceId ?? undefined as any, language: input.language, teamId: input.teamId, comments: input.comments, status }); else Object.assign(submission, { resourceId: input.resourceId ?? submission.resourceId, language: input.language ?? submission.language, teamId: input.teamId ?? submission.teamId, comments: input.comments ?? submission.comments, status }); if (status === 'SUBMITTED') submission.submittedAt = new Date(); const saved = await this.submissions.save(submission); if (status === 'SUBMITTED' && assignment.aiEvaluationEnabled && saved.resourceId) { try { const context = await this.buildEvaluationContext(saved.id, userId, assignment); const evaluation = await this.evaluationClient.requestEvaluation({ submissionId: saved.id, assignmentId, userId, resourceId: saved.resourceId, language: saved.language, ...context }); saved.evaluationId = evaluation.evaluationId; saved.status = evaluation.status; await this.submissions.save(saved); } catch { saved.status = 'PENDING'; await this.submissions.save(saved); } } return { submissionId: saved.id, status: saved.status }; }
   async unsubmit(id: string, userId: string) { const s = await this.submissions.findOneBy({ id, userId }); if (!s) throw new NotFoundException('Submission not found'); s.status = 'DRAFT'; s.submittedAt = undefined; return this.submissions.save(s); }
   async myStatus(assignmentId: string, userId: string) { const s = await this.submissions.findOneBy({ assignmentId, userId }); return s ?? { assignmentId, userId, status: 'PENDING' }; }
   async myStatusInClass(classId: string, userId: string) {
@@ -263,7 +268,8 @@ export class AcademicService {
     const submission = await this.submissions.save(this.submissions.create({ assignmentId, resourceId: input.resourceId, language: input.language, teamId: input.teamId, userId, status: 'stored' }));
     if (!assignment.aiEvaluationEnabled) return { submissionId: submission.id, status: 'stored' };
     try {
-      const evaluation = await this.evaluationClient.requestEvaluation({ submissionId: submission.id, assignmentId, userId, resourceId: input.resourceId, language: input.language });
+      const context = await this.buildEvaluationContext(submission.id, userId, assignment);
+      const evaluation = await this.evaluationClient.requestEvaluation({ submissionId: submission.id, assignmentId, userId, resourceId: input.resourceId, language: input.language, ...context });
       submission.evaluationId = evaluation.evaluationId; submission.status = evaluation.status;
       await this.submissions.save(submission);
       return { submissionId: submission.id, evaluationId: evaluation.evaluationId, status: evaluation.status };
@@ -271,6 +277,54 @@ export class AcademicService {
       submission.status = 'pending'; await this.submissions.save(submission);
       return { submissionId: submission.id, status: 'pending' };
     }
+  }
+
+  private async buildEvaluationContext(submissionId: string, userId: string, assignment: Assignment) {
+    const resource = await this.getSubmissionResource(submissionId, userId);
+    const stored = await this.getSubmissionResourceStream(submissionId, userId);
+    const chunks: Buffer[] = [];
+    let byteLength = 0;
+    for await (const chunk of stored.stream) {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      byteLength += buffer.length;
+      if (byteLength > MAX_EVALUATION_SOURCE_BYTES) throw new BadRequestException('Submission is too large for AI evaluation (80 KB maximum)');
+      chunks.push(buffer);
+    }
+    const archive = Buffer.concat(chunks);
+    const candidates: Array<{ path: string; content: string }> = [];
+    if (resource.title.toLowerCase().endsWith('.zip') || resource.contentType === 'application/zip') {
+      const zip = new AdmZip(archive);
+      let declaredSourceBytes = 0;
+      for (const entry of zip.getEntries()) {
+        const path = entry.entryName.replace(/\\/g, '/');
+        if (entry.isDirectory || path.startsWith('/') || path.split('/').some((part) => part === '..') || !EVALUATION_SOURCE_EXTENSIONS.has(extname(path).toLowerCase())) continue;
+        declaredSourceBytes += entry.header.size;
+        if (declaredSourceBytes > MAX_EVALUATION_SOURCE_BYTES) throw new BadRequestException('Source files in this archive exceed the 80 KB AI evaluation limit');
+        candidates.push({ path, content: entry.getData().toString('utf8') });
+      }
+    } else if (EVALUATION_SOURCE_EXTENSIONS.has(extname(resource.title).toLowerCase())) {
+      candidates.push({ path: resource.title, content: archive.toString('utf8') });
+    }
+
+    const files: Array<{ path: string; content: string }> = [];
+    let totalCharacters = 0;
+    for (const file of candidates) {
+      const remaining = MAX_EVALUATION_SOURCE_BYTES - totalCharacters;
+      if (remaining <= 0) break;
+      const content = file.content.slice(0, remaining);
+      files.push({ path: file.path, content });
+      totalCharacters += content.length;
+    }
+    if (!files.length) throw new BadRequestException('No supported source files found for AI evaluation');
+
+    return {
+      billingUserId: (await this.classes.findOneBy({ id: assignment.classId }))?.ownerId ?? userId,
+      assignmentTitle: assignment.title,
+      instruction: assignment.instruction,
+      maxScore: Number(assignment.maxScore),
+      rubric: await this.rubrics.findBy({ assignmentId: assignment.id }),
+      files,
+    };
   }
 
   async getSubmission(id: string, userId: string) {

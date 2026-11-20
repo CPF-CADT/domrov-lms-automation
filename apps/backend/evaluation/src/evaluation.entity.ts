@@ -8,12 +8,17 @@ export class Evaluation {
   @Column('uuid') submissionId!: string;
   @Column('uuid', { nullable: true }) assignmentId?: string;
   @Column('uuid') userId!: string;
+  @Column({ name: 'billing_user_id', type: 'varchar', nullable: true }) billingUserId?: string;
   @Column() language!: string;
   @Column({ nullable: true }) resourceKey?: string;
   @Column({ type: 'varchar', default: 'queued' }) status!: EvaluationStatus;
   @Column({ type: 'numeric', nullable: true }) score?: number;
   @Column({ type: 'text', nullable: true }) feedback?: string;
   @Column({ nullable: true }) errorCode?: string;
+  @Column({ type: 'varchar', nullable: true }) provider?: string;
+  @Column({ type: 'varchar', nullable: true }) model?: string;
+  @Column({ type: 'integer', nullable: true }) promptTokens?: number;
+  @Column({ type: 'integer', nullable: true }) completionTokens?: number;
   @Column({ default: 0 }) attempts!: number;
   @CreateDateColumn() createdAt!: Date;
   @UpdateDateColumn() updatedAt!: Date;

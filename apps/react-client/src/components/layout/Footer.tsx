@@ -1,6 +1,6 @@
 // --- Types ---
 interface FooterProps {
-  variant?: "dark" | "primary";
+  variant?: "dark" | "primary" | "landing";
 }
 
 /**
@@ -8,6 +8,26 @@ interface FooterProps {
  * Displays copyright information.
  */
 export default function Footer({ variant = "dark" }: FooterProps) {
+  if (variant === "landing") {
+    return (
+      <footer className="landing-footer">
+        <div className="landing-container landing-footer-inner">
+          <div>
+            <a className="landing-footer-brand" href="/">Domrov <span>LMS</span></a>
+            <p>Programming classes, assignments, and feedback in one place.</p>
+            <p className="landing-footer-location">Made for educators in Cambodia.</p>
+          </div>
+          <nav aria-label="Footer navigation">
+            <a href="/about">About</a>
+            <a href="/pricing">Pricing</a>
+            <a href="/docs">User Guide</a>
+          </nav>
+          <p className="landing-copyright">© {new Date().getFullYear()} Domrov LMS</p>
+        </div>
+      </footer>
+    );
+  }
+
   if (variant === "primary") {
     return (
       <footer className="bg-primary-dark text-white py-12 text-center">

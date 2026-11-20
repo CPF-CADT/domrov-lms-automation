@@ -1,7 +1,7 @@
 # UAT Report: Student C++ Submission, Teacher Review, and Terminal Execution
 
 Date: 2026-11-13
-Environment: Local Docker Compose stack, gateway `http://localhost:3000`, React client `http://localhost:5173`
+Environment: Local Docker Compose stack, gateway `http://localhost:8088`, React client `http://localhost:5173`
 
 ## Final status
 

@@ -6,7 +6,8 @@ import { Evaluation } from './evaluation.entity';
 import { UserAiKey } from './user-ai.entity';
 import { EvaluationService } from './evaluation.service';
 import { HttpController } from './http.controller';
-import { MockRunnerService } from './mock-runner.service';
+import { FreeEvaluationQuota } from './free-evaluation-quota.entity';
+import { OllamaEvaluationService } from './ollama-evaluation.service';
 import { RabbitController } from './rabbit.controller';
 import { UserAiController } from './user-ai.controller';
 import { UserAiJwtGuard } from './user-ai.guard';
@@ -19,14 +20,14 @@ const rmq = (config: ConfigService, queue: string, exchange: string) => ({
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    TypeOrmModule.forRootAsync({ inject: [ConfigService], useFactory: (c: ConfigService) => ({ type: 'postgres', url: c.getOrThrow<string>('DATABASE_URL'), entities: [Evaluation, UserAiKey], synchronize: true }) }),
-    TypeOrmModule.forFeature([Evaluation, UserAiKey]),
+    TypeOrmModule.forRootAsync({ inject: [ConfigService], useFactory: (c: ConfigService) => ({ type: 'postgres', url: c.getOrThrow<string>('DATABASE_URL'), entities: [Evaluation, UserAiKey, FreeEvaluationQuota], synchronize: true }) }),
+    TypeOrmModule.forFeature([Evaluation, UserAiKey, FreeEvaluationQuota]),
     ClientsModule.registerAsync([
       { name: 'EVALUATION_EVENTS', imports: [ConfigModule], inject: [ConfigService], useFactory: (c: ConfigService) => rmq(c, 'domrov.evaluation.publisher', c.get<string>('RABBITMQ_EVENTS_EXCHANGE', 'domrov.events')) },
       { name: 'PAYMENT_COMMANDS', imports: [ConfigModule], inject: [ConfigService], useFactory: (c: ConfigService) => rmq(c, 'domrov.evaluation.payment.client', c.get<string>('RABBITMQ_COMMANDS_EXCHANGE', 'domrov.commands')) },
     ]),
   ],
   controllers: [HttpController, RabbitController, UserAiController],
-  providers: [EvaluationService, MockRunnerService, UserAiJwtGuard],
+  providers: [EvaluationService, OllamaEvaluationService, UserAiJwtGuard],
 })
 export class AppModule {}

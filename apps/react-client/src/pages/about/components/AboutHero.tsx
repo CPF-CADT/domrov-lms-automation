@@ -7,7 +7,7 @@ import SectionWrapper from "@/components/primitives/SectionWrapper";
  */
 export default function AboutHero() {
   return (
-    <section className="relative overflow-hidden bg-linear-to-br from-primary-light to-white">
+    <section className="public-page-hero relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none opacity-30 bg-[radial-gradient(circle_at_top_left,#80bfff,transparent_60%)]" />
       <SectionWrapper>
         <div className="relative text-center max-w-4xl mx-auto">

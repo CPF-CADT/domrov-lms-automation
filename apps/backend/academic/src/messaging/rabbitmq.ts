@@ -24,8 +24,14 @@ export interface EvaluationRequested {
   submissionId: string;
   assignmentId: string;
   userId: string;
+  billingUserId: string;
   resourceId: string;
   language?: string;
+  assignmentTitle: string;
+  instruction: string;
+  maxScore: number;
+  rubric: Array<{ definition: string; criterion?: string; totalScore: number }>;
+  files: Array<{ path: string; content: string }>;
 }
 
 export interface EvaluationCompleted {

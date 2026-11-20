@@ -220,7 +220,7 @@ The Docker workflow from the repository root is:
 docker compose up --build
 ```
 
-The client is served at `http://localhost:5173` and the API at `http://localhost:3000`.
+The client is served at `http://localhost:5173` and the API gateway at `http://localhost:8088`.
 
 ## 12. Validation checklist
 

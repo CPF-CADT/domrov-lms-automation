@@ -16,7 +16,7 @@ export class RabbitController {
 
   @EventPattern('evaluation.job')
   async job(@Payload() message: EvaluationRequest & { evaluationId: string }, @Ctx() context: RmqContext) {
-    try { const payload = unwrap(message); await this.evaluations.process(payload.evaluationId); this.ack(context); }
+    try { const payload = unwrap(message); await this.evaluations.process(payload.evaluationId, payload); this.ack(context); }
     catch (error) { this.logger.error(error); this.nack(context, false); }
   }
 

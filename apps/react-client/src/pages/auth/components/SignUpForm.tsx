@@ -85,16 +85,13 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
   };
 
   return (
-    <div className="flex h-screen items-center justify-center bg-white overflow-hidden">
-      <div className="flex flex-col md:flex-row shadow-xl rounded-lg overflow-hidden w-full h-full md:h-auto md:max-w-4xl">
-        {/* Left Panel - Hidden on mobile */}
-        <aside className="hidden md:flex text-white items-center justify-center md:w-80" style={{ backgroundColor: '#0b0b3a' }}>
-          <div className="text-3xl font-extrabold tracking-wider">DOMROV</div>
-        </aside>
-
-        {/* Form Card */}
-        <main className="flex-1 flex items-center justify-center bg-white overflow-y-auto md:overflow-visible">
-          <div className="w-full max-w-md p-4 md:p-8 py-6">
+    <section className="public-auth-card public-signup-card">
+          <div className="w-full">
+            <div className="text-center mb-5">
+              <p className="landing-eyebrow">Create your account</p>
+              <h1 className="text-2xl md:text-3xl font-black text-primary">Join Domrov</h1>
+              <p className="text-sm text-slate-600 mt-2">Set up your account to get started.</p>
+            </div>
             <form onSubmit={handleSubmit} className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col">
@@ -154,8 +151,6 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
               </div>
             </form>
           </div>
-        </main>
-      </div>
-    </div>
+    </section>
   );
 }

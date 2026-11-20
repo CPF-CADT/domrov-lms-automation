@@ -4,6 +4,7 @@ import AboutHero from "@/pages/about/components/AboutHero";
 import MissionSection from "@/pages/about/components/MissionSection";
 import TeamSection from "@/pages/about/components/TeamSection";
 import VisionCards from "@/pages/about/components/VisionCards";
+import "@/pages/public-pages.css";
 
 /**
  * About - About page component.
@@ -11,15 +12,15 @@ import VisionCards from "@/pages/about/components/VisionCards";
  */
 export default function About() {
     return (
-        <div className="min-h-screen bg-white font-sans text-slate-800 animate-in fade-in duration-500">
-            <Header />
+        <div className="public-site-page public-about-page min-h-screen font-sans animate-in fade-in duration-500">
+            <Header variant="landing" />
             <main>
                 <AboutHero />
                 <VisionCards />
                 <MissionSection />
                 <TeamSection />
             </main>
-            <Footer />
+            <Footer variant="landing" />
         </div>
     );
 }

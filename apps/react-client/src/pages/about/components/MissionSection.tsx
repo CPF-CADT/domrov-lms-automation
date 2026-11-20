@@ -3,7 +3,7 @@ import SectionWrapper from "@/components/primitives/SectionWrapper";
 
 export default function MissionSection() {
   return (
-    <SectionWrapper>
+    <SectionWrapper className="public-tinted-section">
       <SectionHeader
         label="Our Mission"
         title="Addressing the Digital Divide in Cambodian Education."

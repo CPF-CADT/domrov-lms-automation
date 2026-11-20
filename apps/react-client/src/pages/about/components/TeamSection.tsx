@@ -9,7 +9,7 @@ import TeamCard from "./TeamCard";
  */
 export default function TeamSection() {
   return (
-    <SectionWrapper>
+    <SectionWrapper className="public-tinted-section">
       <SectionHeader title="The Team" centered className="mb-12" />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">

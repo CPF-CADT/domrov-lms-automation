@@ -3,7 +3,7 @@
 ## Environment
 
 - Local React Client: `http://localhost:5173`
-- Local API Gateway: `http://localhost:3000`
+- Local API Gateway: `http://localhost:8088`
 - Local Docker Compose services: User, Academic, Payment, Evaluation, RabbitMQ, and PostgreSQL databases.
 - Test data: isolated UAT classes, assignment, submission, and resource records. Credentials and tokens are intentionally omitted.
 

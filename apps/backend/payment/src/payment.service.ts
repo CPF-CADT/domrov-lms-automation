@@ -1,13 +1,16 @@
-import { ConflictException, Injectable, NotFoundException, BadRequestException, UnauthorizedException, Optional } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, BadRequestException, UnauthorizedException, Optional, Logger } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, Not, QueryFailedError, Repository } from 'typeorm';
 import { CreditPackage, CreditReservation, IdempotencyRecord, Payment, WalletBalance, WalletTransaction } from './entities';
 import { BakongProvider, PaymentCurrency } from './bakong.provider';
 import { PaymentGateway } from './payment.gateway';
 import { PaymentEventsPublisher } from './messaging/payment-events';
+import { PaymentProofOcrService } from './payment-proof-ocr.service';
 
 @Injectable()
 export class PaymentService {
+  private readonly logger = new Logger(PaymentService.name);
   constructor(
     @InjectRepository(WalletBalance) private readonly wallets: Repository<WalletBalance>,
     @InjectRepository(CreditPackage) private readonly packages: Repository<CreditPackage>,
@@ -18,6 +21,7 @@ export class PaymentService {
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly provider: BakongProvider,
     private readonly gateway: PaymentGateway,
+    private readonly proofOcr: PaymentProofOcrService,
     @Optional() private readonly events?: PaymentEventsPublisher,
   ) {}
 
@@ -28,6 +32,44 @@ export class PaymentService {
     const safeLimit = Math.min(100, Math.max(1, limit));
     const [items, total] = await this.transactions.findAndCount({ where: { userId }, order: { createdAt: 'DESC' }, skip: (safePage - 1) * safeLimit, take: safeLimit });
     return { transactions: items, pagination: { page: safePage, limit: safeLimit, total, totalPages: Math.ceil(total / safeLimit) } };
+  }
+
+  async userPayments(userId: string, page = 1, limit = 10) {
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.min(100, Math.max(1, limit));
+    const [items, total] = await this.payments.findAndCount({ where: { userId, status: Not('cancelled') }, order: { createdAt: 'DESC' }, skip: (safePage - 1) * safeLimit, take: safeLimit });
+    return { payments: items.map(payment => this.mapUserPayment(payment)), pagination: { page: safePage, limit: safeLimit, total, totalPages: Math.ceil(total / safeLimit) } };
+  }
+
+  async userPaymentStatus(userId: string, paymentId: string) {
+    const payment = await this.payments.findOne({ where: { id: paymentId, userId, status: Not('cancelled') } });
+    if (!payment) throw new NotFoundException('Payment not found');
+    return this.mapUserPayment(payment);
+  }
+
+  async deletePendingPayment(userId: string, paymentId: string) {
+    return this.dataSource.transaction(async manager => {
+      const payment = await manager.findOne(Payment, { where: { id: paymentId, userId }, lock: { mode: 'pessimistic_write' } });
+      if (!payment) throw new NotFoundException('Payment not found');
+      if (payment.status === 'cancelled') return { id: paymentId, deleted: true };
+      if (payment.status !== 'pending') throw new ConflictException('Only pending payments can be deleted');
+      payment.status = 'cancelled';
+      await manager.save(payment);
+      return { id: paymentId, deleted: true };
+    });
+  }
+
+  private mapUserPayment(payment: Payment) {
+    return {
+      id: payment.id,
+      packageName: payment.packageNameSnapshot ?? 'Credit package',
+      amount: Number(payment.amount),
+      currency: payment.currency,
+      credits: Number(payment.creditsSnapshot ?? 0),
+      status: payment.status === 'completed' ? 'paid' : payment.status,
+      createdAt: payment.createdAt,
+      updatedAt: payment.updatedAt,
+    };
   }
 
   async adminListPackages() { return this.packages.find({ order: { sortOrder: 'ASC', price: 'ASC' } }); }
@@ -115,27 +157,95 @@ export class PaymentService {
   async createPayment(userId: string, packageId: string, key: string) {
     const existing = await this.idempotency.findOne({ where: { key } }); if (existing) return existing.response;
     const pkg = await this.packages.findOne({ where: { id: packageId, isActive: true } }); if (!pkg) throw new NotFoundException('Credit package not found');
-    const payment = await this.payments.save(this.payments.create({ userId, creditPackageId: packageId, amount: pkg.price, currency: pkg.currency, status: 'pending' }));
-    const qr = this.provider.createPaymentQr({ paymentId: payment.id, amount: Number(pkg.price), currency: pkg.currency as PaymentCurrency });
-    payment.providerReference = qr.md5;
-    payment.providerMetadata = { mode: this.provider.currentMode, qr: qr.qr };
-    await this.payments.save(payment);
-    this.gateway.sendQr(userId, qr.qr);
-    return this.saveIdempotency(key, 'create-payment', { id: payment.id, status: payment.status, qr: qr.qr, providerMode: this.provider.currentMode });
+    const paymentId = randomUUID();
+    const qr = this.provider.createPaymentQr({ paymentId, amount: Number(pkg.price), currency: pkg.currency as PaymentCurrency });
+    const payment = await this.payments.save(this.payments.create({ id: paymentId, userId, creditPackageId: packageId, packageNameSnapshot: pkg.name, creditsSnapshot: Number(pkg.credits) + Number(pkg.bonusCredits ?? 0), amount: pkg.price, currency: pkg.currency, status: 'pending', providerReference: qr.md5, providerMetadata: { mode: this.provider.currentMode, qr: qr.qr } }));
+    return this.saveIdempotency(key, 'create-payment', {
+      id: payment.id,
+      status: payment.status,
+      qr: qr.qr,
+      packageName: payment.packageNameSnapshot,
+      amount: Number(payment.amount),
+      currency: payment.currency,
+      credits: Number(payment.creditsSnapshot),
+      providerMode: this.provider.currentMode,
+    });
   }
 
-  async verifyPayment(userId: string, paymentId: string) {
+  async verifyPaymentProof(userId: string, paymentId: string, image: Buffer) {
     const payment = await this.payments.findOne({ where: { id: paymentId, userId } });
     if (!payment) throw new NotFoundException('Payment not found');
-    if (payment.status === 'completed') return { paymentId, status: 'PAID' };
-    if (!payment.providerReference) throw new ConflictException('Payment provider reference is missing');
-    const result = await this.provider.checkPaymentByMd5(payment.providerReference);
-    if (result.responseCode !== 0 || !result.data) { this.gateway.sendStatus(userId, 'UNPAID'); void this.events?.publish('payment.failed', { paymentId, userId, reason: 'unpaid' }, paymentId); return { paymentId, status: 'UNPAID' }; }
-    if (Number(result.data.amount) !== Number(payment.amount) || result.data.currency !== payment.currency) throw new ConflictException('Payment amount or currency mismatch');
-    await this.creditSuccessfulPayment(payment, result.data as unknown as Record<string, unknown>);
-    this.gateway.sendStatus(userId, 'PAID');
-    void this.events?.publish('payment.completed', { paymentId, userId, amount: Number(payment.amount), currency: payment.currency }, paymentId);
-    return { paymentId, status: 'PAID' };
+    if (payment.status === 'completed') {
+      this.gateway.sendStatus(userId, paymentId, 'PAID');
+      return { paymentId, status: 'PAID' };
+    }
+
+    const claimed = await this.dataSource.transaction(async (manager) => {
+      const current = await manager.findOne(Payment, { where: { id: paymentId, userId }, lock: { mode: 'pessimistic_write' } });
+      if (!current) throw new NotFoundException('Payment not found');
+      if (current.status === 'cancelled') throw new ConflictException('This payment has been deleted');
+      if (current.status === 'completed') return 'completed';
+      if (current.status === 'verifying' && Date.now() - current.updatedAt.getTime() < 2 * 60_000) {
+        throw new ConflictException('A receipt for this payment is already being checked');
+      }
+      current.status = 'verifying';
+      await manager.save(current);
+      return 'claimed';
+    });
+    if (claimed === 'completed') {
+      this.gateway.sendStatus(userId, paymentId, 'PAID');
+      return { paymentId, status: 'PAID' };
+    }
+
+    this.gateway.sendStatus(userId, paymentId, 'VERIFYING');
+    try {
+      const receipt = await this.proofOcr.storeReceipt(paymentId, image);
+      this.logger.log(JSON.stringify({ event: 'payment.receipt.saved', paymentId, receiptKey: receipt.key, bytes: receipt.size }));
+      await this.payments.update({ id: paymentId }, { providerMetadata: { ...(payment.providerMetadata ?? {}), receipt } });
+      const hash = await this.proofOcr.extractShortHash(image);
+      this.logger.log(JSON.stringify({ event: 'payment.receipt.hash', paymentId, extractedHash: hash, amount: Number(payment.amount), currency: payment.currency, providerMode: this.provider.currentMode }));
+      const expectedAmount = Number(payment.amount);
+      const expectedCurrency = payment.currency.toUpperCase() as PaymentCurrency;
+      const result = await this.provider.checkPaymentByHash(hash, expectedAmount, expectedCurrency);
+      this.logger.log(JSON.stringify({ event: 'payment.bakong.lookup', paymentId, extractedHash: hash, responseCode: result.responseCode, errorCode: result.errorCode, responseMessage: result.responseMessage, hasTransaction: !!result.data, returnedAmount: result.data?.amount, returnedCurrency: result.data?.currency, returnedHashPrefix: result.data?.hash?.slice(0, 8) }));
+      if (result.responseCode !== 0 || !result.data) {
+        await this.restorePending(paymentId);
+        this.gateway.sendStatus(userId, paymentId, 'UNPAID', 'No matching completed Bakong transaction was found. Check the receipt and try again.');
+        void this.events?.publish('payment.failed', { paymentId, userId, reason: 'transaction-not-found' }, `${paymentId}:unpaid`);
+        return { paymentId, status: 'UNPAID', extractedHash: hash };
+      }
+      const returnedAmount = Number(result.data.amount);
+      const returnedCurrency = String(result.data.currency).toUpperCase();
+      if (!Number.isFinite(returnedAmount) || returnedAmount !== expectedAmount || returnedCurrency !== expectedCurrency) {
+        throw new ConflictException('Bakong transaction amount or currency does not match this package');
+      }
+      const returnedHash = String(result.data.hash ?? '').toLowerCase();
+      if (returnedHash && returnedHash !== hash && !returnedHash.startsWith(hash)) {
+        throw new ConflictException('Bakong returned a different short hash than the uploaded receipt');
+      }
+
+      // Stored references contain the full Bakong hash, not the OCR short hash.
+      const existingPayment = returnedHash
+        ? await this.payments.findOne({ where: { providerReference: returnedHash } })
+        : null;
+      if (existingPayment && existingPayment.id !== paymentId) {
+        throw new ConflictException('This Bakong transaction has already been used for another payment. Upload a different receipt.');
+      }
+
+      await this.creditSuccessfulPayment(payment, result.data as unknown as Record<string, unknown>);
+      this.gateway.sendStatus(userId, paymentId, 'PAID');
+      void this.events?.publish('payment.completed', { paymentId, userId, amount: Number(payment.amount), currency: payment.currency }, paymentId);
+      return { paymentId, status: 'PAID', extractedHash: hash };
+    } catch (error) {
+      this.logger.warn(JSON.stringify({ event: 'payment.receipt.failed', paymentId, message: error instanceof Error ? error.message : 'Receipt verification failed' }));
+      await this.restorePending(paymentId);
+      this.gateway.sendStatus(userId, paymentId, 'FAILED', error instanceof Error ? error.message : 'Receipt verification failed');
+      throw error;
+    }
+  }
+
+  private async restorePending(paymentId: string) {
+    await this.payments.update({ id: paymentId, status: 'verifying' }, { status: 'pending' });
   }
 
   async reserve(input: { userId: string; amount: number; referenceId: string }, key: string) {
@@ -170,22 +280,38 @@ export class PaymentService {
   private async saveIdempotency(key: string, operation: string, response: Record<string, unknown>) { await this.idempotency.save(this.idempotency.create({ key, operation, statusCode: 201, response })); return response; }
 
   private async creditSuccessfulPayment(payment: Payment, transaction: Record<string, unknown>) {
-    await this.dataSource.transaction(async manager => {
-      const locked = await manager.findOne(Payment, { where: { id: payment.id }, lock: { mode: 'pessimistic_write' } });
-      if (!locked || locked.status === 'completed') return;
-      const pkg = await manager.findOne(CreditPackage, { where: { id: locked.creditPackageId } });
-      if (!pkg) throw new NotFoundException('Credit package not found');
-      let wallet = await manager.findOne(WalletBalance, { where: { userId: locked.userId }, lock: { mode: 'pessimistic_write' } });
-      if (!wallet) wallet = await manager.save(manager.create(WalletBalance, { userId: locked.userId, availableCredits: 0, reservedCredits: 0 }));
-      const credits = Number(pkg.credits) + Number(pkg.bonusCredits ?? 0);
-      wallet.availableCredits = Number(wallet.availableCredits) + credits;
-      await manager.save(wallet);
-      await manager.save(manager.create(WalletTransaction, { userId: locked.userId, amount: credits, type: 'credit', reason: 'purchase', referenceId: locked.id, metadata: { paymentId: locked.id, providerTransaction: transaction } }));
-      locked.status = 'completed';
-      locked.providerMetadata = { ...(locked.providerMetadata ?? {}), transaction };
-      locked.providerReference = String(transaction.hash ?? locked.providerReference);
-      await manager.save(locked);
-    });
+    try {
+      await this.dataSource.transaction(async manager => {
+        const locked = await manager.findOne(Payment, { where: { id: payment.id }, lock: { mode: 'pessimistic_write' } });
+        if (!locked || locked.status === 'completed') return;
+        let wallet = await manager.findOne(WalletBalance, { where: { userId: locked.userId }, lock: { mode: 'pessimistic_write' } });
+        if (!wallet) wallet = await manager.save(manager.create(WalletBalance, { userId: locked.userId, availableCredits: 0, reservedCredits: 0 }));
+        // Old payments created before snapshots were introduced retain a safe
+        // fallback; new payments always use the immutable checkout snapshot.
+        const legacyPackage = locked.creditsSnapshot == null
+          ? await manager.findOne(CreditPackage, { where: { id: locked.creditPackageId } })
+          : null;
+        if (locked.creditsSnapshot == null && !legacyPackage) throw new NotFoundException('Credit package not found for legacy payment');
+        const credits = Number(locked.creditsSnapshot ?? (Number(legacyPackage!.credits) + Number(legacyPackage!.bonusCredits ?? 0)));
+        wallet.availableCredits = Number(wallet.availableCredits) + credits;
+        await manager.save(wallet);
+        await manager.save(manager.create(WalletTransaction, { userId: locked.userId, amount: credits, type: 'credit', reason: 'purchase', referenceId: locked.id, metadata: { paymentId: locked.id, providerTransaction: transaction } }));
+        locked.status = 'completed';
+        locked.providerMetadata = { ...(locked.providerMetadata ?? {}), transaction };
+        locked.providerReference = String(transaction.hash ?? locked.providerReference).toLowerCase();
+        await manager.save(locked);
+      });
+    } catch (error) {
+      // A concurrent payment may claim this hash after the lookup above.
+      // The entire credit transaction has rolled back before returning 409.
+      if (error instanceof QueryFailedError) {
+        const driverError = error.driverError as { code?: string; constraint?: string };
+        if (driverError.code === '23505' && driverError.constraint === 'IDX_payment_provider_reference_unique') {
+          throw new ConflictException('This Bakong transaction has already been used for another payment. Upload a different receipt.');
+        }
+      }
+      throw error;
+    }
   }
 }
 

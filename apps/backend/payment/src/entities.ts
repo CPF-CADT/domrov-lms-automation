@@ -30,9 +30,12 @@ export class Payment {
   @PrimaryGeneratedColumn('uuid') id!: string;
   @Column({ name: 'user_id', type: 'varchar' }) userId!: string;
   @Column({ name: 'credit_package_id', type: 'uuid' }) creditPackageId!: string;
+  @Column({ name: 'package_name_snapshot', nullable: true }) packageNameSnapshot?: string;
+  @Column({ name: 'credits_snapshot', type: 'numeric', precision: 18, scale: 4, nullable: true }) creditsSnapshot?: number;
   @Column({ type: 'numeric', precision: 18, scale: 4 }) amount!: number;
   @Column({ length: 3 }) currency!: string;
   @Column({ default: 'pending' }) status!: string;
+  @Index('IDX_payment_provider_reference_unique', { unique: true })
   @Column({ nullable: true }) providerReference?: string;
   @Column({ type: 'jsonb', nullable: true }) providerMetadata?: Record<string, unknown>;
   @CreateDateColumn() createdAt!: Date;

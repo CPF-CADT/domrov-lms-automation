@@ -11,10 +11,9 @@ import { Server, Socket } from 'socket.io';
 
 type AuthenticatedSocket = Socket & { data: { userId?: string } };
 
-/** Compatibility events: QR_READY -> { qr }, PAYMENT_STATUS -> { status }. */
+/** Payment verification results are pushed to authenticated user sockets. */
 @WebSocketGateway({
   cors: { origin: true, credentials: true },
-  transports: ['websocket'],
 })
 export class PaymentGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
@@ -43,12 +42,8 @@ export class PaymentGateway implements OnGatewayConnection, OnGatewayDisconnect 
     if (sockets?.size === 0) this.clients.delete(userId);
   }
 
-  sendQr(userId: string, qr: string): void {
-    this.emitToUser(userId, 'QR_READY', { qr });
-  }
-
-  sendStatus(userId: string, status: string): void {
-    this.emitToUser(userId, 'PAYMENT_STATUS', { status });
+  sendStatus(userId: string, paymentId: string, status: string, message?: string): void {
+    this.emitToUser(userId, 'PAYMENT_STATUS', { paymentId, status, ...(message ? { message } : {}) });
   }
 
   private emitToUser(userId: string, event: string, payload: Record<string, string>): void {
@@ -66,11 +61,6 @@ export class PaymentGateway implements OnGatewayConnection, OnGatewayDisconnect 
         secret: this.config.getOrThrow('JWT_ACCESS_SECRET'),
       });
       if (!payload.sub) throw new UnauthorizedException('Invalid access token');
-      const requestedUserId = this.readRequestedUserId(client);
-      if (requestedUserId && requestedUserId !== String(payload.sub)) {
-        this.reject(client);
-        throw new UnauthorizedException('Socket user does not match token');
-      }
       return String(payload.sub);
     } catch (error) {
       this.reject(client);
@@ -81,13 +71,7 @@ export class PaymentGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
   private readToken(client: AuthenticatedSocket): string | undefined {
     const value = client.handshake.auth?.token
-      ?? client.handshake.headers.authorization?.replace(/^Bearer\s+/i, '')
-      ?? client.handshake.query.token;
-    return Array.isArray(value) ? value[0] : value;
-  }
-
-  private readRequestedUserId(client: AuthenticatedSocket): string | undefined {
-    const value = client.handshake.query.userId;
+      ?? client.handshake.headers.authorization?.replace(/^Bearer\s+/i, '');
     return Array.isArray(value) ? value[0] : value;
   }
 

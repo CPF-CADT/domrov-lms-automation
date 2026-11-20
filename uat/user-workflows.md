@@ -71,5 +71,5 @@
 
 - Role: authenticated user
 - Entry: `/creditPurchase`.
-- Flow: choose package or payment option → submit payment/QR flow → observe pending/success/error state → verify wallet balance.
+- Flow: choose a credit package → display its KHQR QR code → pay in Bakong → upload the receipt image → payment service OCR extracts the 8-character short hash and checks Bakong once → authenticated socket pushes paid/unpaid status → verify wallet balance.
 - APIs: wallet and payment service endpoints.

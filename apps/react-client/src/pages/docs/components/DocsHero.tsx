@@ -6,10 +6,11 @@ import SectionWrapper from "@/components/primitives/SectionWrapper";
  */
 export default function DocsHero() {
   return (
-    <section className="bg-linear-to-br from-blue-50 to-white border-b border-slate-200">
+    <section className="public-page-hero border-b border-slate-200">
       <SectionWrapper>
         <div className="text-center max-w-3xl mx-auto">
-          <h1 className="text-5xl font-black text-primary mb-4">
+          <p className="landing-eyebrow">Domrov help center</p>
+          <h1 className="text-4xl sm:text-5xl font-black text-primary mb-4">
             Domrov User Guidelines
           </h1>
           <p className="text-lg text-slate-600">

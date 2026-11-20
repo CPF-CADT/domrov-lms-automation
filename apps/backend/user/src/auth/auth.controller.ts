@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Patch, Post, Query, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { randomBytes } from 'node:crypto';
 import { AuthService } from './auth.service';
 import { ChangePasswordRequest, CompletePasswordResetRequest, LoginRequest, PasswordResetRequest, RefreshRequest, RegisterRequest, UpdateProfileRequest, VerifyEmailRequest } from './auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -72,14 +73,25 @@ export class AuthController {
 
   @Get(':provider/login')
   async oauthLogin(@Param('provider') provider: string, @Res() response: Response) {
-    return response.redirect(await this.auth.oauthAuthorizationUrl(provider));
+    const state = randomBytes(32).toString('base64url');
+    const authorizationUrl = await this.auth.oauthAuthorizationUrl(provider, state);
+    response.cookie('oauth_state', state, this.oauthStateCookieOptions());
+    return response.redirect(authorizationUrl);
   }
 
   @Get(':provider/callback')
-  async oauthCallback(@Param('provider') provider: string, @Query('code') code: string, @Res() response: Response) {
-    const result = await this.auth.oauthCallback(provider, code);
+  async oauthCallback(
+    @Param('provider') provider: string,
+    @Query('code') code: string,
+    @Query('state') state: string,
+    @Req() request: Request & { cookies?: Record<string, string> },
+    @Res() response: Response,
+  ) {
+    const cookieState = request.cookies?.oauth_state;
+    response.clearCookie('oauth_state', this.oauthStateCookieOptions());
+    const result = await this.auth.oauthCallback(provider, code, state, cookieState);
     this.setRefreshCookie(response, result.refreshToken);
-    return response.redirect(`${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/auth/callback`);
+    return response.redirect(this.auth.frontendOAuthCallbackUrl());
   }
 
   @Post('reset-password')
@@ -88,6 +100,10 @@ export class AuthController {
 
   private setRefreshCookie(response: Response, refreshToken: string) {
     response.cookie('refresh_token', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
+  }
+
+  private oauthStateCookieOptions() {
+    return { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' as const, maxAge: 5 * 60 * 1000, path: '/auth' };
   }
 }
 

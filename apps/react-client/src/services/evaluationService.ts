@@ -47,6 +47,11 @@ export async function triggerAIEvaluation(submissionId: number): Promise<AddToQu
   return response.data?.data || response.data;
 }
 
+export async function getFreeEvaluationQuota(): Promise<{ provider: string; model: string; period: string; limit: number; used: number; remaining: number; reserved: number }> {
+  const response = (await axiosInstance.get('/evaluations/quota')).data;
+  return response.data ?? response;
+}
+
 /**
  * Fetch all AI providers
  */
@@ -106,6 +111,7 @@ const evaluationService = {
   getSubmissionFileContent,
   getSubmissionFolderStructure,
   triggerAIEvaluation,
+  getFreeEvaluationQuota,
   fetchAIProviders,
   createAIKey,
   fetchAIKeys,
