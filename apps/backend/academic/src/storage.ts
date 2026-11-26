@@ -7,6 +7,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { logger } from './logging';
 
 export type StorageProviderName = 'local' | 'r2';
 
@@ -28,6 +29,17 @@ export interface StorageAdapter {
 function assertSafeKey(key: string): void {
   if (!key || key.includes('\0') || key.includes('\\') || isAbsolute(key) || win32.isAbsolute(key) || key.split('/').includes('..')) {
     throw new Error('Storage key must be a safe relative path');
+  }
+}
+
+function logStorageFailure(provider: StorageProviderName, operation: string, error: unknown, startedAt: number) {
+  const details = error as { code?: string; name?: string; $metadata?: { httpStatusCode?: number } } | undefined;
+  if (error instanceof NotFoundException || details?.code === 'ENOENT' || details?.$metadata?.httpStatusCode === 404) return;
+  const fields = { dependency: provider, operation, duration_ms: Math.round(performance.now() - startedAt) };
+  if (details?.name === 'TimeoutError' || details?.code === 'ETIMEDOUT') {
+    logger.warn('storage.operation.timeout', 'Academic storage operation timed out', fields);
+  } else {
+    logger.warn('storage.operation.failed', 'Academic storage operation failed', fields);
   }
 }
 
@@ -112,7 +124,14 @@ export class R2StorageAdapter implements StorageAdapter {
   }
 
   async exists(key: string): Promise<boolean> {
-    try { await this.head(key); return true; } catch { return false; }
+    const startedAt = performance.now();
+    try {
+      await this.head(key);
+      return true;
+    } catch (error) {
+      logStorageFailure(this.name, 'exists', error, startedAt);
+      return false;
+    }
   }
 
   async head(key: string): Promise<StoredObjectMetadata> {
@@ -145,11 +164,41 @@ export class AcademicStorageService {
   }
 
   get provider(): StorageProviderName { return this.adapter.name; }
-  save(key: string, body: NodeJS.ReadableStream, metadata: StoredObjectMetadata) { return this.adapter.save(key, body, metadata); }
-  exists(key: string) { return this.adapter.exists(key); }
-  head(key: string) { return this.adapter.head(key); }
-  stream(key: string) { return this.adapter.stream(key); }
-  createUploadUrl(key: string, contentType: string) { return this.adapter.createUploadUrl(key, contentType); }
+  save(key: string, body: NodeJS.ReadableStream, metadata: StoredObjectMetadata) {
+    return this.run('save', () => this.adapter.save(key, body, metadata));
+  }
+
+  exists(key: string) {
+    return this.run('exists', () => this.adapter.exists(key));
+  }
+
+  head(key: string) {
+    return this.run('head', () => this.adapter.head(key));
+  }
+
+  stream(key: string) {
+    return this.run('stream', () => this.adapter.stream(key));
+  }
+
+  createUploadUrl(key: string, contentType: string) {
+    return this.run('presign', () => this.adapter.createUploadUrl(key, contentType));
+  }
+
+  private async run<T>(operation: string, action: () => Promise<T>): Promise<T> {
+    const startedAt = performance.now();
+    try {
+      const result = await action();
+      if (operation === 'save' || operation === 'presign') {
+        logger.debug('storage.operation.completed', 'Academic storage operation completed', {
+          dependency: this.provider, operation, duration_ms: Math.round(performance.now() - startedAt),
+        });
+      }
+      return result;
+    } catch (error) {
+      logStorageFailure(this.provider, operation, error, startedAt);
+      throw error;
+    }
+  }
 
   createCloudinaryUploadParams(folder = 'domrov-pictures') {
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;

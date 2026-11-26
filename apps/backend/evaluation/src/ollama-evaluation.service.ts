@@ -1,5 +1,6 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getLogContext, logger } from './logging';
 
 export interface OllamaEvaluationInput {
   assignmentTitle: string;
@@ -31,6 +32,7 @@ export class OllamaEvaluationService {
   }
 
   async evaluate(input: OllamaEvaluationInput): Promise<OllamaEvaluationOutput> {
+    const startedAt = performance.now();
     const code = input.files.map((file) => `### ${file.path}\n${file.content}`).join('\n\n');
     const prompt = [
       `Assignment: ${input.assignmentTitle}`,
@@ -44,10 +46,17 @@ export class OllamaEvaluationService {
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    const connection = { dependency: 'ollama', operation: 'evaluate_submission' };
+    let errorCode = 'OLLAMA_REQUEST_FAILED';
+    let statusCode: number | undefined;
     try {
+      const headers: Record<string, string> = { 'content-type': 'application/json' };
+      const context = getLogContext();
+      if (context?.request_id) headers['x-request-id'] = context.request_id;
+      if (context?.correlation_id) headers['x-correlation-id'] = context.correlation_id;
       const response = await fetch(`${this.baseUrl}/api/chat`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers,
         signal: controller.signal,
         body: JSON.stringify({
           model: this.model,
@@ -63,7 +72,12 @@ export class OllamaEvaluationService {
           ],
         }),
       });
-      if (!response.ok) throw new Error(`Ollama returned HTTP ${response.status}`);
+      statusCode = response.status;
+      if (!response.ok) {
+        errorCode = 'OLLAMA_HTTP_ERROR';
+        throw new Error(`Ollama returned HTTP ${response.status}`);
+      }
+      errorCode = 'OLLAMA_RESPONSE_INVALID';
       const body = await response.json() as {
         model?: string;
         message?: { content?: string };
@@ -75,6 +89,11 @@ export class OllamaEvaluationService {
       if (!Number.isFinite(score) || score < 0 || score > input.maxScore || typeof parsed.feedback !== 'string' || !parsed.feedback.trim()) {
         throw new Error('Ollama returned an invalid evaluation result');
       }
+      logger.debug('evaluation.provider_completed', 'Evaluation provider responded', {
+        ...connection,
+        status_code: statusCode,
+        duration_ms: performance.now() - startedAt,
+      });
       return {
         score,
         feedback: parsed.feedback.trim(),
@@ -83,6 +102,12 @@ export class OllamaEvaluationService {
         completionTokens: body.eval_count,
       };
     } catch (error) {
+      logger.warn('evaluation.provider_failed', 'Evaluation provider request failed', {
+        ...connection,
+        status_code: statusCode,
+        duration_ms: performance.now() - startedAt,
+        error_code: controller.signal.aborted ? 'OLLAMA_TIMEOUT' : errorCode,
+      });
       const message = error instanceof Error ? error.message : 'Ollama request failed';
       throw new ServiceUnavailableException(`Local AI evaluation unavailable: ${message}`);
     } finally {

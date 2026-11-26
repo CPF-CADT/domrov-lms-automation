@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, writeFile, rename, rm } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import { logger } from './logging';
 
 const MAX_PROOF_BYTES = 5 * 1024 * 1024;
 // Transaction hashes use hexadecimal characters. Ordinary eight-letter names
@@ -25,12 +26,16 @@ export class PaymentProofOcrService {
     const key = `payment-receipts/${paymentId}/${randomUUID()}.${extension}`;
     const destination = resolve(this.config.get<string>('LOCAL_FILE_ROOT') || '/data/files', 'permanent', key);
     const temporary = `${destination}.upload`;
+    const started = performance.now();
     try {
       await mkdir(dirname(destination), { recursive: true, mode: 0o750 });
       await writeFile(temporary, image, { flag: 'wx', mode: 0o640 });
       await rename(temporary, destination);
     } catch {
       await rm(temporary, { force: true }).catch(() => undefined);
+      logger.warn('payment.receipt_storage', 'Receipt storage failed', {
+        dependency: 'filesystem', outcome: 'failed', duration_ms: performance.now() - started,
+      });
       throw new ServiceUnavailableException('Receipt could not be saved. Check the payment storage mount and write permissions.');
     }
     return { key, size: image.length, sha256: createHash('sha256').update(image).digest('hex'), uploadedAt: new Date().toISOString() };
@@ -52,30 +57,51 @@ export class PaymentProofOcrService {
 
   private recognize(image: Buffer): Promise<string> {
     return new Promise((resolve, reject) => {
-      const process = spawn('tesseract', ['stdin', 'stdout', '-l', 'eng', '--psm', '6'], { stdio: ['pipe', 'pipe', 'pipe'] });
+      const started = performance.now();
+      const child = spawn('tesseract', ['stdin', 'stdout', '-l', 'eng', '--psm', '6'], { stdio: ['pipe', 'pipe', 'pipe'] });
       const output: Buffer[] = [];
-      const errors: Buffer[] = [];
+      let sawStderr = false;
+      let failedToStart = false;
+      let termination: 'timeout' | 'output_limit' | undefined;
       let outputBytes = 0;
-      const timer = setTimeout(() => process.kill('SIGKILL'), 15_000);
-      process.stdout.on('data', (chunk: Buffer) => {
+      const timer = setTimeout(() => {
+        termination ??= 'timeout';
+        child.kill('SIGKILL');
+      }, 15_000);
+      child.stdout.on('data', (chunk: Buffer) => {
         outputBytes += chunk.length;
-        if (outputBytes > 64 * 1024) process.kill('SIGKILL');
-        else output.push(chunk);
+        if (outputBytes > 64 * 1024) {
+          termination ??= 'output_limit';
+          child.kill('SIGKILL');
+        } else {
+          output.push(chunk);
+        }
       });
-      process.stderr.on('data', (chunk: Buffer) => errors.push(chunk));
-      process.once('error', () => {
+      child.stderr.on('data', () => { sawStderr = true; });
+      child.once('error', () => {
         clearTimeout(timer);
+        failedToStart = true;
+        logger.warn('payment.receipt_ocr', 'Receipt OCR unavailable', {
+          dependency: 'tesseract', outcome: 'unavailable', duration_ms: performance.now() - started,
+        });
         reject(new ServiceUnavailableException('Receipt OCR is unavailable on the payment service'));
       });
-      process.once('close', (code) => {
+      child.once('close', (code) => {
         clearTimeout(timer);
+        if (failedToStart) return;
         if (code !== 0) {
-          reject(new BadRequestException(errors.length ? 'Could not read the uploaded receipt image' : 'Receipt OCR failed'));
+          logger.warn('payment.receipt_ocr', 'Receipt OCR failed', {
+            dependency: 'tesseract', outcome: termination ?? 'failed', duration_ms: performance.now() - started,
+          });
+          reject(new BadRequestException(sawStderr ? 'Could not read the uploaded receipt image' : 'Receipt OCR failed'));
           return;
         }
+        logger.debug('payment.receipt_ocr', 'Receipt OCR completed', {
+          dependency: 'tesseract', outcome: 'completed', duration_ms: performance.now() - started,
+        });
         resolve(Buffer.concat(output).toString('utf8'));
       });
-      process.stdin.end(image);
+      child.stdin.end(image);
     });
   }
 }

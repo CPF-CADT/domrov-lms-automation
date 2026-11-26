@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException, BadRequestException, UnauthorizedException, Optional, Logger } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, BadRequestException, UnauthorizedException, Optional, HttpException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, Not, QueryFailedError, Repository } from 'typeorm';
@@ -7,10 +7,10 @@ import { BakongProvider, PaymentCurrency } from './bakong.provider';
 import { PaymentGateway } from './payment.gateway';
 import { PaymentEventsPublisher } from './messaging/payment-events';
 import { PaymentProofOcrService } from './payment-proof-ocr.service';
+import { logger, markErrorLogged } from './logging';
 
 @Injectable()
 export class PaymentService {
-  private readonly logger = new Logger(PaymentService.name);
   constructor(
     @InjectRepository(WalletBalance) private readonly wallets: Repository<WalletBalance>,
     @InjectRepository(CreditPackage) private readonly packages: Repository<CreditPackage>,
@@ -48,7 +48,8 @@ export class PaymentService {
   }
 
   async deletePendingPayment(userId: string, paymentId: string) {
-    return this.dataSource.transaction(async manager => {
+    const started = performance.now();
+    const response = await this.dataSource.transaction(async manager => {
       const payment = await manager.findOne(Payment, { where: { id: paymentId, userId }, lock: { mode: 'pessimistic_write' } });
       if (!payment) throw new NotFoundException('Payment not found');
       if (payment.status === 'cancelled') return { id: paymentId, deleted: true };
@@ -57,6 +58,8 @@ export class PaymentService {
       await manager.save(payment);
       return { id: paymentId, deleted: true };
     });
+    logger.info('payment.cancel', 'Pending payment cancellation completed', { outcome: 'completed', duration_ms: performance.now() - started });
+    return response;
   }
 
   private mapUserPayment(payment: Payment) {
@@ -75,39 +78,51 @@ export class PaymentService {
   async adminListPackages() { return this.packages.find({ order: { sortOrder: 'ASC', price: 'ASC' } }); }
 
   async adminCreatePackage(input: { name: string; description?: string; credits: number; price: number; currency?: string; bonusCredits?: number; sortOrder?: number; isActive?: boolean }) {
+    const started = performance.now();
     this.validatePackageInput(input);
-    return this.packages.save(this.packages.create({ name: input.name.trim(), description: input.description?.trim(), credits: input.credits, price: input.price, currency: (input.currency ?? 'USD').toUpperCase(), bonusCredits: input.bonusCredits ?? 0, sortOrder: input.sortOrder ?? 0, isActive: input.isActive ?? true }));
+    const pkg = await this.packages.save(this.packages.create({ name: input.name.trim(), description: input.description?.trim(), credits: input.credits, price: input.price, currency: (input.currency ?? 'USD').toUpperCase(), bonusCredits: input.bonusCredits ?? 0, sortOrder: input.sortOrder ?? 0, isActive: input.isActive ?? true }));
+    logger.info('payment.package', 'Credit package created', { operation: 'create', outcome: 'completed', duration_ms: performance.now() - started });
+    return pkg;
   }
 
   async adminUpdatePackage(id: string, input: Partial<{ name: string; description: string; credits: number; price: number; currency: string; bonusCredits: number; sortOrder: number; isActive: boolean }>) {
+    const started = performance.now();
     const pkg = await this.packages.findOne({ where: { id } });
     if (!pkg) throw new NotFoundException('Credit package not found');
     this.validatePackageInput({ ...pkg, ...input });
     Object.assign(pkg, input, input.currency ? { currency: input.currency.toUpperCase() } : {});
-    return this.packages.save(pkg);
+    const updated = await this.packages.save(pkg);
+    logger.info('payment.package', 'Credit package updated', { operation: 'update', outcome: 'completed', duration_ms: performance.now() - started });
+    return updated;
   }
 
   async adminTogglePackage(id: string) {
+    const started = performance.now();
     const pkg = await this.packages.findOne({ where: { id } });
     if (!pkg) throw new NotFoundException('Credit package not found');
     pkg.isActive = !pkg.isActive;
-    return this.packages.save(pkg);
+    const updated = await this.packages.save(pkg);
+    logger.info('payment.package', 'Credit package status updated', { operation: 'toggle', outcome: 'completed', duration_ms: performance.now() - started });
+    return updated;
   }
 
   async adminDeletePackage(id: string) {
+    const started = performance.now();
     const pkg = await this.packages.findOne({ where: { id } });
     if (!pkg) throw new NotFoundException('Credit package not found');
     await this.packages.remove(pkg);
+    logger.info('payment.package', 'Credit package deleted', { operation: 'delete', outcome: 'completed', duration_ms: performance.now() - started });
     return { id, deleted: true };
   }
 
   async adminAdjustWallet(input: { userId: string; amount: number; reason: string; description: string; adminId: string }, key: string) {
+    const started = performance.now();
     if (!key?.trim()) throw new BadRequestException('Idempotency-Key is required');
     if (!input.userId || !Number.isFinite(input.amount) || input.amount === 0) throw new BadRequestException('A non-zero amount is required');
     if (!input.reason?.trim() || !input.description?.trim()) throw new BadRequestException('Reason and description are required');
     const existing = await this.idempotency.findOne({ where: { key } });
     if (existing) return existing.response;
-    return this.dataSource.transaction(async manager => {
+    const adjustment = await this.dataSource.transaction(async manager => {
       let wallet = await manager.findOne(WalletBalance, { where: { userId: input.userId }, lock: { mode: 'pessimistic_write' } });
       if (!wallet) wallet = await manager.save(manager.create(WalletBalance, { userId: input.userId, availableCredits: 0, reservedCredits: 0 }));
       const before = Number(wallet.availableCredits);
@@ -120,6 +135,8 @@ export class PaymentService {
       await manager.save(manager.create(IdempotencyRecord, { key, operation: 'admin-wallet-adjustment', statusCode: 200, response }));
       return response;
     });
+    logger.info('payment.wallet_adjust', 'Wallet adjustment completed', { outcome: 'completed', duration_ms: performance.now() - started });
+    return adjustment;
   }
 
   async adminListTransactions(input: { page?: number; limit?: number; transactionType?: string; userId?: string }) {
@@ -155,12 +172,13 @@ export class PaymentService {
   }
 
   async createPayment(userId: string, packageId: string, key: string) {
+    const started = performance.now();
     const existing = await this.idempotency.findOne({ where: { key } }); if (existing) return existing.response;
     const pkg = await this.packages.findOne({ where: { id: packageId, isActive: true } }); if (!pkg) throw new NotFoundException('Credit package not found');
     const paymentId = randomUUID();
     const qr = this.provider.createPaymentQr({ paymentId, amount: Number(pkg.price), currency: pkg.currency as PaymentCurrency });
     const payment = await this.payments.save(this.payments.create({ id: paymentId, userId, creditPackageId: packageId, packageNameSnapshot: pkg.name, creditsSnapshot: Number(pkg.credits) + Number(pkg.bonusCredits ?? 0), amount: pkg.price, currency: pkg.currency, status: 'pending', providerReference: qr.md5, providerMetadata: { mode: this.provider.currentMode, qr: qr.qr } }));
-    return this.saveIdempotency(key, 'create-payment', {
+    const response = await this.saveIdempotency(key, 'create-payment', {
       id: payment.id,
       status: payment.status,
       qr: qr.qr,
@@ -170,9 +188,12 @@ export class PaymentService {
       credits: Number(payment.creditsSnapshot),
       providerMode: this.provider.currentMode,
     });
+    logger.info('payment.create', 'Payment initialized', { outcome: 'completed', duration_ms: performance.now() - started });
+    return response;
   }
 
   async verifyPaymentProof(userId: string, paymentId: string, image: Buffer) {
+    const started = performance.now();
     const payment = await this.payments.findOne({ where: { id: paymentId, userId } });
     if (!payment) throw new NotFoundException('Payment not found');
     if (payment.status === 'completed') {
@@ -185,42 +206,56 @@ export class PaymentService {
       if (!current) throw new NotFoundException('Payment not found');
       if (current.status === 'cancelled') throw new ConflictException('This payment has been deleted');
       if (current.status === 'completed') return 'completed';
-      if (current.status === 'verifying' && Date.now() - current.updatedAt.getTime() < 2 * 60_000) {
+      const retrying = current.status === 'verifying';
+      if (retrying && Date.now() - current.updatedAt.getTime() < 2 * 60_000) {
         throw new ConflictException('A receipt for this payment is already being checked');
       }
       current.status = 'verifying';
       await manager.save(current);
-      return 'claimed';
+      return retrying ? 'reclaimed' : 'claimed';
     });
     if (claimed === 'completed') {
       this.gateway.sendStatus(userId, paymentId, 'PAID');
       return { paymentId, status: 'PAID' };
     }
+    if (claimed === 'reclaimed') {
+      logger.info('payment.verify.retry', 'Stale receipt verification reclaimed', {
+        outcome: 'retrying', duration_ms: performance.now() - started,
+      });
+    }
 
     this.gateway.sendStatus(userId, paymentId, 'VERIFYING');
+    let operation = 'store_receipt';
+    let errorCode: string | undefined;
     try {
       const receipt = await this.proofOcr.storeReceipt(paymentId, image);
-      this.logger.log(JSON.stringify({ event: 'payment.receipt.saved', paymentId, receiptKey: receipt.key, bytes: receipt.size }));
+      operation = 'record_receipt';
       await this.payments.update({ id: paymentId }, { providerMetadata: { ...(payment.providerMetadata ?? {}), receipt } });
+      operation = 'receipt_ocr';
       const hash = await this.proofOcr.extractShortHash(image);
-      this.logger.log(JSON.stringify({ event: 'payment.receipt.hash', paymentId, extractedHash: hash, amount: Number(payment.amount), currency: payment.currency, providerMode: this.provider.currentMode }));
       const expectedAmount = Number(payment.amount);
       const expectedCurrency = payment.currency.toUpperCase() as PaymentCurrency;
+      operation = 'provider_lookup';
       const result = await this.provider.checkPaymentByHash(hash, expectedAmount, expectedCurrency);
-      this.logger.log(JSON.stringify({ event: 'payment.bakong.lookup', paymentId, extractedHash: hash, responseCode: result.responseCode, errorCode: result.errorCode, responseMessage: result.responseMessage, hasTransaction: !!result.data, returnedAmount: result.data?.amount, returnedCurrency: result.data?.currency, returnedHashPrefix: result.data?.hash?.slice(0, 8) }));
+      operation = 'verify_match';
       if (result.responseCode !== 0 || !result.data) {
         await this.restorePending(paymentId);
         this.gateway.sendStatus(userId, paymentId, 'UNPAID', 'No matching completed Bakong transaction was found. Check the receipt and try again.');
         void this.events?.publish('payment.failed', { paymentId, userId, reason: 'transaction-not-found' }, `${paymentId}:unpaid`);
+        logger.info('payment.verify', 'Payment receipt had no matching transaction', {
+          outcome: 'not_found', duration_ms: performance.now() - started,
+        });
         return { paymentId, status: 'UNPAID', extractedHash: hash };
       }
       const returnedAmount = Number(result.data.amount);
       const returnedCurrency = String(result.data.currency).toUpperCase();
       if (!Number.isFinite(returnedAmount) || returnedAmount !== expectedAmount || returnedCurrency !== expectedCurrency) {
+        errorCode = 'amount_or_currency_mismatch';
         throw new ConflictException('Bakong transaction amount or currency does not match this package');
       }
       const returnedHash = String(result.data.hash ?? '').toLowerCase();
       if (returnedHash && returnedHash !== hash && !returnedHash.startsWith(hash)) {
+        errorCode = 'hash_mismatch';
         throw new ConflictException('Bakong returned a different short hash than the uploaded receipt');
       }
 
@@ -229,15 +264,29 @@ export class PaymentService {
         ? await this.payments.findOne({ where: { providerReference: returnedHash } })
         : null;
       if (existingPayment && existingPayment.id !== paymentId) {
+        errorCode = 'transaction_already_used';
         throw new ConflictException('This Bakong transaction has already been used for another payment. Upload a different receipt.');
       }
 
+      operation = 'credit_wallet';
       await this.creditSuccessfulPayment(payment, result.data as unknown as Record<string, unknown>);
       this.gateway.sendStatus(userId, paymentId, 'PAID');
       void this.events?.publish('payment.completed', { paymentId, userId, amount: Number(payment.amount), currency: payment.currency }, paymentId);
+      logger.info('payment.verify', 'Payment receipt verified', { outcome: 'completed', duration_ms: performance.now() - started });
       return { paymentId, status: 'PAID', extractedHash: hash };
     } catch (error) {
-      this.logger.warn(JSON.stringify({ event: 'payment.receipt.failed', paymentId, message: error instanceof Error ? error.message : 'Receipt verification failed' }));
+      const fields = {
+        operation, outcome: 'failed',
+        error_code: errorCode,
+        status_code: error instanceof HttpException ? error.getStatus() : undefined,
+        duration_ms: performance.now() - started,
+      };
+      if (errorCode || operation === 'credit_wallet' || operation === 'verify_match' || operation === 'record_receipt') {
+        logger.warn('payment.verify', 'Payment receipt verification failed', fields);
+        markErrorLogged(error);
+      } else {
+        logger.debug('payment.verify', 'Payment receipt verification failed', fields);
+      }
       await this.restorePending(paymentId);
       this.gateway.sendStatus(userId, paymentId, 'FAILED', error instanceof Error ? error.message : 'Receipt verification failed');
       throw error;
@@ -249,9 +298,10 @@ export class PaymentService {
   }
 
   async reserve(input: { userId: string; amount: number; referenceId: string }, key: string) {
+    const started = performance.now();
     const existing = await this.idempotency.findOne({ where: { key } }); if (existing) return existing.response;
     if (input.amount <= 0) throw new BadRequestException('Amount must be positive');
-    return this.dataSource.transaction(async manager => {
+    const reservation = await this.dataSource.transaction(async manager => {
       let wallet = await manager.findOne(WalletBalance, { where: { userId: input.userId }, lock: { mode: 'pessimistic_write' } });
       if (!wallet) wallet = await manager.save(manager.create(WalletBalance, { userId: input.userId, availableCredits: 0, reservedCredits: 0 }));
       if (Number(wallet.availableCredits) < input.amount) throw new ConflictException('Insufficient credits');
@@ -261,11 +311,16 @@ export class PaymentService {
       const response = { reservationId: reservation.id, status: reservation.status, amount: Number(reservation.amount) };
       await manager.save(manager.create(IdempotencyRecord, { key, operation: 'reserve-credits', statusCode: 201, response })); return response;
     });
+    logger.info('payment.credit_reservation', 'Credit reservation completed', {
+      operation: 'reserve', outcome: 'completed', duration_ms: performance.now() - started,
+    });
+    return reservation;
   }
 
   async transition(id: string, status: 'committed' | 'released', key: string) {
+    const started = performance.now();
     const existing = await this.idempotency.findOne({ where: { key } }); if (existing) return existing.response;
-    return this.dataSource.transaction(async manager => {
+    const transition = await this.dataSource.transaction(async manager => {
       const reservation = await manager.findOne(CreditReservation, { where: { id }, lock: { mode: 'pessimistic_write' } }); if (!reservation) throw new NotFoundException('Reservation not found');
       if (reservation.status === status) return { reservationId: id, status };
       if (reservation.status !== 'reserved') throw new ConflictException(`Reservation is already ${reservation.status}`);
@@ -274,9 +329,25 @@ export class PaymentService {
       reservation.status = status; await manager.save(reservation); await manager.save(manager.create(WalletTransaction, { userId: reservation.userId, amount: Number(reservation.amount), type: status, reason: 'ai-evaluation', referenceId: reservation.referenceId }));
       const response = { reservationId: id, status }; await manager.save(manager.create(IdempotencyRecord, { key, operation: `${status}-credits`, statusCode: 200, response })); void this.events?.publish(`credit.${status === 'committed' ? 'committed' : 'released'}`, { reservationId: id, userId: reservation.userId, amount: Number(reservation.amount), referenceId: reservation.referenceId }, id); return response;
     });
+    logger.info('payment.credit_reservation', 'Credit reservation status updated', {
+      operation: status === 'committed' ? 'commit' : 'release', outcome: 'completed', duration_ms: performance.now() - started,
+    });
+    return transition;
   }
 
-  async refund(userId: string, amount: number, referenceId: string, key: string) { if (amount <= 0) throw new BadRequestException('Amount must be positive'); const existing = await this.idempotency.findOne({ where: { key } }); if (existing) return existing.response; const wallet = await this.wallet(userId); wallet.availableCredits = Number(wallet.availableCredits) + amount; await this.wallets.save(wallet); const response = { userId, amount, status: 'refunded', referenceId }; await this.idempotency.save(this.idempotency.create({ key, operation: 'refund', statusCode: 200, response })); return response; }
+  async refund(userId: string, amount: number, referenceId: string, key: string) {
+    const started = performance.now();
+    if (amount <= 0) throw new BadRequestException('Amount must be positive');
+    const existing = await this.idempotency.findOne({ where: { key } });
+    if (existing) return existing.response;
+    const wallet = await this.wallet(userId);
+    wallet.availableCredits = Number(wallet.availableCredits) + amount;
+    await this.wallets.save(wallet);
+    const response = { userId, amount, status: 'refunded', referenceId };
+    await this.idempotency.save(this.idempotency.create({ key, operation: 'refund', statusCode: 200, response }));
+    logger.info('payment.refund', 'Wallet credit refund completed', { outcome: 'completed', duration_ms: performance.now() - started });
+    return response;
+  }
   private async saveIdempotency(key: string, operation: string, response: Record<string, unknown>) { await this.idempotency.save(this.idempotency.create({ key, operation, statusCode: 201, response })); return response; }
 
   private async creditSuccessfulPayment(payment: Payment, transaction: Record<string, unknown>) {

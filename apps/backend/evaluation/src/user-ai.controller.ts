@@ -1,6 +1,7 @@
 import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, ParseIntPipe, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { logger } from './logging';
 import { UserAiKey } from './user-ai.entity';
 import { UserAiJwtGuard } from './user-ai.guard';
 
@@ -32,7 +33,9 @@ export class UserAiController {
   async create(@Req() request: AuthenticatedRequest, @Body() input: { provider: string; model: string; apiKey: string; label: string; apiEndpoint?: string }) {
     if (!input.provider || !input.model || !input.apiKey || !input.label) throw new BadRequestException('provider, model, apiKey, and label are required');
     const key = this.keys.create({ ...input, userId: this.userId(request), isActive: true, isValid: false });
-    return this.publicKey(await this.keys.save(key));
+    const saved = await this.keys.save(key);
+    logger.info('evaluation.credential_changed', 'AI credential created', { operation: 'create' });
+    return this.publicKey(saved);
   }
 
   @Patch(':id')
@@ -40,11 +43,17 @@ export class UserAiController {
     const key = await this.findOwned(request, id);
     Object.assign(key, input);
     if (input.apiKey) key.isValid = false;
-    return this.publicKey(await this.keys.save(key));
+    const saved = await this.keys.save(key);
+    logger.info('evaluation.credential_changed', 'AI credential updated', { operation: 'update' });
+    return this.publicKey(saved);
   }
 
   @Delete(':id')
-  async remove(@Req() request: AuthenticatedRequest, @Param('id', ParseIntPipe) id: number) { await this.keys.remove(await this.findOwned(request, id)); return { message: 'AI key deleted successfully' }; }
+  async remove(@Req() request: AuthenticatedRequest, @Param('id', ParseIntPipe) id: number) {
+    await this.keys.remove(await this.findOwned(request, id));
+    logger.info('evaluation.credential_changed', 'AI credential deleted', { operation: 'delete' });
+    return { message: 'AI key deleted successfully' };
+  }
 
   private userId(request: AuthenticatedRequest) { if (!request.user?.sub) throw new Error('Authenticated user is missing'); return String(request.user.sub); }
   private async findOwned(request: AuthenticatedRequest, id: number) {

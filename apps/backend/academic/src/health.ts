@@ -1,11 +1,41 @@
 import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { logger, markErrorLogged } from './logging';
 
 @Controller('health')
 export class HealthController {
+  private databaseAvailable = true;
+
   constructor(private readonly dataSource: DataSource) {}
   @Get('live') live() { return { status: 'ok', service: 'academic-service' }; }
-  @Get('ready') @HttpCode(HttpStatus.OK) async ready() { if (!this.dataSource.isInitialized) return { status: 'not_ready', database: 'disconnected' }; await this.dataSource.query('SELECT 1'); return { status: 'ok', database: 'connected' }; }
+
+  @Get('ready')
+  @HttpCode(HttpStatus.OK)
+  async ready() {
+    if (!this.dataSource.isInitialized) {
+      this.updateDatabaseStatus(false);
+      return { status: 'not_ready', database: 'disconnected' };
+    }
+    try {
+      await this.dataSource.query('SELECT 1');
+    } catch (error) {
+      this.updateDatabaseStatus(false);
+      markErrorLogged(error);
+      throw error;
+    }
+    this.updateDatabaseStatus(true);
+    return { status: 'ok', database: 'connected' };
+  }
+
+  private updateDatabaseStatus(available: boolean) {
+    if (this.databaseAvailable === available) return;
+    this.databaseAvailable = available;
+    if (available) {
+      logger.info('dependency.connected', 'Database readiness restored', { dependency: 'postgres' });
+    } else {
+      logger.warn('dependency.disconnected', 'Database readiness check failed', { dependency: 'postgres' });
+    }
+  }
 }
 
 @Controller()

@@ -1,0 +1,138 @@
+{
+  "title": "DOMROV application logs",
+  "uid": "domrov-logs",
+  "description": "Structured application logs with links to distributed traces.",
+  "schemaVersion": 41,
+  "version": 1,
+  "editable": false,
+  "tags": [
+    "domrov",
+    "local"
+  ],
+  "timezone": "browser",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Log events by service and level",
+      "description": "Count of collected application records per dashboard interval.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (service, level) (count_over_time({service=~\"$service\",level=~\"$level\"}[$__interval]))",
+          "legendFormat": "{{service}} {{level}}",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "logs",
+      "title": "Application log events",
+      "description": "Expand an event to inspect context. Events with a trace ID link to Tempo.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 24,
+        "h": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service=~\"$service\",level=~\"$level\"}",
+          "queryType": "range",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          }
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "sortOrder": "Descending"
+      }
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "name": "service",
+        "label": "Service",
+        "type": "query",
+        "allValue": ".+",
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "definition": "label_values(service)",
+        "query": "label_values(service)",
+        "includeAll": true,
+        "multi": true,
+        "refresh": 1,
+        "options": []
+      },
+      {
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "name": "level",
+        "label": "Level",
+        "type": "custom",
+        "allValue": ".+",
+        "query": "debug,info,warn,error,fatal",
+        "includeAll": true,
+        "multi": true,
+        "options": []
+      }
+    ]
+  }
+}

@@ -11,6 +11,7 @@ import { OllamaEvaluationService } from './ollama-evaluation.service';
 import { RabbitController } from './rabbit.controller';
 import { UserAiController } from './user-ai.controller';
 import { UserAiJwtGuard } from './user-ai.guard';
+import { logger, withLogContext } from './logging';
 
 const rmq = (config: ConfigService, queue: string, exchange: string) => ({
   transport: Transport.RMQ as Transport.RMQ,
@@ -20,7 +21,22 @@ const rmq = (config: ConfigService, queue: string, exchange: string) => ({
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    TypeOrmModule.forRootAsync({ inject: [ConfigService], useFactory: (c: ConfigService) => ({ type: 'postgres', url: c.getOrThrow<string>('DATABASE_URL'), entities: [Evaluation, UserAiKey, FreeEvaluationQuota], synchronize: true }) }),
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (c: ConfigService) => ({
+        type: 'postgres',
+        url: c.getOrThrow<string>('DATABASE_URL'),
+        entities: [Evaluation, UserAiKey, FreeEvaluationQuota],
+        synchronize: true,
+        logging: false,
+        poolErrorHandler: () => withLogContext({}, () => {
+          logger.warn('dependency.pool.error', 'PostgreSQL pool reported a connection error', {
+            dependency: 'postgres',
+            error_code: 'POSTGRES_POOL_ERROR',
+          });
+        }),
+      }),
+    }),
     TypeOrmModule.forFeature([Evaluation, UserAiKey, FreeEvaluationQuota]),
     ClientsModule.registerAsync([
       { name: 'EVALUATION_EVENTS', imports: [ConfigModule], inject: [ConfigService], useFactory: (c: ConfigService) => rmq(c, 'domrov.evaluation.publisher', c.get<string>('RABBITMQ_EVENTS_EXCHANGE', 'domrov.events')) },

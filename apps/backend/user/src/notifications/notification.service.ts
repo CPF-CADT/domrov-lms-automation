@@ -4,6 +4,7 @@ import { FindOptionsWhere, Repository } from 'typeorm';
 import { Notification, NotificationStatus, NotificationType } from '../entities/notification.entity';
 import { User } from '../entities/user.entity';
 import { AuthEventsPublisher } from '../messaging/rabbitmq';
+import { logger } from '../logging';
 
 export interface CreateNotificationInput {
   userId: number;
@@ -22,6 +23,7 @@ export class NotificationService {
   ) {}
 
   async create(input: CreateNotificationInput) {
+    const startedAt = performance.now();
     const user = await this.users.findOne({ where: { id: input.userId } });
     if (!user) throw new NotFoundException('User not found');
     const notification = this.notifications.create({
@@ -35,6 +37,7 @@ export class NotificationService {
     });
     const saved = await this.notifications.save(notification);
     void this.events?.publish('notification.created', { notificationId: saved.id, userId: saved.userId, title: saved.title, message: saved.message, type: saved.type, actionUrl: saved.actionUrl }, String(saved.id));
+    logger.debug('notification.created', 'Notification persisted', { duration_ms: performance.now() - startedAt });
     return saved;
   }
 

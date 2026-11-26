@@ -4,12 +4,13 @@ import { randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
 import { AcademicClass, Assignment, Enrollment, Resource, Rubric, Submission, Team, TeamMember } from './entities';
 import { CreateAssignmentDto, CreateClassDto, CreateSubmissionDto, CreateTeamDto, FeedbackDto, GradeSubmissionDto, JoinClassDto, JoinTeamDto, NotifyUploadDto, RubricDto, UpdateAssignmentDto, UpdateClassDto } from './dto';
-import { AsyncEvaluationClient, EvaluationClient } from './ai-client';
+import { AsyncEvaluationClient, EvaluationClient, EvaluationRequest } from './ai-client';
 import { AcademicStorageService } from './storage';
 import { Readable } from 'node:stream';
 import { createHash } from 'node:crypto';
 import AdmZip from 'adm-zip';
 import { extname } from 'node:path';
+import { logger } from './logging';
 
 const EVALUATION_SOURCE_EXTENSIONS = new Set(['.py', '.js', '.jsx', '.ts', '.tsx', '.java', '.c', '.h', '.cpp', '.hpp', '.go', '.rb', '.php', '.cs', '.html', '.css', '.sql', '.txt']);
 const MAX_EVALUATION_SOURCE_BYTES = 80_000;
@@ -35,6 +36,7 @@ export class AcademicService {
     const entity = await this.classes.save(this.classes.create({ ...input, ownerId, joinCode, status: 'active' }));
     await this.enrollments.save(this.enrollments.create({ classId: entity.id, userId: ownerId, role: 'teacher', status: 'active' }));
     const created = await this.classes.findOneByOrFail({ id: entity.id });
+    logger.info('academic.class.created', 'Class created');
     return this.classView(created, 'Teacher');
   }
 
@@ -49,7 +51,9 @@ export class AcademicService {
     if (!await this.classes.findOneBy({ id: classId })) throw new NotFoundException('Class not found');
     const existing = await this.enrollments.findOneBy({ classId, userId });
     if (existing) throw new ConflictException('User is already enrolled');
-    return this.enrollments.save(this.enrollments.create({ classId, userId, role: 'student', status: 'active' }));
+    const enrollment = await this.enrollments.save(this.enrollments.create({ classId, userId, role: 'student', status: 'active' }));
+    logger.info('academic.enrollment.created', 'Class enrollment created');
+    return enrollment;
   }
 
   async createTeam(input: CreateTeamDto, actorId: string) {
@@ -73,17 +77,38 @@ export class AcademicService {
     await this.requireInstructor(input.classId, actorId);
     const entity = await this.assignments.save(this.assignments.create({ ...input, title: input.title ?? 'Untitled assignment', instruction: input.instruction ?? 'Add instructions before publishing.', maxScore: input.maxScore ?? 100, startAt: input.startAt ? new Date(input.startAt) : undefined, dueAt: input.dueAt ? new Date(input.dueAt) : undefined, aiEvaluationEnabled: input.aiEvaluationEnabled ?? false, allowLate: input.allowLate ?? false, submissionType: input.submissionType ?? 'INDIVIDUAL', allowedSubmissionMethod: input.allowedSubmissionMethod ?? 'ANY', isPublic: input.isPublic ?? false }));
     if (input.rubrics?.length) await this.replaceRubrics(entity.id, input.rubrics);
+    logger.info('academic.assignment.created', 'Assignment created');
     return entity;
   }
 
   async updateClass(id: string, input: UpdateClassDto, actorId: string) {
-    const entity = await this.classes.findOneBy({ id }); if (!entity) throw new NotFoundException('Class not found');
-    await this.requireInstructor(id, actorId); Object.assign(entity, input); return this.classes.save(entity);
+    const entity = await this.classes.findOneBy({ id });
+    if (!entity) throw new NotFoundException('Class not found');
+    await this.requireInstructor(id, actorId);
+    Object.assign(entity, input);
+    const saved = await this.classes.save(entity);
+    logger.info('academic.class.updated', 'Class updated');
+    return saved;
   }
 
-  async deleteClass(id: string, actorId: string) { const entity = await this.classes.findOneBy({ id }); if (!entity) throw new NotFoundException('Class not found'); if (entity.ownerId !== actorId) throw new ForbiddenException('Owner access required'); await this.classes.remove(entity); return { message: 'Class deleted successfully' }; }
+  async deleteClass(id: string, actorId: string) {
+    const entity = await this.classes.findOneBy({ id });
+    if (!entity) throw new NotFoundException('Class not found');
+    if (entity.ownerId !== actorId) throw new ForbiddenException('Owner access required');
+    await this.classes.remove(entity);
+    logger.info('academic.class.deleted', 'Class deleted');
+    return { message: 'Class deleted successfully' };
+  }
 
-  async joinClass(input: JoinClassDto, userId: string) { const cls = await this.classes.findOneBy({ joinCode: input.joinCode.toUpperCase() }); if (!cls) throw new NotFoundException('Class not found'); const existing = await this.enrollments.findOneBy({ classId: cls.id, userId }); if (existing) return existing; return this.enrollments.save(this.enrollments.create({ classId: cls.id, userId, role: 'student', status: 'active' })); }
+  async joinClass(input: JoinClassDto, userId: string) {
+    const cls = await this.classes.findOneBy({ joinCode: input.joinCode.toUpperCase() });
+    if (!cls) throw new NotFoundException('Class not found');
+    const existing = await this.enrollments.findOneBy({ classId: cls.id, userId });
+    if (existing) return existing;
+    const enrollment = await this.enrollments.save(this.enrollments.create({ classId: cls.id, userId, role: 'student', status: 'active' }));
+    logger.info('academic.enrollment.created', 'Class enrollment created');
+    return enrollment;
+  }
   async listStudents(classId: string, actorId: string) { await this.requireMember(classId, actorId); return this.enrollments.findBy({ classId, status: 'active' }); }
   async listTeams(classId: string, actorId: string) { await this.requireMember(classId, actorId); return this.teams.findBy({ classId }); }
   async getTeam(id: string, actorId: string) { const team = await this.teams.findOneBy({ id }); if (!team) throw new NotFoundException('Team not found'); await this.requireMember(team.classId, actorId); const members = await this.members.findBy({ teamId: id }); return { ...team, members }; }
@@ -96,13 +121,43 @@ export class AcademicService {
   async assignmentStats(id: string, actorId: string) { const rows = await this.assignmentTracking(id, actorId); const scored = rows.filter(row => row.score !== null && row.score !== undefined); return { total: rows.length, submitted: rows.filter(row => row.status === 'SUBMITTED' || row.status === 'GRADED').length, graded: rows.filter(row => row.status === 'GRADED').length, averageScore: scored.length ? scored.reduce((sum, row) => sum + Number(row.score), 0) / scored.length : 0 }; }
   async getAssignment(id: string, actorId: string) { const assignment = await this.assignments.findOneBy({ id }); if (!assignment) throw new NotFoundException('Assignment not found'); await this.requireMember(assignment.classId, actorId); const rubrics = await this.rubrics.findBy({ assignmentId: id }); const resources = await this.resources.findBy({ ownerId: actorId }); return { ...this.assignmentView(assignment), rubrics, resources }; }
   async updateAssignment(id: string, input: UpdateAssignmentDto, actorId: string) { const assignment = await this.assignments.findOneBy({ id }); if (!assignment) throw new NotFoundException('Assignment not found'); await this.requireInstructor(assignment.classId, actorId); const { rubrics, ...data } = input; Object.assign(assignment, { ...data, startAt: data.startAt ? new Date(data.startAt) : assignment.startAt, dueAt: data.dueAt ? new Date(data.dueAt) : assignment.dueAt }); const saved = await this.assignments.save(assignment); if (rubrics) await this.replaceRubrics(id, rubrics); return this.getAssignment(id, actorId); }
-  async publishAssignment(id: string, actorId: string) { const assignment = await this.assignments.findOneBy({ id }); if (!assignment) throw new NotFoundException('Assignment not found'); await this.requireInstructor(assignment.classId, actorId); if (!assignment.title.trim() || !assignment.instruction.trim() || Number(assignment.maxScore) <= 0) throw new BadRequestException('Title, instruction, and positive max score are required'); const rubrics = await this.rubrics.findBy({ assignmentId: id }); if (rubrics.length && rubrics.reduce((n, r) => n + Number(r.totalScore), 0) !== Number(assignment.maxScore)) throw new BadRequestException('Rubric total score must equal maxScore'); assignment.isPublic = true; return this.assignments.save(assignment); }
+  async publishAssignment(id: string, actorId: string) {
+    const assignment = await this.assignments.findOneBy({ id });
+    if (!assignment) throw new NotFoundException('Assignment not found');
+    await this.requireInstructor(assignment.classId, actorId);
+    if (!assignment.title.trim() || !assignment.instruction.trim() || Number(assignment.maxScore) <= 0) throw new BadRequestException('Title, instruction, and positive max score are required');
+    const rubrics = await this.rubrics.findBy({ assignmentId: id });
+    if (rubrics.length && rubrics.reduce((n, r) => n + Number(r.totalScore), 0) !== Number(assignment.maxScore)) throw new BadRequestException('Rubric total score must equal maxScore');
+    assignment.isPublic = true;
+    const saved = await this.assignments.save(assignment);
+    logger.info('academic.assignment.published', 'Assignment published');
+    return saved;
+  }
   async deleteAssignment(id: string, actorId: string) { const assignment = await this.assignments.findOneBy({ id }); if (!assignment) throw new NotFoundException('Assignment not found'); await this.requireInstructor(assignment.classId, actorId); await this.assignments.remove(assignment); return { message: 'Assignment deleted successfully' }; }
   async replaceRubrics(assignmentId: string, input: RubricDto[]) { await this.rubrics.delete({ assignmentId }); return this.rubrics.save(input.map(x => this.rubrics.create({ assignmentId, definition: x.definition ?? x.criterion ?? '', criterion: x.criterion, totalScore: x.totalScore }))); }
 
   async saveDraft(assignmentId: string, input: CreateSubmissionDto, userId: string) { return this.saveSubmission(assignmentId, input, userId, 'DRAFT'); }
   async submitAssignment(assignmentId: string, input: CreateSubmissionDto, userId: string) { return this.saveSubmission(assignmentId, input, userId, 'SUBMITTED'); }
-  private async saveSubmission(assignmentId: string, input: CreateSubmissionDto, userId: string, status: string) { const assignment = await this.assignments.findOneBy({ id: assignmentId }); if (!assignment) throw new NotFoundException('Assignment not found'); await this.requireMember(assignment.classId, userId); let submission = await this.submissions.findOneBy({ assignmentId, userId }); if (!submission) submission = this.submissions.create({ assignmentId, userId, resourceId: input.resourceId ?? undefined as any, language: input.language, teamId: input.teamId, comments: input.comments, status }); else Object.assign(submission, { resourceId: input.resourceId ?? submission.resourceId, language: input.language ?? submission.language, teamId: input.teamId ?? submission.teamId, comments: input.comments ?? submission.comments, status }); if (status === 'SUBMITTED') submission.submittedAt = new Date(); const saved = await this.submissions.save(submission); if (status === 'SUBMITTED' && assignment.aiEvaluationEnabled && saved.resourceId) { try { const context = await this.buildEvaluationContext(saved.id, userId, assignment); const evaluation = await this.evaluationClient.requestEvaluation({ submissionId: saved.id, assignmentId, userId, resourceId: saved.resourceId, language: saved.language, ...context }); saved.evaluationId = evaluation.evaluationId; saved.status = evaluation.status; await this.submissions.save(saved); } catch { saved.status = 'PENDING'; await this.submissions.save(saved); } } return { submissionId: saved.id, status: saved.status }; }
+  private async saveSubmission(assignmentId: string, input: CreateSubmissionDto, userId: string, status: string) {
+    const assignment = await this.assignments.findOneBy({ id: assignmentId });
+    if (!assignment) throw new NotFoundException('Assignment not found');
+    await this.requireMember(assignment.classId, userId);
+    let submission = await this.submissions.findOneBy({ assignmentId, userId });
+    if (!submission) {
+      submission = this.submissions.create({ assignmentId, userId, resourceId: input.resourceId ?? undefined as any, language: input.language, teamId: input.teamId, comments: input.comments, status });
+    } else {
+      Object.assign(submission, { resourceId: input.resourceId ?? submission.resourceId, language: input.language ?? submission.language, teamId: input.teamId ?? submission.teamId, comments: input.comments ?? submission.comments, status });
+    }
+    if (status === 'SUBMITTED') submission.submittedAt = new Date();
+    const saved = await this.submissions.save(submission);
+    if (status === 'SUBMITTED') {
+      logger.info('academic.submission.stored', 'Submission stored');
+      if (assignment.aiEvaluationEnabled && saved.resourceId) {
+        await this.requestEvaluation(saved, assignment, { assignmentId, userId, resourceId: saved.resourceId, language: saved.language }, 'PENDING');
+      }
+    }
+    return { submissionId: saved.id, status: saved.status };
+  }
   async unsubmit(id: string, userId: string) { const s = await this.submissions.findOneBy({ id, userId }); if (!s) throw new NotFoundException('Submission not found'); s.status = 'DRAFT'; s.submittedAt = undefined; return this.submissions.save(s); }
   async myStatus(assignmentId: string, userId: string) { const s = await this.submissions.findOneBy({ assignmentId, userId }); return s ?? { assignmentId, userId, status: 'PENDING' }; }
   async myStatusInClass(classId: string, userId: string) {
@@ -123,7 +178,18 @@ export class AcademicService {
       };
     });
   }
-  async grade(id: string, input: GradeSubmissionDto, actorId: string) { const s = await this.submissions.findOneBy({ id }); if (!s) throw new NotFoundException('Submission not found'); const a = await this.assignments.findOneBy({ id: s.assignmentId }); if (!a) throw new NotFoundException('Assignment not found'); await this.requireInstructor(a.classId, actorId); if (input.score < 0 || input.score > Number(a.maxScore)) throw new BadRequestException('Score is outside assignment range'); Object.assign(s, { score: input.score, feedback: input.feedback, gradedBy: actorId, status: 'GRADED' }); return this.submissions.save(s); }
+  async grade(id: string, input: GradeSubmissionDto, actorId: string) {
+    const submission = await this.submissions.findOneBy({ id });
+    if (!submission) throw new NotFoundException('Submission not found');
+    const assignment = await this.assignments.findOneBy({ id: submission.assignmentId });
+    if (!assignment) throw new NotFoundException('Assignment not found');
+    await this.requireInstructor(assignment.classId, actorId);
+    if (input.score < 0 || input.score > Number(assignment.maxScore)) throw new BadRequestException('Score is outside assignment range');
+    Object.assign(submission, { score: input.score, feedback: input.feedback, gradedBy: actorId, status: 'GRADED' });
+    const saved = await this.submissions.save(submission);
+    logger.info('academic.submission.graded', 'Submission graded');
+    return saved;
+  }
   async addFeedback(id: string, input: FeedbackDto, actorId: string) { return this.grade(id, { score: Number((await this.submissions.findOneBy({ id }))?.score ?? 0), feedback: input.feedback }, actorId); }
   async getSubmissionForUser(id: string, userId: string) { const actorId = String(userId); const s = await this.submissions.findOneBy({ id }); if (!s) throw new NotFoundException('Submission not found'); const a = await this.assignments.findOneBy({ id: s.assignmentId }); if (!a) throw new NotFoundException('Assignment not found'); if (String(s.userId) !== actorId) await this.requireInstructor(a.classId, actorId); return s; }
 
@@ -266,16 +332,30 @@ export class AcademicService {
     if (!enrollment) throw new ForbiddenException('Not enrolled in class');
     if (!input.resourceId || !await this.resources.findOneBy({ id: input.resourceId })) throw new NotFoundException('Resource not found');
     const submission = await this.submissions.save(this.submissions.create({ assignmentId, resourceId: input.resourceId, language: input.language, teamId: input.teamId, userId, status: 'stored' }));
+    logger.info('academic.submission.stored', 'Submission stored');
     if (!assignment.aiEvaluationEnabled) return { submissionId: submission.id, status: 'stored' };
+
+    const evaluation = await this.requestEvaluation(submission, assignment, { assignmentId, userId, resourceId: input.resourceId, language: input.language }, 'pending');
+    if (!evaluation) return { submissionId: submission.id, status: 'pending' };
+    return { submissionId: submission.id, evaluationId: evaluation.evaluationId, status: evaluation.status };
+  }
+
+  private async requestEvaluation(submission: Submission, assignment: Assignment, input: Pick<EvaluationRequest, 'assignmentId' | 'userId' | 'resourceId' | 'language'>, pendingStatus: 'pending' | 'PENDING') {
+    const startedAt = performance.now();
+    let stage = 'source_preparation';
     try {
-      const context = await this.buildEvaluationContext(submission.id, userId, assignment);
-      const evaluation = await this.evaluationClient.requestEvaluation({ submissionId: submission.id, assignmentId, userId, resourceId: input.resourceId, language: input.language, ...context });
-      submission.evaluationId = evaluation.evaluationId; submission.status = evaluation.status;
+      const context = await this.buildEvaluationContext(submission.id, input.userId, assignment);
+      stage = 'evaluation_request';
+      const evaluation = await this.evaluationClient.requestEvaluation({ submissionId: submission.id, ...input, ...context });
+      submission.evaluationId = evaluation.evaluationId;
+      submission.status = evaluation.status;
+      stage = 'status_persistence';
       await this.submissions.save(submission);
-      return { submissionId: submission.id, evaluationId: evaluation.evaluationId, status: evaluation.status };
-    } catch (error) {
-      submission.status = 'pending'; await this.submissions.save(submission);
-      return { submissionId: submission.id, status: 'pending' };
+      return evaluation;
+    } catch {
+      submission.status = pendingStatus;
+      await this.submissions.save(submission);
+      logger.warn('academic.evaluation.pending', 'Evaluation could not be queued or confirmed; submission remains pending', { stage, duration_ms: Math.round(performance.now() - startedAt) });
     }
   }
 

@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: DOMROV
+    orgId: 1
+    folder: DOMROV
+    folderUid: domrov
+    type: file
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards

@@ -1,6 +1,13 @@
 
 name: domrov
 
+x-telemetry: &telemetry
+  OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://otel-collector:4318}"
+  OTEL_LOGS_EXPORTER: none
+
+x-observability: &observability
+  restart: unless-stopped
+
 services:
   # ==========================================
   # API GATEWAY
@@ -49,6 +56,7 @@ services:
   # USER SERVICE
   # ==========================================
   user:
+    pull_policy: build
     image: ${USER_IMAGE:-phyvathanak/domrov-user:dev}
 
     build:
@@ -56,13 +64,16 @@ services:
       dockerfile: Dockerfile
 
     env_file:
-      - "${BACKEND_ENV_FILE:-./apps/backend/.env}"
+      - path: "${BACKEND_ENV_FILE:-./apps/backend/.env}"
+        required: false
 
     ports:
       - "3001:3001"
 
     environment:
+      <<: *telemetry
       PORT: "3001"
+      LOG_LEVEL: "${USER_LOG_LEVEL:-${LOG_LEVEL:-info}}"
       NODE_ENV: "${NODE_ENV:-development}"
       SMTP_REQUIRED: "${SMTP_REQUIRED:-false}"
 
@@ -92,6 +103,7 @@ services:
   # ACADEMIC SERVICE
   # ==========================================
   academic-service:
+    pull_policy: build
     image: ${ACADEMIC_SERVICE_IMAGE:-phyvathanak/domrov-academic-service:dev}
 
     build:
@@ -102,7 +114,9 @@ services:
       - "3002:3002"
 
     environment:
+      <<: *telemetry
       PORT: "3002"
+      LOG_LEVEL: "${ACADEMIC_LOG_LEVEL:-${LOG_LEVEL:-info}}"
 
       DATABASE_URL: "postgresql://domrov:domrov@academic-db:5432/academic_db"
 
@@ -134,6 +148,7 @@ services:
   # PAYMENT SERVICE
   # ==========================================
   payment-service:
+    pull_policy: build
     image: ${PAYMENT_SERVICE_IMAGE:-phyvathanak/domrov-payment-service:dev}
 
     build:
@@ -144,8 +159,10 @@ services:
       - "3003:3003"
 
     environment:
+      <<: *telemetry
       # Server
       PORT: "3003"
+      LOG_LEVEL: "${PAYMENT_LOG_LEVEL:-${LOG_LEVEL:-info}}"
 
       # Database
       DATABASE_URL: "postgresql://domrov:domrov@payment-db:5432/payment_db"
@@ -198,6 +215,7 @@ services:
   # EVALUATION SERVICE
   # ==========================================
   evaluation-service:
+    pull_policy: build
     image: ${EVALUATION_SERVICE_IMAGE:-phyvathanak/domrov-evaluation-service:dev}
 
     build:
@@ -208,8 +226,10 @@ services:
       - "3004:3004"
 
     environment:
+      <<: *telemetry
       # Server
       PORT: "3004"
+      LOG_LEVEL: "${EVALUATION_LOG_LEVEL:-${LOG_LEVEL:-info}}"
 
       # Database
       DATABASE_URL: "postgresql://domrov:domrov@evaluation-db:5432/evaluation_db"
@@ -255,6 +275,7 @@ services:
   # CODE EXECUTION SERVICE (GO)
   # ==========================================
   code-execution:
+    pull_policy: build
     image: domrov-code-execution:dev
 
     build:
@@ -265,8 +286,10 @@ services:
       - "3005:3005"
 
     environment:
+      <<: *telemetry
       # Server
       PORT: "3005"
+      LOG_LEVEL: "${CODE_EXECUTION_LOG_LEVEL:-${LOG_LEVEL:-info}}"
 
       # Database
       DATABASE_URL: "postgresql://domrov:domrov@execution-db:5432/execution_db"
@@ -439,6 +462,97 @@ services:
       timeout: 5s
       retries: 10
 
+  # Centralized logging
+  loki:
+    <<: *observability
+    image: grafana/loki:latest
+    command: -config.file=/etc/loki/config.yml
+    volumes:
+      - ./observability/loki/config.yml:/etc/loki/config.yml:ro
+      - loki_data:/loki
+
+  alloy:
+    <<: *observability
+    image: grafana/alloy:latest
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    environment:
+      COMPOSE_PROJECT_NAME: "${COMPOSE_PROJECT_NAME:-domrov}"
+    volumes:
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy_data:/var/lib/alloy/data
+    depends_on:
+      - loki
+
+  # Distributed tracing
+  tempo:
+    <<: *observability
+    image: grafana/tempo:2.10.8
+    command: -config.file=/etc/tempo/config.yml
+    volumes:
+      - ./observability/tempo/config.yml:/etc/tempo/config.yml:ro
+      - tempo_data:/var/tempo
+
+  otel-collector:
+    <<: *observability
+    image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.166.0
+    command: --config=/etc/otelcol-contrib/config.yml
+    volumes:
+      - ./observability/otel-collector/config.yml:/etc/otelcol-contrib/config.yml:ro
+    depends_on:
+      - tempo
+
+  # Metrics
+  prometheus:
+    <<: *observability
+    image: prom/prometheus:latest
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./observability/prometheus:/etc/prometheus:ro
+      - prometheus_data:/prometheus
+
+  postgres-exporter:
+    <<: *observability
+    image: quay.io/prometheuscommunity/postgres-exporter:latest
+    command: --config.file=/etc/postgres-exporter/config.yml
+    volumes:
+      - ./observability/postgres-exporter/config.yml:/etc/postgres-exporter/config.yml:ro
+
+  # Visualization
+  grafana:
+    <<: *observability
+    image: grafana/grafana:latest
+    ports:
+      - "127.0.0.1:8005:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:-admin}"
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-domrov-local}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - loki
+      - tempo
+      - prometheus
+
+  blackbox-exporter:
+    <<: *observability
+    image: prom/blackbox-exporter:v0.28.0
+    command: ["--config.file=/etc/blackbox-exporter/config.yml"]
+    volumes:
+      - ./observability/blackbox-exporter/config.yml:/etc/blackbox-exporter/config.yml:ro
+
 # ==========================================
 # PERSISTENT VOLUMES
 # ==========================================
@@ -450,3 +564,8 @@ volumes:
   rabbitmq_data:
   execution_db_data:
   academic_files:
+  loki_data:
+  alloy_data:
+  tempo_data:
+  prometheus_data:
+  grafana_data:

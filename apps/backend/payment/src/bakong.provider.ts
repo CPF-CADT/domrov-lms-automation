@@ -1,5 +1,6 @@
-import { BadRequestException, HttpException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { logger } from './logging';
 
 interface KhqrResult {
   status?: { code: number; message?: string };
@@ -29,7 +30,6 @@ export interface PaymentQr { qr: string; md5: string; }
 /** Bakong adapter. Mock mode is never allowed to issue payable QR codes. */
 @Injectable()
 export class BakongProvider {
-  private readonly logger = new Logger(BakongProvider.name);
   private readonly apiUrl: string;
   private readonly token: string;
   private readonly mode: 'live' | 'mock';
@@ -87,7 +87,9 @@ export class BakongProvider {
       }
     } catch (error) {
       if (error instanceof HttpException) throw error;
-      this.logger.warn('KHQR SDK rejected payment generation');
+      logger.warn('payment.provider', 'KHQR SDK rejected payment generation', {
+        dependency: 'bakong', operation: 'generate_qr', outcome: 'rejected',
+      });
       throw new BadRequestException('Could not generate KHQR. Check the Bakong account, merchant details and payment amount.');
     }
 
@@ -139,14 +141,34 @@ export class BakongProvider {
     return this.config.get<string>('BAKONG_MOCK_STATUS') === 'PAID' ? this.successResponse(md5.slice(0, 8), 1, 'USD') : { responseCode: 1, responseMessage: 'Transaction not found in mock sandbox', errorCode: 1 };
   }
   private successResponse(hash: string, amount: number, currency: PaymentCurrency): BakongResponse { const now = Date.now(); return { responseCode: 0, responseMessage: 'Getting transaction successfully.', data: { hash, fromAccountId: 'mock_sender@bakong', toAccountId: 'domrov@bakong', currency, amount, description: 'DOMROV mock payment', createdDateMs: now, acknowledgedDateMs: now } }; }
-  private async post(path: string, body: Record<string, unknown>): Promise<BakongResponse> {
+  private async post(
+    path: '/check_transaction_by_short_hash' | '/check_transaction_by_md5',
+    body: Record<string, unknown>,
+  ): Promise<BakongResponse> {
+    const started = performance.now();
+    const operation = path === '/check_transaction_by_short_hash' ? 'lookup_short_hash' : 'lookup_md5';
+    const fields = { dependency: 'bakong', operation };
+    let statusCode: number | undefined;
     try {
       const response = await fetch(`${this.apiUrl.replace(/\/$/, '')}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${this.token}` }, body: JSON.stringify(body) });
+      statusCode = response.status;
       const value = await response.json() as BakongResponse;
-      this.logger.log(JSON.stringify({ event: 'bakong.response', endpoint: path, httpStatus: response.status, responseCode: value.responseCode, errorCode: value.errorCode, responseMessage: value.responseMessage }));
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      logger.debug('payment.provider', 'Bakong lookup completed', {
+        ...fields, outcome: 'completed', status_code: statusCode,
+        duration_ms: performance.now() - started,
+      });
       return value;
+    } catch (error) {
+      const cause = error instanceof Error ? error.cause as { code?: unknown } | undefined : undefined;
+      const timedOut = error instanceof Error && (error.name === 'TimeoutError'
+        || cause?.code === 'UND_ERR_CONNECT_TIMEOUT' || cause?.code === 'UND_ERR_HEADERS_TIMEOUT'
+        || cause?.code === 'UND_ERR_BODY_TIMEOUT' || cause?.code === 'ETIMEDOUT');
+      logger.warn('payment.provider', 'Bakong lookup failed', {
+        ...fields, outcome: timedOut ? 'timeout' : 'failed', status_code: statusCode,
+        duration_ms: performance.now() - started,
+      });
+      throw new BadRequestException('Payment provider unavailable');
     }
-    catch (error) { this.logger.warn(`Bakong provider unavailable: ${error instanceof Error ? error.message : String(error)}`); throw new BadRequestException('Payment provider unavailable'); }
   }
 }

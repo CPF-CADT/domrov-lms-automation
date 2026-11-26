@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Repository } from 'typeorm';
 import { SystemRole, User, UserStatus } from '../entities/user.entity';
 import { ListUsersQuery, UpdateUserRoleRequest, UpdateUserStatusRequest } from './admin-user.dto';
+import { logger } from '../logging';
 
 @Injectable()
 export class AdminUserService {
@@ -32,21 +33,29 @@ export class AdminUserService {
   }
 
   async updateStatus(userId: number, input: UpdateUserStatusRequest) {
+    const startedAt = performance.now();
     const user = await this.find(userId);
     user.status = input.status;
-    return this.publicUser(await this.users.save(user));
+    const updated = await this.users.save(user);
+    logger.info('admin.user_status_updated', 'Administrator updated a user status', { duration_ms: performance.now() - startedAt });
+    return this.publicUser(updated);
   }
 
   async updateRole(userId: number, input: UpdateUserRoleRequest) {
+    const startedAt = performance.now();
     const user = await this.find(userId);
     user.role = input.role;
-    return this.publicUser(await this.users.save(user));
+    const updated = await this.users.save(user);
+    logger.info('admin.user_role_updated', 'Administrator updated a user role', { duration_ms: performance.now() - startedAt });
+    return this.publicUser(updated);
   }
 
   async remove(userId: number) {
+    const startedAt = performance.now();
     const user = await this.find(userId);
     user.status = UserStatus.INACTIVE;
     await this.users.save(user);
+    logger.info('admin.user_deactivated', 'Administrator deactivated a user', { duration_ms: performance.now() - startedAt });
     return { message: 'User deactivated successfully' };
   }
 

@@ -1,0 +1,41 @@
+groups:
+  - name: domrov
+    rules:
+      - alert: DomrovServiceUnavailable
+        expr: probe_success{job="domrov-http"} == 0 or up{job="domrov-http"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: application
+        annotations:
+          summary: A DOMROV readiness probe is failing
+      - alert: DomrovDatabaseUnavailable
+        expr: pg_up{job="domrov-postgres"} == 0 or up{job="domrov-postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: postgres
+        annotations:
+          summary: A DOMROV database probe is failing
+      - alert: DomrovObservabilityTargetDown
+        expr: up{job=~"observability|domrov-otel|rabbitmq"} == 0
+        for: 1m
+        labels:
+          severity: warning
+          component: telemetry
+        annotations:
+          summary: A telemetry target is unavailable
+      - alert: DomrovHighHttpErrorRate
+        expr: |
+          (
+            sum by (service_name) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))
+            / sum by (service_name) (rate(http_server_request_duration_seconds_count[5m]))
+          ) > 0.1
+          and on(service_name)
+          sum by (service_name) (increase(http_server_request_duration_seconds_count[5m])) >= 10
+        for: 2m
+        labels:
+          severity: warning
+          component: application
+        annotations:
+          summary: More than 10 percent of HTTP requests returned 5xx

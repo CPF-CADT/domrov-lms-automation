@@ -1,0 +1,9 @@
+# Matches the built-in local Compose database credentials.
+auth_modules:
+  local_db:
+    type: userpass
+    userpass:
+      username: domrov
+      password: domrov
+    options:
+      sslmode: disable

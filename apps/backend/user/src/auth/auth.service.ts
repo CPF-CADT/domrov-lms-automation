@@ -12,6 +12,7 @@ import { UserRefreshToken } from '../entities/user-refresh-token.entity';
 import { MailerService } from '../mailer/mailer.service';
 import { OAuthAccount } from '../entities/oauth-account.entity';
 import { AuthEventsPublisher } from '../messaging/rabbitmq';
+import { logger, markErrorLogged } from '../logging';
 
 export interface AuthUser {
   sub: number;
@@ -34,6 +35,7 @@ export class AuthService {
   ) {}
 
   async register(input: RegisterRequest) {
+    const startedAt = performance.now();
     if (input.password !== input.confirmPassword) throw new BadRequestException('Password does not match');
     this.validatePassword(input.password);
     const email = input.email.toLowerCase();
@@ -54,15 +56,19 @@ export class AuthService {
     const saved = await this.users.save(user);
     void this.events?.publish('user.created', { userId: saved.id, email: saved.email, role: saved.role }, String(saved.id));
     await this.sendOtp(saved, OtpPurpose.VERIFICATION);
+    logger.info('auth.registration_completed', 'User registration completed', { duration_ms: performance.now() - startedAt });
     return { userId: saved.id, firstName: saved.firstName, lastName: saved.lastName, email: saved.email };
   }
 
   async login(input: LoginRequest) {
+    const startedAt = performance.now();
     const user = await this.users.findOne({ where: { email: input.email.toLowerCase() } });
     if (!user || user.status !== UserStatus.ACTIVE) throw new UnauthorizedException('Invalid credentials');
     if (!user.isVerified) throw new BadRequestException('User account is not verified');
     if (!(await bcrypt.compare(input.password, user.password))) throw new UnauthorizedException('Invalid credentials');
-    return this.issueTokens(user);
+    const tokens = await this.issueTokens(user);
+    logger.info('auth.login_succeeded', 'User login succeeded', { duration_ms: performance.now() - startedAt });
+    return tokens;
   }
 
   async refresh(refreshToken: string) {
@@ -88,26 +94,33 @@ export class AuthService {
   }
 
   async oauthCallback(provider: string, code: string, returnedState?: string, cookieState?: string) {
+    const startedAt = performance.now();
     const normalized = provider.toLowerCase();
     const config = this.oauthConfig(normalized);
     if (!config) throw new ServiceUnavailableException(`OAuth provider ${provider} is not configured`);
     this.validateOAuthState(returnedState, cookieState);
     if (!code) throw new UnauthorizedException('OAuth authorization code is required');
-    const tokenResponse = await fetch(config.tokenUrl, {
-      method: 'POST',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ client_id: config.clientId, client_secret: config.clientSecret, code, redirect_uri: config.callbackUrl, grant_type: 'authorization_code' }),
+    const accessToken = await this.runOAuthStage('token_exchange', async () => {
+      const tokenResponse = await fetch(config.tokenUrl, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ client_id: config.clientId, client_secret: config.clientSecret, code, redirect_uri: config.callbackUrl, grant_type: 'authorization_code' }),
+      });
+      if (!tokenResponse.ok) throw new UnauthorizedException('OAuth token exchange failed');
+      const token = await tokenResponse.json() as { access_token?: string };
+      if (!token.access_token) throw new UnauthorizedException('OAuth provider did not return an access token');
+      return token.access_token;
     });
-    if (!tokenResponse.ok) throw new UnauthorizedException('OAuth token exchange failed');
-    const token = await tokenResponse.json() as { access_token?: string };
-    if (!token.access_token) throw new UnauthorizedException('OAuth provider did not return an access token');
-    const profileResponse = await fetch(config.profileUrl, { headers: { Authorization: `Bearer ${token.access_token}`, Accept: 'application/json' } });
-    if (!profileResponse.ok) throw new UnauthorizedException('OAuth profile request failed');
-    const profile = await profileResponse.json() as Record<string, any>;
-    const normalizedProfile = normalized === 'google'
-      ? { id: profile.sub, email: profile.email, firstName: profile.given_name, lastName: profile.family_name, avatar: profile.picture }
-      : { id: String(profile.id), email: profile.email, firstName: profile.name?.split(' ')[0] ?? profile.login, lastName: profile.name?.split(' ').slice(1).join(' ') ?? '', avatar: profile.avatar_url };
-    if (!normalizedProfile.id || !normalizedProfile.email) throw new UnauthorizedException('OAuth provider returned an incomplete profile');
+    const normalizedProfile = await this.runOAuthStage('profile_fetch', async () => {
+      const profileResponse = await fetch(config.profileUrl, { headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' } });
+      if (!profileResponse.ok) throw new UnauthorizedException('OAuth profile request failed');
+      const profile = await profileResponse.json() as Record<string, any>;
+      const normalizedProfile = normalized === 'google'
+        ? { id: profile.sub, email: profile.email, firstName: profile.given_name, lastName: profile.family_name, avatar: profile.picture }
+        : { id: String(profile.id), email: profile.email, firstName: profile.name?.split(' ')[0] ?? profile.login, lastName: profile.name?.split(' ').slice(1).join(' ') ?? '', avatar: profile.avatar_url };
+      if (!normalizedProfile.id || !normalizedProfile.email) throw new UnauthorizedException('OAuth provider returned an incomplete profile');
+      return normalizedProfile;
+    });
 
     const account = await this.oauthAccounts.findOne({ where: { provider: normalized, accountId: normalizedProfile.id }, relations: { user: true } });
     let user = account?.user;
@@ -116,7 +129,29 @@ export class AuthService {
       if (!user) user = await this.users.save(this.users.create({ firstName: normalizedProfile.firstName || 'OAuth', lastName: normalizedProfile.lastName || 'User', email: normalizedProfile.email.toLowerCase(), password: await bcrypt.hash(`oauth:${normalized}:${normalizedProfile.id}:${Date.now()}`, 10), profilePictureUrl: normalizedProfile.avatar, status: UserStatus.ACTIVE, role: SystemRole.USER, isVerified: true, isTwoFactorEnable: false }));
       await this.oauthAccounts.save(this.oauthAccounts.create({ provider: normalized, accountId: normalizedProfile.id, user, userId: user.id }));
     }
-    return this.issueTokens(user);
+    const tokens = await this.issueTokens(user);
+    logger.info('auth.oauth_login_succeeded', 'OAuth login succeeded', { duration_ms: performance.now() - startedAt });
+    return tokens;
+  }
+
+  private async runOAuthStage<T>(operation: 'token_exchange' | 'profile_fetch', run: () => Promise<T>): Promise<T> {
+    const startedAt = performance.now();
+    const fields = { dependency: 'oauth', operation };
+    try {
+      const result = await run();
+      logger.debug('oauth.request_succeeded', 'OAuth provider request succeeded', { ...fields, duration_ms: performance.now() - startedAt });
+      return result;
+    } catch (error) {
+      const cause = error instanceof Error ? error.cause : undefined;
+      const timedOut = cause instanceof Error && 'code' in cause && cause.code === 'UND_ERR_CONNECT_TIMEOUT';
+      logger.warn(timedOut ? 'oauth.request_timeout' : 'oauth.request_failed', 'OAuth provider request did not complete', {
+        ...fields,
+        duration_ms: performance.now() - startedAt,
+        error_code: timedOut ? 'timeout' : 'provider_request_failed',
+      });
+      markErrorLogged(error);
+      throw error;
+    }
   }
 
   frontendOAuthCallbackUrl(): string {
@@ -180,6 +215,7 @@ export class AuthService {
   }
 
   async changePassword(userId: number, input: ChangePasswordRequest) {
+    const startedAt = performance.now();
     if (input.newPassword !== input.confirmPassword) throw new BadRequestException('New password and confirmation do not match');
     this.validatePassword(input.newPassword);
     const user = await this.users.findOne({ where: { id: userId } });
@@ -189,6 +225,7 @@ export class AuthService {
     user.password = await bcrypt.hash(input.newPassword, 10);
     await this.users.save(user);
     await this.refreshTokens.delete({ userId });
+    logger.info('auth.password_changed', 'Password changed', { duration_ms: performance.now() - startedAt });
     return { message: 'Password changed successfully' };
   }
 
@@ -200,6 +237,7 @@ export class AuthService {
   }
 
   async verifyEmail(input: VerifyEmailRequest) {
+    const startedAt = performance.now();
     const user = await this.findUserByEmail(input.email);
     if (user.isVerified) throw new BadRequestException('Email is already verified');
     const record = await this.otps.findOne({ where: { userId: user.id, purpose: OtpPurpose.VERIFICATION } });
@@ -207,7 +245,9 @@ export class AuthService {
     user.isVerified = true;
     await this.users.save(user);
     await this.otps.delete(record.id);
-    return this.issueTokens(user);
+    const tokens = await this.issueTokens(user);
+    logger.info('auth.email_verified', 'Email verification completed', { duration_ms: performance.now() - startedAt });
+    return tokens;
   }
 
   async requestPasswordReset(input: PasswordResetRequest) {
@@ -217,6 +257,7 @@ export class AuthService {
   }
 
   async resetPassword(input: CompletePasswordResetRequest) {
+    const startedAt = performance.now();
     this.validatePassword(input.newPassword);
     const user = await this.findUserByEmail(input.email);
     const record = await this.otps.findOne({ where: { userId: user.id, purpose: OtpPurpose.PASSWORD_RESET } });
@@ -225,6 +266,7 @@ export class AuthService {
     await this.users.save(user);
     await this.otps.delete(record.id);
     await this.refreshTokens.delete({ userId: user.id });
+    logger.info('auth.password_reset', 'Password reset completed', { duration_ms: performance.now() - startedAt });
     return { message: 'Password reset successfully' };
   }
 

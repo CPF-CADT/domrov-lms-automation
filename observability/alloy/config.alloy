@@ -1,0 +1,157 @@
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+discovery.docker "domrov" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "15s"
+
+  filter {
+    name   = "label"
+    values = ["com.docker.compose.project=" + sys.env("COMPOSE_PROJECT_NAME")]
+  }
+}
+
+discovery.relabel "application_logs" {
+  targets = discovery.docker.domrov.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    regex         = "user|academic-service|payment-service|evaluation-service|code-execution|gateway"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+}
+
+loki.source.docker "application_logs" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.application_logs.output
+  forward_to = [loki.process.application_logs.receiver]
+}
+
+loki.process "application_logs" {
+  forward_to = [loki.write.local.receiver]
+
+  stage.drop {
+    longer_than         = "16KB"
+    drop_counter_reason = "oversized_application_log"
+  }
+
+  // Only forward the existing structured logger's schema. In particular,
+  // unstructured startup errors and unexpected JSON fields stay in Docker.
+  stage.template {
+    source   = "safe_entry"
+    template = `{{- $line := fromJson .Entry -}}
+        {{- if and (kindIs "map" $line)
+            (regexMatch "^[0-9TZ:+.-]{20,35}$" (toString (get $line "timestamp")))
+            (regexMatch "^(debug|info|warn|error|fatal)$" (toString (get $line "level")))
+            (regexMatch "^(user|academic-service|payment-service|evaluation-service|code-execution|gateway)$" (toString (get $line "service")))
+            (regexMatch "^[a-z][a-z0-9_.-]{0,95}$" (toString (get $line "event"))) -}}
+          {{- $out := pick $line "timestamp" "level" "service" "event" -}}
+          {{- $message := get $line "message" -}}
+          {{- if and (kindIs "string" $message) (regexMatch "^[A-Za-z0-9 ,()._/-]{1,240}$" $message)
+              (not (regexMatch "(?i)bearer[ ]+[A-Za-z0-9._-]+" $message)) -}}
+            {{- $_ := set $out "message" $message -}}
+          {{- else -}}
+            {{- $_ := set $out "message" "See structured event fields" -}}
+          {{- end -}}
+          {{- range $key := splitList " " "dependency operation outcome error_code routing_key stage http_method" -}}
+            {{- $value := get $line $key -}}
+            {{- if and (kindIs "string" $value) (regexMatch "^[A-Za-z][A-Za-z0-9_.-]{0,79}$" $value) -}}
+              {{- $_ := set $out $key $value -}}
+            {{- end -}}
+          {{- end -}}
+          {{- range $key := splitList " " "duration_ms duration_seconds status_code attempt" -}}
+            {{- $value := get $line $key -}}
+            {{- if kindIs "float64" $value -}}{{- $_ := set $out $key $value -}}{{- end -}}
+          {{- end -}}
+          {{- range $key := splitList " " "redelivered requeue aborted" -}}
+            {{- $value := get $line $key -}}
+            {{- if kindIs "bool" $value -}}{{- $_ := set $out $key $value -}}{{- end -}}
+          {{- end -}}
+          {{- range $key := splitList " " "request_id correlation_id message_id" -}}
+            {{- $value := get $line $key -}}
+            {{- if and (kindIs "string" $value)
+                (regexMatch "^[0-9a-f]{32}$|^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$" $value) -}}
+              {{- $_ := set $out $key $value -}}
+            {{- end -}}
+          {{- end -}}
+          {{- $trace := get $line "trace_id" -}}
+          {{- if and (kindIs "string" $trace) (regexMatch "^[a-f0-9]{32}$" $trace) -}}
+            {{- $_ := set $out "trace_id" $trace -}}
+          {{- end -}}
+          {{- $span := get $line "span_id" -}}
+          {{- if and (kindIs "string" $span) (regexMatch "^[a-f0-9]{16}$" $span) -}}
+            {{- $_ := set $out "span_id" $span -}}
+          {{- end -}}
+          {{- $route := get $line "route" -}}
+          {{- if and (kindIs "string" $route) (regexMatch "^[A-Za-z0-9_/:.*{}-]{1,160}$" $route) -}}
+            {{- $_ := set $out "route" $route -}}
+          {{- end -}}
+          {{- $status := get $line "upstream_status" -}}
+          {{- if and (kindIs "string" $status) (regexMatch "^[0-9 ,:-]{1,40}$" $status) -}}
+            {{- $_ := set $out "upstream_status" $status -}}
+          {{- end -}}
+          {{- toJson $out -}}
+        {{- else -}}
+          invalid
+        {{- end -}}`
+  }
+
+  stage.drop {
+    source              = "safe_entry"
+    value               = "invalid"
+    drop_counter_reason = "unstructured_application_log"
+  }
+
+  stage.json {
+    source         = "safe_entry"
+    drop_malformed = true
+    expressions = {
+      timestamp      = "",
+      level          = "",
+      trace_id       = "",
+      span_id        = "",
+      request_id     = "",
+      correlation_id = "",
+    }
+  }
+
+  stage.timestamp {
+    source            = "timestamp"
+    format            = "RFC3339Nano"
+    action_on_failure = "skip"
+  }
+
+  stage.labels {
+    values = { level = "" }
+  }
+
+  stage.label_keep {
+    values = ["service", "level"]
+  }
+
+  stage.structured_metadata {
+    values = {
+      trace_id       = "",
+      span_id        = "",
+      request_id     = "",
+      correlation_id = "",
+    }
+  }
+
+  stage.output {
+    source = "safe_entry"
+  }
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
