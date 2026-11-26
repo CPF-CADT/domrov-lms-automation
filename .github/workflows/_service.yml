@@ -1,0 +1,94 @@
+name: Service checks
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        description: Service name
+        required: true
+        type: string
+      path:
+        description: Service directory
+        required: true
+        type: string
+      runtime:
+        description: Service runtime (node or go)
+        required: true
+        type: string
+      tests_blocking:
+        description: Fail the job when tests fail
+        type: boolean
+        default: true
+      lint:
+        description: Run Node.js lint checks
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ inputs.service }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.path }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        if: inputs.runtime == 'node'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ${{ inputs.path }}/package-lock.json
+
+      - name: Install Node.js dependencies
+        if: inputs.runtime == 'node'
+        run: npm ci
+
+      - name: Lint Node.js service
+        if: inputs.runtime == 'node' && inputs.lint
+        run: npm run lint
+
+      - name: Test Node.js service
+        if: inputs.runtime == 'node'
+        continue-on-error: ${{ !inputs.tests_blocking }}
+        run: npm test -- --runInBand
+
+      - name: Build Node.js service
+        if: inputs.runtime == 'node'
+        run: npm run build
+
+      - name: Set up Go
+        if: inputs.runtime == 'go'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ inputs.path }}/go.mod
+          cache: true
+          cache-dependency-path: ${{ inputs.path }}/go.sum
+
+      - name: Check Go formatting
+        if: inputs.runtime == 'go'
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            printf '%s\n' "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet Go service
+        if: inputs.runtime == 'go'
+        run: go vet ./...
+
+      - name: Test Go service
+        if: inputs.runtime == 'go'
+        continue-on-error: ${{ !inputs.tests_blocking }}
+        run: go test ./...
+
+      - name: Build Go service
+        if: inputs.runtime == 'go'
+        run: go build -o /tmp/out ./cmd/server
