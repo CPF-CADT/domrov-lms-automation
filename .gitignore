@@ -39,7 +39,7 @@ override.tf.json
 *_override.tf.json
 .terraform.tfvars
 *.tfvars.json
-infrastructure/.db_password
+.db_password
 
 # AWS provider binaries
 *.exe
@@ -74,4 +74,3 @@ __pycache__/
 *.env
 secrets.json
 upload_secrets.sh
-infrastructure/.db_password

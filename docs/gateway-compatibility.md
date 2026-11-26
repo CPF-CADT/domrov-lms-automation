@@ -16,12 +16,16 @@ directly at individual service ports.
 | `/auth`, `/users` | User Service |
 | `/class`, `/team`, `/assessments`, `/submissions`, `/file` | Academic Service, rewritten to `/api/academic/...` |
 | `/wallet`, `/payment` | Payment Service |
-| `/evaluations` | AI Service HTTP API |
+| `/evaluations/submission/*` | Academic execution compatibility endpoint |
+| Other `/evaluations` requests | Evaluation Service HTTP API |
+| `/user-ai` | Evaluation Service |
+| `/executions` | Academic execution orchestration |
+| `/execution-runs/*` | Go Code Execution result endpoint |
 | `/notifications` | User Service |
 | `/admin/users` | User Service |
 | `/admin/wallet` | Payment Service |
 | `/admin/dashboard` | Academic Service |
-| `/admin/evaluations`, `/admin/usage`, `/admin/logs` | AI Service |
+| `/admin/evaluations`, `/admin/usage`, `/admin/logs` | Evaluation Service |
 | Unmatched `/admin/*` | Legacy backend compatibility service |
 
 The gateway also keeps `/api/auth`, `/api/users`, `/api/academic`,

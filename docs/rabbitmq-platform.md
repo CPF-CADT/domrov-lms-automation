@@ -1,8 +1,8 @@
 # DOMROV RabbitMQ Platform
 
-DOMROV uses RabbitMQ as the shared internal transport for NestJS microservice
-events and commands. Public clients still use REST through the gateway. The
-RabbitMQ layer is intentionally independent from service databases and service
+DOMROV uses RabbitMQ as the shared internal transport for NestJS microservices
+and the Go Code Execution worker. Public clients still use REST through the
+gateway. The RabbitMQ layer is intentionally independent from service databases and service
 entities.
 
 This design follows NestJS's RabbitMQ transporter: services configure
@@ -32,6 +32,15 @@ The definitions create durable exchanges, queues, bindings, retry queues, and
 dead-letter queues. Because RabbitMQ persists definitions in its data volume,
 recreate the volume when changing topology during local development, or apply
 an explicit broker migration in a shared environment.
+
+## Runtime and historical definitions
+
+The topology, queue tables, and example flows below record the original platform
+contract. They are retained as a reference and are not a complete inventory of
+current runtime queues. Evaluation is now a NestJS service and Code Execution is
+a separate Go service. See [current platform notes](platform-scaffolding.md) for
+runtime queue names and the exchange-type mismatch requiring follow-up. Do not
+replace active broker definitions during a documentation cleanup.
 
 ## Topology
 
@@ -125,7 +134,6 @@ final score.
 | `RABBITMQ_DLX` | `domrov.dlx` |
 | `RABBITMQ_PREFETCH_COUNT` | `10` |
 
-The current Compose file passes these variables to each service as platform
-configuration. Service behavior is intentionally unchanged by this platform
-commit; the later service-integration work will bind NestJS clients and
-consumers to these contracts.
+The root Compose file supplies service-specific RabbitMQ settings. Check each
+service and its environment examples before overriding them; the historical
+table above does not establish which settings each service currently reads.

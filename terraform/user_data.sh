@@ -1,4 +1,7 @@
 #!/bin/bash
+# DEPRECATED: legacy monolithic backend and Python evaluator bootstrap.
+# Does not deploy the current five microservices. Retained for infrastructure
+# history only; do not use for new deployments. See terraform/README.md.
 
 # 1. Logging and Safety
 exec > >(tee /var/log/manual-test.log) 2>&1

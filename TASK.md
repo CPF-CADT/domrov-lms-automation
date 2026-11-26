@@ -1,5 +1,7 @@
 # DOMROV Microservices Refactoring Execution Plan
 
+> **Deprecated — historical migration plan.** This plan describes the former four-service extraction and Python evaluator. It is not the current implementation checklist; do not execute its obsolete paths or verification commands. Use [README.md](README.md), [folder.md](folder.md), and the root `docker-compose.yml` for the current five-service architecture. New CI/CD and K3s deployment remain future work.
+
 ## Mission
 
 Refactor only the backend into four independently deployable microservices according to the Production Microservices Refactoring PRD in `README.md`.

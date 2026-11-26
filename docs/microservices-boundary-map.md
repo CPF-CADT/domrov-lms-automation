@@ -1,5 +1,7 @@
 # Microservices Boundary Map
 
+> **Deprecated — WP-0 historical baseline.** The monolith locations, target service names, database names, and gRPC contract paths below are retained as migration history. They do not describe the current runtime. Use [README.md](../README.md), [folder.md](../folder.md), and the root `docker-compose.yml` for the five current services.
+
 This document records the WP-0 baseline for the backend refactor. The current
 runtime remains `apps/backend_nest` plus `apps/code_eval`; the target services
 are extracted incrementally without sharing repositories, entities, or database

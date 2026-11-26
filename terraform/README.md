@@ -1,3 +1,18 @@
+# Deprecated: legacy Terraform deployment
+
+> **Deprecated — retained for infrastructure history and review.** These modules
+> and `user_data.sh` describe the former monolithic backend and Python evaluator.
+> They do not deploy the current five-service architecture. Do not use the
+> bootstrap script or the deployment commands below for a new environment.
+> Existing infrastructure definitions are preserved; this cleanup does not
+> destroy, migrate, or replace them. A new pipeline and K3s deployment are future work.
+
+Use [the root Compose file](../docker-compose.yml) for the current local stack
+and [README.md](../README.md) for service ownership. The remaining text is the
+original operational reference, not current deployment guidance.
+
+---
+
 Domrov LMS Terraform
 
 Overview

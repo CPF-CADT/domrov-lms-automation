@@ -12,7 +12,7 @@ The client is a Vite + React + TypeScript single-page application.
 - Styling: Tailwind CSS
 - HTTP client: Axios
 - API base URL: `VITE_API_URL`
-- Backend: NestJS in `../backend_nest`
+- Backend: five services in `../backend/` (User, Academic, Payment, Evaluation, and Go Code Execution), accessed through the Nginx gateway
 - Authentication: `AuthContext`, access-token storage, and HTTP-only refresh-token cookie
 
 The client is route-driven. Pages should read resource identifiers from the URL and fetch the resource from the backend. Do not use temporary page state as the source of truth for class, assignment, or submission identity.

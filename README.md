@@ -18,7 +18,9 @@
   - [6. File Handling & Storage](#6-file-handling--storage)  
   - [7. User-Provided AI API Keys](#7-user-provided-ai-api-keys)  
   - [8. Payment Implementation](#8-payment-implementation)  
-- [Security Checklist](#security-checklist)  
+- [Security Checklist](#security-checklist-based-on-owasp-top-10)
+- [Folder Structure](#folder-structure)
+- [CI/CD Status](#cicd-status)
 - [Additional Documentation](#additional-documentation)  
 - [Contact Us](#contact-us)  
 - [Terms of Use](#terms-of-use)  
@@ -103,43 +105,40 @@ DOMROV is for educators, students, and academic institutions who want to automat
 
 ## Technology Stack & Infrastructure
 
-DOMROV uses a modern, distributed cloud architecture to deliver scalable, secure, and efficient learning management and automated evaluation.
-
-![Cloud Infrastructure](https://res.cloudinary.com/dgnugtetz/image/upload/v1772222281/API_Gateway_2_ndiw1r.png)
+The current backend has five independently packaged microservices. The root
+`docker-compose.yml` defines their local runtime, five PostgreSQL databases,
+RabbitMQ, and the Nginx API gateway.
 
 ### Frontend
 
-- Next.js (React) for the main client interface  
-- Nginx as a reverse proxy and API gateway  
-- AWS CloudFront and Route53 for global content delivery and DNS  
+- React 19, Vite, TypeScript, and Tailwind CSS in `apps/react-client/` and `apps/admin/`
+- Clients access the backend through one gateway origin (`http://localhost:8088` locally)
+- The existing frontend workflow builds and synchronizes static assets to AWS S3
 
-### Backend Services
+### Backend services
 
-- Node.js (NestJS) for the API Gateway and business logic  
-- NestJS for orchestration and service-to-service messaging; Python remains the evaluation worker
-- Amazon EC2 for scalable compute resources  
-- RabbitMQ for durable backend-to-backend events and commands; gRPC remains only
-  in the legacy Python API for compatibility during migration
+| Service | Source | Runtime | Local port | Database |
+| --- | --- | --- | --- | --- |
+| User | `apps/backend/user/` | NestJS / Node.js | 3001 | `auth_db` |
+| Academic | `apps/backend/academic/` | NestJS / Node.js | 3002 | `academic_db` |
+| Payment | `apps/backend/payment/` | NestJS / Node.js | 3003 | `payment_db` |
+| Evaluation | `apps/backend/evaluation/` | NestJS / Node.js | 3004 | `evaluation_db` |
+| Code Execution | `apps/backend/code-execution-go/` | Go | 3005 | `execution_db` |
 
-### Task Processing & Automation
+Services own their data and migrations. Other services use external identifiers,
+REST APIs, and RabbitMQ messages instead of sharing entities or database access.
+Evaluation orchestration and Go code execution are separate services; there is
+no Python evaluation service in the current stack.
 
-- RabbitMQ for distributed task queues and service events
-- Redis remains available for evaluator-local cache/legacy RQ compatibility
+### Infrastructure and integrations
 
-### Data Storage
-
-- PostgreSQL (Neon) for relational data storage  
-- EBS-mounted local storage for files and submissions, shared by the backend and evaluator
-- Cloudinary for image hosting  
-
-### AI & Evaluation
-
-- Integration with LLM providers (OpenAI, Gemini, OpenRouter, Ollama, and custom)  
-
-### Third-Party Integrations
-
-- OAuth for authentication (Google, etc.)  
-- Bakong for payment  
+- `infra/gateway/` contains gateway routing, including a remaining legacy admin fallback
+- `infra/rabbitmq/` contains broker definitions; `contracts/rabbitmq/` contains message schemas
+- Academic uploads use the `academic_files` volume mounted at `/data/files`
+- Payment has a separate local/EBS bind mount configured by `EBS_MOUNT_PATH`
+- OAuth, Bakong payments, and AI provider integration remain application concerns
+- `terraform/` is deprecated deployment material for the former backend; review
+  [its warning](terraform/README.md) before using any infrastructure instructions
 
 ---
 
@@ -147,54 +146,26 @@ DOMROV uses a modern, distributed cloud architecture to deliver scalable, secure
 
 ### 1. System Architecture & Internal Communication
 
-#### RabbitMQ-Based Distributed Architecture
+The React applications call the Nginx gateway. It routes requests to User,
+Academic, Payment, Evaluation, and Go Code Execution services. RabbitMQ carries
+internal evaluation, execution, credit, and notification messages.
 
-The system follows a distributed architecture composed of:
-
-- NestJS Backend – Handles business logic, APIs, authentication, and database operations  
-- NestJS AI Orchestrator – Translates academic evaluation events into evaluator jobs and tracks correlation state
-- Python Evaluation Worker – Consumes RabbitMQ evaluation jobs and runs the existing evaluator
-- RabbitMQ – Handles durable service events, commands, retries, and dead-letter queues
-- Redis Queue (RQ) – Retained for evaluator-local temporary execution state during migration
-- LLM Provider – Performs rubric-based evaluation  
-- Database – Stores submissions, scores, and feedback  
-
-#### Why RabbitMQ for Internal Communication
-
-- Durable queues allow services to process work asynchronously
-- Topic routing supports independent consumers without direct service coupling
-- Manual acknowledgements, retries, and dead-letter queues isolate failures
-- Correlation IDs make an evaluation traceable across services and workers
-- NestJS `Transport.RMQ` provides `@MessagePattern()` and `@EventPattern()` contracts
+See [gateway compatibility](docs/gateway-compatibility.md) for routes and the
+remaining unmatched `/admin/*` fallback. This cleanup preserves that fallback.
 
 ---
 
 ### 2. Asynchronous Task Queue
 
-- RabbitMQ for cross-service evaluation events and commands
-- Redis Queue (RQ) for evaluator-local asynchronous job handling during migration
-- Multiple Python workers for parallel evaluation  
+Academic persists submissions and publishes evaluation requests. Evaluation owns
+evaluation state and result processing; Go Code Execution handles sandboxed
+execution requests. RabbitMQ connects producers and consumers. Each service
+persists its own records in its own PostgreSQL database.
 
-**Workflow:**
-
-![AI Evaluation](https://res.cloudinary.com/dgnugtetz/image/upload/v1772225042/mermaid-diagram-2026-02-28-034330_yq6xlr.png)
-
-1. Academic Service publishes `evaluation.requested` to RabbitMQ
-2. AI Orchestrator publishes `evaluation.job` to the durable evaluator queue
-3. Worker consumes the job asynchronously:  
-   - Fetches submission files  
-   - Estimates token size  
-   - Sends request to LLM  
-   - Normalizes output  
-4. AI service publishes `evaluation.completed` or `evaluation.failed` to RabbitMQ
-5. Academic Service stores the final score and feedback in its database
-
-**Reliability Features:**
-
-- Retry logic for transient failures  
-- Token-limit detection before LLM call  
-- Idempotent job handling  
-- Failure classification (quota vs token overflow)  
+Broker definitions and service queue configuration must be reconciled before a
+new production deployment; see [platform notes](docs/platform-scaffolding.md).
+The historical Redis/RQ and Python worker instructions do not describe this
+runtime.
 
 ---
 
@@ -222,24 +193,23 @@ The system follows a distributed architecture composed of:
 
 ### 5. Model Benchmarking & Selection
 
-- Tested GPT-family, Gemini, Qwen Coder, Grok  
-- Grok selected for lower randomness, stable scoring, strong logical evaluation  
+Historical experiments compared several model providers. The current Evaluation
+Service calls Ollama; `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, and `OLLAMA_TIMEOUT_MS`
+configure it in the root Compose file. Model availability is an external runtime
+dependency.
 
 ---
 
 ### 6. File Handling & Storage
 
-Uploaded files are sent to the authenticated NestJS API and stored as relative
-keys below the shared EBS mount. Permanent files live under `permanent` and
-temporary evaluation workspaces live under `evaluation-cache`; the evaluator
-never downloads active submissions from R2. See
-`docs/local-ebs-storage.md` for limits, permissions, health checks, and the
-legacy-record migration strategy.
+Academic owns authenticated resource uploads and submission files under
+`/data/files` in its `academic_files` volume. Go Code Execution uses a separate
+temporary workspace configured by `CODE_EXECUTION_WORKSPACE_DIR` and
+`WORKSPACE_ROOT`. Payment retains its configured local/EBS mount.
 
-- Local EBS storage for authenticated uploads/downloads
-- Backend streams downloads by resource ID
-- Shared permanent/evaluation-cache layout
-- Secure access control and archive extraction limits
+The earlier shared backend/Python storage design is retained only as a
+[deprecated historical note](docs/local-ebs-storage.md); its migration commands
+must not be used for the current services.
 
 ---
 
@@ -257,7 +227,6 @@ legacy-record migration strategy.
 - KHQR payments via Bakong  
 - Backend polls for payment status asynchronously  
 - WebSocket pushes status updates to frontend  
-- Redis controls single active payment session per user (3-minute TTL)  
 
 ![Payment Flow](https://res.cloudinary.com/dgnugtetz/image/upload/v1772225500/77ac8d57-e500-4de1-b502-8a7eb0bbfe0a.png)
 
@@ -280,163 +249,45 @@ legacy-record migration strategy.
 
 ## Folder Structure
 
-```
+```text
 domrov-lms-automation/
-├── apps/                          # All application services
-│   ├── backend_nest/              # Core Backend API (NestJS)
-│   ├── react-client/              # Core UI (React)
-│   ├── admin/                     # Admin Dashboard (React)
-│   ├── code_eval/                 # Code Evaluation Engine (Python)
-│   └── shared/                    # Shared Code & APIs
-├── infrastructure/                # AWS Cloud Setup (Terraform)
-├── .github/                       # CI/CD & Automation
-
+├── apps/
+│   ├── backend/
+│   │   ├── user/                  # Identity and user management (NestJS)
+│   │   ├── academic/              # Classes, submissions, resources (NestJS)
+│   │   ├── payment/               # Wallet, credits, payments (NestJS)
+│   │   ├── evaluation/            # Evaluation orchestration (NestJS)
+│   │   └── code-execution-go/     # Sandboxed code execution (Go)
+│   ├── react-client/              # Main React/Vite frontend
+│   └── admin/                     # Admin React/Vite frontend
+├── contracts/                     # HTTP and RabbitMQ contracts
+├── infra/                         # Gateway and RabbitMQ configuration
+├── docker-compose.yml             # Local five-service stack
+├── .github/workflows/             # Active validation, image builds, frontend deploy
+├── docs/                          # Platform notes and historical migration material
+├── terraform/                     # Deprecated infrastructure and deployment scripts
+└── uat/                           # Historical test reports and scenarios
 ```
 
----
+See [folder.md](folder.md) for the workflow inventory.
 
-## What Each Folder Does
+## CI/CD status
 
-### **`apps/backend_nest/`** - Backend REST API Server 
-**Purpose:** Core backend serving all business logic and data  
-**Tech:** NestJS, TypeScript, TypeORM, PostgreSQL, Redis  
+- `ci-cd-pipeline.yml` retains S3 deployment for both frontends. Pushes to `main`
+  deploy only changed frontend directories. Manual runs on `main` deploy both;
+  runs selected from another branch or tag skip all jobs.
+- `user.yml`, `academic-service.yml`, and `payment-service.yml` retain their
+  existing service validation and Docker builds.
+- `microservice-images.yml` validates and builds any of the five services;
+  publishing is optional and images use the Git SHA. This workflow does not deploy.
+- `summary.yml` summarizes opened issues with GitHub Models.
+- The monolithic backend deployment, Python evaluator CI, and StarCoder review
+  workflow have been retired.
 
-**Modules:**
-| Module | Purpose |
-|--------|---------|
-| `auth/` | User login, registration, JWT tokens |
-| `user/` | User profiles, profile pictures, roles |
-| `class/` | Class creation, student enrollment, invitations |
-| `assessment/` | Assignment creation, deadlines, rubrics |
-| `evaluation/` | Code evaluation workflows, AI grading |
-| `submission/` | Student code submissions, versioning |
-| `tasks/` | Background job scheduling (Bull MQ) |
-| `wallet/` | Credits, payments, Stripe integration |
-| `admin/` | User management, analytics, monitoring |
-| `file/` | Local EBS file uploads/downloads and Cloudinary image uploads |
-
-**External Connections:** PostgreSQL DB, Redis cache, RabbitMQ, Python evaluation worker, OpenAI API, AWS S3
+A new CI/CD pipeline and K3s deployment are future work. Current workflow checks
+and known dependencies are recorded in [the cleanup report](docs/ci-cleanup.md).
 
 ---
-
-### **`apps/admin/`** - Admin Dashboard 
-**Purpose:** System administration and monitoring  
-**Tech:** React 19, Vite, Tailwind CSS  
-
-**Admin Features:**
-- User management (create, update, delete)
-- System analytics and usage metrics
-- Credit package management
-- Platform configuration
-- Performance monitoring
-- Security & access control
-
----
-
-### **`apps/code_eval/`** - AI Code Evaluation Engine 
-**Purpose:** Automated code execution, evaluation, and intelligent feedback generation  
-**Tech:** Python, RabbitMQ, OpenAI API, Google GenAI, Redis Queue compatibility
-
-**Components:**
-| Component | Purpose |
-|-----------|---------|
-| `ai/` | LLM integration, feedback generation |
-| `rabbitmq_worker.py` | RabbitMQ consumer for evaluation jobs |
-| `job_handler/` | Process eval jobs from Redis queue |
-| `server/` | Legacy HTTP/gRPC service implementation |
-| `utils/` | Helpers, plagiarism detection, GitHub API |
-
-**What It Does:**
-1. Receives code from backend
-2. Executes code in isolated environment
-3. Checks for plagiarism (GitHub comparison)
-4. Generates AI feedback using LLMs
-5. Scores based on rubrics
-6. Returns results to backend
-
----
-
-### **`infrastructure/`** - Cloud Infrastructure ☁️
-**Purpose:** Production deployment on AWS using Infrastructure-as-Code  
-**Tech:** Terraform, AWS services, Cloudflare DNS  
-
-**AWS Services Managed:**
-| Service | Purpose |
-|---------|---------|
-| **VPC** | Virtual networking & security |
-| **EC2 + ASG** | Compute instances with auto-scaling |
-| **RDS PostgreSQL** | Multi-AZ relational database |
-| **Application Load Balancer** | Request distribution & SSL |
-| **S3** | File storage (submissions, resources) |
-| **CloudFront** | CDN for static assets |
-| **CloudWatch** | Logging, monitoring, alerts |
-| **IAM** | Access control & security |
-| **Cloudflare** | DNS, DDoS protection, SSL/TLS |
-
----
-
-### **`.github/`** - CI/CD Configuration 
-**Purpose:** Automated testing, building, and deployment  
-**Includes:**
-- GitHub Actions workflows
-- Build pipelines
-- Test automation
-- Deployment triggers
-
----
-
-## 🔌 Service Communication Flow
-
-```
-┌─────────────────────┐
-│   React Apps        │
-│     (Users)         │
-└──────────┬──────────┘
-           │ REST API
-           │ WebSocket (real-time)
-           ▼
-┌──────────────────────────────────────┐
-│  NestJS Backend (Port 3000)          │
-│  ✓ REST endpoints                    │
-│  ✓ Real-time notifications           │         │
-│  ✓ Database: PostgreSQL + Redis      │
-└──────────┬───────────────────────────┘
-           │ RabbitMQ events/jobs
-           ▼
-┌──────────────────────────────────────┐
-│  NestJS AI Orchestrator + Python Worker│
-│  ✓ Code execution                    │
-│  ✓ AI feedback generation            │
-│  ✓ Result scoring                    │
-│  ✓ Plagiarism checks                 │
-└──────────────────────────────────────┘
-
-📦 DATA STORAGE:
-├─ PostgreSQL: User, class, assignment data
-├─ Redis: Caching & job queue
-├─ EBS: Permanent uploads and evaluation cache
-└─ Cloudinary: Images & CDN
-```
-
----
-
-## 🛠️ Technology Stack
-
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | React 19, Vite, TypeScript, Tailwind CSS, Socket.io |
-| **Backend API** | NestJS, TypeScript, TypeORM, Express.js |
-| **Eval Engine** | Python 3.10+, RabbitMQ, LLM APIs |
-| **Database** | PostgreSQL 14+, Redis 6+ |
-| **Cloud** | AWS (EC2, RDS, S3, ALB, CloudFront) |
-| **DNS & CDN** | Cloudflare (proxy, DDoS, SSL) |
-| **AI Services** | OpenAI API, Google GenAI, Ollama |
-| **Storage** | EBS-mounted local storage, Cloudinary |
-| **Queue** | Bull MQ (Node.js), RQ (Python) |
-| **IPC** | RabbitMQ, REST APIs, WebSocket |
-| **DevOps** | Terraform, Docker, Docker Compose |
-| **CI/CD** | GitHub Actions |
-
 
 ## Additional Documentation
 
@@ -456,111 +307,22 @@ domrov-lms-automation/
 
 ---
 
-## Production Microservices Refactoring PRD
+## Microservice ownership and operational goals
 
-### Objective
+User owns identity and authentication; Academic owns classes, assignments,
+resources, and submissions; Payment owns wallets, credits, and payments;
+Evaluation owns AI evaluation state and feedback; Go Code Execution owns
+sandboxed execution runs. Each service uses its corresponding database listed
+above. REST serves client requests; RabbitMQ connects asynchronous work.
 
-Refactor the backend into four independently deployable microservices while preserving the existing DOMROV product behavior:
+Production rollout still requires verified service contracts, idempotent payment
+operations, health checks, retries, independent image delivery, and integration
+checks for login, submission, evaluation, execution, and payment. These are
+acceptance goals, not a claim that a production deployment is complete.
 
-1. User Service
-2. Academic Service
-3. Payment Service
-4. AI Evaluation Service
+[TASK.md](TASK.md) and [the original boundary map](docs/microservices-boundary-map.md)
+are deprecated migration plans retained for historical context. Use the current
+source tree, root Compose file, service READMEs, and contracts when planning the
+next block. No new pipeline or K3s manifests are introduced by this cleanup.
 
-The frontend remains outside this refactoring. It should access backend functionality through the API Gateway.
-
-### Architecture principles
-
-- Each service has one clear business responsibility.
-- Each service owns and manages its own database.
-- No service directly queries another service's database.
-- Each service has its own Docker image, tests, configuration, health checks, metrics, and deployment manifest.
-- REST is used for client-facing APIs; RabbitMQ is used for internal events and commands.
-- Long-running AI evaluation is asynchronous and uses RabbitMQ as the service boundary.
-- Services fail independently through timeouts, retries, circuit breakers, and readiness checks.
-- API contracts are versioned and stored under `contracts/`.
-
-### Service ownership
-
-| Service | Responsibility | Database |
-|---|---|---|
-| User Service | Registration, login, JWT, users, roles, OAuth, password recovery | `auth_db` |
-| Academic Service | Classes, teams, assignments, rubrics, submissions, academic results | `academic_db` |
-| Payment Service | Wallets, credit packages, KHQR payments, transactions, credit reservations | `payment_db` |
-| AI Service | Code execution, evaluation jobs, AI feedback, evaluation results and workers | `ai_db` plus Redis |
-
-Database-per-service means logical ownership. The databases may run on the same PostgreSQL infrastructure, but credentials, migrations, repositories, and tables must remain isolated.
-
-### Communication
-
-```text
-Frontend -> API Gateway/Ingress -> Auth, Academic, Payment, or AI API
-Academic Service -> AI Service: submit evaluation request
-AI Service -> Payment Service: reserve, commit, or release credits
-AI Service -> Redis: queue evaluation work
-AI Worker -> ai_db: store evaluation state and result
-```
-
-The evaluation flow is asynchronous:
-
-```text
-Academic Service stores submission
-  -> publishes evaluation request
-  -> Evaluation Service returns evaluationId
-  -> RabbitMQ queues the job
-  -> NestJS runner executes the evaluation
-  -> Evaluation Service stores the result
-  -> Academic Service exposes the result to the client
-```
-
-### Required repository structure
-
-```text
-apps/backend/
-├── user/
-├── academic/
-├── payment/
-└── evaluation/
-
-contracts/
-├── auth/openapi.yaml
-├── academic/openapi.yaml
-├── payment/openapi.yaml
-└── evaluation/events.md
-
-infra/
-└── docker-compose.yml
-```
-
-### Service scopes
-
-- **User Service:** registration, login, refresh tokens, logout, email verification, password reset, OAuth, user profiles, and roles. It owns identity data in `auth_db`. Other services validate JWTs and must not read `auth_db`.
-- **Academic Service:** classes, enrollments, teams, assignments, rubrics, resources, submissions, evaluation status, and academic feedback in `academic_db`.
-- **Payment Service:** credit packages, wallet balances, payments, KHQR verification, transactions, refunds, and credit reservations in `payment_db`. Credit operations require idempotency keys.
-- **Evaluation Service:** evaluation requests, local NestJS runner, results, retries, and status in `evaluation_db`. Internal communication uses RabbitMQ; it has no gRPC, Python, Redis, or shared database dependency.
-
-### Platform and operations
-
-- Docker Compose runs all services and dependencies locally.
-- Docker Compose is the local deployment platform.
-- OpenTelemetry request IDs and trace IDs connect the submission-to-evaluation flow.
-- CI/CD tests, scans, builds, publishes, and deploys each service independently.
-- Image tags use the Git SHA; production must not rely only on `latest`.
-
-### Production acceptance criteria
-
-- Four services start and deploy independently.
-- Each service has a separate database and database credentials.
-- No cross-service database access or cross-database foreign keys exist.
-- REST APIs and RabbitMQ message contracts are documented and tested.
-- AI evaluation is asynchronous and retryable.
-- Payment credit operations are idempotent.
-- Liveness and readiness probes work for every service.
-- Timeouts, retries, and graceful dependency failures are implemented.
-- Docker Compose runs the local environment.
-- CI/CD produces versioned container images for each service.
-- The complete flow works: login, assignment submission, credit reservation, evaluation, result delivery, and credit commit/release.
-
-The implementation checklist and execution order are maintained in [TASK.md](TASK.md).
-
-This project is open source
+This project is open source.

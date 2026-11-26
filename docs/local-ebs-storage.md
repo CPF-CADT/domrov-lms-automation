@@ -1,5 +1,7 @@
 # Local EBS file storage
 
+> **Deprecated — historical shared backend/Python storage design.** The paths, migration commands, environment variables, entrypoint behavior, and health endpoint below refer to removed components. Do not run these migration instructions against the current services. Academic now mounts the `academic_files` volume at `/data/files`; Payment retains a separate `EBS_MOUNT_PATH` bind mount, and Go execution uses its own workspace. See the root [docker-compose.yml](../docker-compose.yml).
+
 The backend and evaluator share the same host directory, mounted at
 `/data/files` in both containers. Permanent uploads are stored below
 `/data/files/permanent`; disposable evaluation workspaces and checksum caches

@@ -1,8 +1,10 @@
 # DOMROV Service Contracts
 
-These files are the WP-0 source of truth for service boundaries. They describe
-the target APIs; the existing monolith remains the compatibility implementation
-until each work package is migrated.
+These files record HTTP and RabbitMQ service boundaries. The current backend
+contains User, Academic, Payment, Evaluation, and Go Code Execution services;
+see the root `docker-compose.yml` and service READMEs for runtime configuration.
+The original WP-0 contracts must be checked against runtime behavior before
+production rollout; this cleanup does not change their API or message schemas.
 
 | Contract | Owner | Purpose |
 | --- | --- | --- |
@@ -12,12 +14,12 @@ until each work package is migrated.
 | `rabbitmq/` | Evaluation/Payment/Auth services | Internal RabbitMQ events, commands, and payload schemas |
 
 HTTP conventions and health endpoints are defined in
-`docs/microservices-conventions.md`. The current-to-target mapping is in
-`docs/microservices-boundary-map.md`.
+[microservices conventions](../docs/microservices-conventions.md). Current service
+ownership is in [README.md](../README.md); the
+[original boundary map](../docs/microservices-boundary-map.md) is deprecated history.
 
-The contracts intentionally use string IDs even where the current monolith
-returns numeric IDs. During migration, adapters must perform the conversion;
-new service APIs must not expose database-specific ID types as a coupling.
+The contracts use string IDs. Compatibility adapters must preserve existing
+client behavior without exposing database-specific ID types as a coupling.
 
 RabbitMQ contracts are transport-level contracts. They define the message
 envelope, routing keys, payload schemas, and queue topology; they do not share

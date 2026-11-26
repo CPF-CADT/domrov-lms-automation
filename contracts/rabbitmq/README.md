@@ -2,8 +2,11 @@
 
 RabbitMQ is the internal transport for asynchronous events and service
 commands. NestJS services use `Transport.RMQ` with durable queues and manual
-acknowledgements (`noAck: false`). The Python evaluator consumes the same AMQP
-contracts and does not access another service's database.
+acknowledgements (`noAck: false`). Evaluation runs in NestJS and Code Execution
+runs in Go with its own AMQP client; services own separate databases. The tables
+below describe the original broker definitions. Runtime queue settings have
+evolved; see [platform notes](../../docs/platform-scaffolding.md) for the
+remaining reconciliation work. This cleanup does not change message contracts.
 
 ## Broker topology
 

@@ -1,5 +1,9 @@
 # UAT Execution Report
 
+> **Historical UAT evidence.** This report predates the five-service stack and
+> includes the earlier four-database architecture. It is not current deployment
+> guidance; see [the current platform](../docs/platform-scaffolding.md).
+
 ## Environment
 
 - Local React Client: `http://localhost:5173`
