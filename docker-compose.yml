@@ -507,6 +507,21 @@ services:
       - tempo
 
   # Metrics
+  cadvisor:
+    <<: *observability
+    image: ghcr.io/google/cadvisor:0.57.0
+    cgroup: host
+    command:
+      - --docker_only=true
+      - --disable_root_cgroup_stats=true
+      - --enable_metrics=cpu,memory
+      - --store_container_labels=false
+      - --whitelisted_container_labels=com.docker.compose.project,com.docker.compose.service
+    volumes:
+      - /:/rootfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/sys:ro
+
   prometheus:
     <<: *observability
     image: prom/prometheus:latest
@@ -519,6 +534,9 @@ services:
     volumes:
       - ./observability/prometheus:/etc/prometheus:ro
       - prometheus_data:/prometheus
+    configs:
+      - source: cadvisor_targets
+        target: /etc/cadvisor-targets.yml
 
   postgres-exporter:
     <<: *observability
@@ -552,6 +570,13 @@ services:
     command: ["--config.file=/etc/blackbox-exporter/config.yml"]
     volumes:
       - ./observability/blackbox-exporter/config.yml:/etc/blackbox-exporter/config.yml:ro
+
+configs:
+  cadvisor_targets:
+    content: |
+      - targets: ["cadvisor:8080"]
+        labels:
+          compose_project: "${COMPOSE_PROJECT_NAME:-domrov}"
 
 # ==========================================
 # PERSISTENT VOLUMES

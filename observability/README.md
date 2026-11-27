@@ -1,10 +1,10 @@
 # DOMROV local observability
 
-The root `docker-compose.yml` starts the application and Loki, Alloy, Tempo, the OpenTelemetry Collector, Prometheus and Grafana as independent containers. Blackbox and PostgreSQL exporters cover the gateway, backend readiness and local databases. Prometheus also scrapes RabbitMQ’s built-in exporter.
+The root `docker-compose.yml` starts the application and Loki, Alloy, Tempo, the OpenTelemetry Collector, Prometheus, cAdvisor and Grafana as independent containers. Blackbox and PostgreSQL exporters cover the gateway, backend readiness and local databases. Prometheus also scrapes RabbitMQ’s built-in exporter.
 
 ## Start
 
-Use Docker Desktop with the Compose plugin. On an Apple Silicon Mac with 24 GB of RAM, start with an 8 GB Docker VM budget and raise it if backend image builds or code sandboxes need more room. Ollama memory is separate.
+Use Docker Compose 2.23.1 or later. On an Apple Silicon Mac with 24 GB of RAM, start with an 8 GB Docker Desktop VM budget and raise it if backend image builds or code sandboxes need more room. Ollama memory is separate.
 
 From the repository root:
 
@@ -35,6 +35,20 @@ curl -i http://127.0.0.1:8088/users/me
 3. Run a synthetic assignment evaluation or code execution through the normal application. In Tempo, use the trace from the initiating HTTP log. Confirm that producer and consumer spans have the same trace ID and that the trace links back to its logs. The generated HTTP 401 is enough to test a single-service trace.
 4. The overview shows pending and firing Prometheus rules in Grafana. These rules are for dashboard display only.
 
+### Verify CPU and RAM coverage
+
+In **DOMROV overview**, open **Container CPU usage by service** and **Container RAM working set by service**. The charts sum container usage by Compose service, including the gateway, all five backends, databases, RabbitMQ and the observability services. Prometheus keeps only CPU and RAM samples tagged with the active Compose project and a Compose service name.
+
+1. Check that `cadvisor` shows `UP` on the [Prometheus targets page](http://localhost:9090/targets). Allow at least one minute for the CPU rate to have enough samples.
+2. Run `docker compose ps --services --status running` and compare its output with the service names returned by both queries below. Each running service should appear in both results. A stopped service can still appear in a dashboard’s historical time range.
+
+   ```promql
+   count by (compose_service) (rate(container_cpu_usage_seconds_total{job="cadvisor"}[1m]))
+   count by (compose_service) (container_memory_working_set_bytes{job="cadvisor"})
+   ```
+
+3. Run a sample code execution and check the service charts alongside HTTP request rate and p95 latency. cAdvisor uses Linux container cgroups. If Docker Desktop has an `UP` target with missing service series, run the same coverage checks on the Linux deployment host before relying on those charts for the demo.
+
 For config validation inside the containers once Docker is available:
 
 ```bash
@@ -47,7 +61,7 @@ docker compose exec alloy alloy validate /etc/alloy/config.alloy
 
 - Alloy reads Docker logs for the five services and gateway in the Compose project, keeps the application JSON schema and forwards once to Loki. Trace, span, request and correlation IDs remain queryable fields rather than index labels. Plain text, oversized entries and unexpected fields stay out of Loki.
 - The application instrumentation sends OTLP HTTP JSON for spans and bounded cumulative metrics. The Nest services use the pinned OpenTelemetry tracing SDK. Go uses a bounded OTLP emitter with W3C trace context. HTTP attributes are limited to route templates, methods and statuses. Messaging attributes use known operation and routing names. The apps propagate `traceparent` without baggage, and Alloy is the sole logs path. The Collector filters attributes before export.
-- The Docker socket is mounted for Alloy discovery and log reads. A read-only mount does not make the Docker API read-only. Use trusted local images and keep the socket local. PostgreSQL probes use the default Compose development credentials defined in `postgres-exporter/config.yml`.
+- The Docker socket is mounted for Alloy log collection and cAdvisor container discovery. A read-only mount does not make the Docker API read-only. Use trusted local images and keep the socket local. cAdvisor has no published host port. PostgreSQL probes use the default Compose development credentials defined in `postgres-exporter/config.yml`.
 - Loki and Prometheus retain up to seven days. Tempo retains traces for 48 hours. Grafana data, Alloy positions, Loki data, Tempo data, and Prometheus data use named volumes. A normal Compose `down` keeps these volumes.
 
 ## Verification and limits
