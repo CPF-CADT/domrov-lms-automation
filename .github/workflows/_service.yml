@@ -15,6 +15,14 @@ on:
         description: Service runtime (node or go)
         required: true
         type: string
+      image:
+        description: Docker image name
+        required: true
+        type: string
+      context:
+        description: Docker build context
+        required: true
+        type: string
       tests_blocking:
         description: Fail the job when tests fail
         type: boolean
@@ -92,3 +100,38 @@ jobs:
       - name: Build Go service
         if: inputs.runtime == 'go'
         run: go build -o /tmp/out ./cmd/server
+
+  build:
+    name: build (${{ inputs.service }})
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.meta.outputs.tags }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Generate Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ vars.DOCKER_USERNAME || 'domrov' }}/${{ inputs.image }}
+          tags: |
+            type=sha,format=short
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=dev,enable={{is_default_branch}}
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.context }}
+          push: false
+          load: true
+          tags: ci-local/${{ inputs.image }}:ci
+          cache-from: type=gha,scope=${{ inputs.service }}
+          cache-to: type=gha,scope=${{ inputs.service }},mode=max
