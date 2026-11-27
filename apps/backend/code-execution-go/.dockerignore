@@ -1,0 +1,43 @@
+# Local binaries and generated output; compile the service inside Docker.
+/code-execution
+/server
+/bin
+/build
+/dist
+/coverage
+**/*.test
+**/*.exe
+**/*.out
+**/*.prof
+
+# Version control and editor metadata.
+**/.git
+**/.gitignore
+**/.github
+**/.idea
+**/.vscode
+**/.DS_Store
+
+# Local configuration and credentials, including files nested under cmd/internal.
+**/.env
+**/.env.*
+**/*.env
+**/*.env.*
+**/.npmrc
+**/.aws
+**/.ssh
+**/secrets
+**/secrets.json
+**/credentials.json
+**/.db_password
+**/*.key
+**/*.pem
+**/*.p12
+**/*.pfx
+
+# Logs, caches, and temporary files.
+**/logs
+**/*.log
+**/.cache
+**/*.tmp
+**/*.swp

@@ -1,0 +1,39 @@
+# Local dependencies and generated output; install and compile inside Docker.
+**/node_modules
+**/dist
+**/coverage
+**/.nyc_output
+**/*.tsbuildinfo
+
+# Version control and editor metadata.
+**/.git
+**/.gitignore
+**/.github
+**/.idea
+**/.vscode
+**/.DS_Store
+
+# Local configuration and credentials, including files nested under src/.
+**/.env
+**/.env.*
+**/*.env
+**/*.env.*
+**/.npmrc
+**/.aws
+**/.ssh
+**/secrets
+**/secrets.json
+**/credentials.json
+**/.db_password
+**/*.key
+**/*.pem
+**/*.p12
+**/*.pfx
+
+# Logs, caches, and temporary files.
+**/logs
+**/*.log
+**/.npm
+**/.cache
+**/*.tmp
+**/*.swp
