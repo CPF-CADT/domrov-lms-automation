@@ -83,9 +83,18 @@ jobs:
         run: npm run lint
 
       - name: Test Node.js service
+        id: node_tests
         if: inputs.runtime == 'node'
         continue-on-error: ${{ !inputs.tests_blocking }}
         run: npm test -- --runInBand
+
+      - name: Report non-blocking Node.js test failure
+        if: steps.node_tests.outcome == 'failure'
+        env:
+          SERVICE_NAME: ${{ inputs.service }}
+        run: |
+          echo "::warning::Tests FAILED but are non-blocking (tests_blocking=false)"
+          printf '%s: %s\n' "$SERVICE_NAME" 'Tests FAILED but are non-blocking (tests_blocking=false)' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build Node.js service
         if: inputs.runtime == 'node'
@@ -113,9 +122,18 @@ jobs:
         run: go vet ./...
 
       - name: Test Go service
+        id: go_tests
         if: inputs.runtime == 'go'
         continue-on-error: ${{ !inputs.tests_blocking }}
         run: go test ./...
+
+      - name: Report non-blocking Go test failure
+        if: steps.go_tests.outcome == 'failure'
+        env:
+          SERVICE_NAME: ${{ inputs.service }}
+        run: |
+          echo "::warning::Tests FAILED but are non-blocking (tests_blocking=false)"
+          printf '%s: %s\n' "$SERVICE_NAME" 'Tests FAILED but are non-blocking (tests_blocking=false)' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build Go service
         if: inputs.runtime == 'go'
