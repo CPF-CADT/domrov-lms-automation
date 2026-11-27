@@ -367,7 +367,7 @@ services:
         - CMD
         - rabbitmq-diagnostics
         - -q
-        - ping
+        - check_port_connectivity
       interval: 10s
       timeout: 5s
       retries: 12
