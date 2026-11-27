@@ -1,0 +1,44 @@
+name: Code Execution Service CI
+
+on:
+  pull_request:
+    paths:
+      - apps/backend/code-execution-go/**
+      - .github/workflows/code-execution.yml
+      - .github/workflows/_service.yml
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths:
+      - apps/backend/code-execution-go/**
+      - .github/workflows/code-execution.yml
+      - .github/workflows/_service.yml
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish image to Docker Hub
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ci:
+    uses: ./.github/workflows/_service.yml
+    secrets: inherit
+    with:
+      service: code-execution
+      path: apps/backend/code-execution-go
+      runtime: go
+      image: domrov-code-execution
+      context: apps/backend/code-execution-go
+      lint: false
+      tests_blocking: true
+      publish: >-
+        ${{ (github.event_name == 'workflow_dispatch' && inputs.publish) ||
+            github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
