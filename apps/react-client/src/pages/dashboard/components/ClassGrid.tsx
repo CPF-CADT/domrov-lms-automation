@@ -1,6 +1,6 @@
 import EmptyState from "@/components/data-display/EmptyState";
 import ClassCard from "@/pages/dashboard/components/ClassCard";
-import type { ClassCard as ClassCardType } from "@/types/ClassCard";
+import type { ClassCard as ClassCardType } from "@/types/classCard";
 
 interface ClassGridProps {
   items: ClassCardType[];

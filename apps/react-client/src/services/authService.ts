@@ -1,6 +1,6 @@
-import axiosInstance from '@/lib/AxiosInstance';
+import axiosInstance from '@/lib/axiosInstance';
 import { STORAGE_KEYS, storage } from '@/lib/Storage';
-import type { MessageResponse } from '@/types/Api';
+import type { MessageResponse } from '@/types/api';
 import type {
     RegisterUserDTO,
     LoginUserDTO,
@@ -10,7 +10,7 @@ import type {
     LoginResponseDto,
     RefreshTokenResponseDto,
     AuthMessageResponseDto,
-} from '@/types/Auth';
+} from '@/types/auth';
 
 /**
  * Register a new user account

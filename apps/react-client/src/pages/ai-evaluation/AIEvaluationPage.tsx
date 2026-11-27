@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import MainNavigation from "@/components/navigation/MainNavigation";
 import AIEvaluationSettings from "@/pages/ai-evaluation/components/AIEvaluationSettings";
 import ProfileDropdown from "@/components/data-display/ProfileDropdown";
-import evaluationService from "@/services/EvaluationService";
+import evaluationService from "@/services/evaluationService";
 
 type FreeQuota = { model: string; limit: number; used: number; remaining: number };
 

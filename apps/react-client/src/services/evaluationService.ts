@@ -1,16 +1,16 @@
-import axiosInstance from '@/lib/AxiosInstance';
+import axiosInstance from '@/lib/axiosInstance';
 
 import type {
   ProcessSubmissionResponseDto,
   FolderStructureResponseDto,
   AddToQueueResponseDto,
-} from '@/types/Evaluation';
+} from '@/types/evaluation';
 import type {
   AIProviderDto,
   CreateUserAIKeyDto,
   UserAIKeyResponseDto,
   UpdateUserAIKeyDto,
-} from "@/types/Ai";
+} from "@/types/ai";
 
 /**
  * Get the content of a file in a submission

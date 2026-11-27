@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ArrowLeft, Loader2, ChevronUp, ChevronDown, RefreshCw, Sparkles, CheckCircle2, Download } from "lucide-react";
-import assessmentService from "@/services/AssessmentService";
-import submissionService from "@/services/SubmissionService";
-import fileService from "@/services/FileService";
+import assessmentService from "@/services/assessmentService";
+import submissionService from "@/services/submissionService";
+import fileService from "@/services/fileService";
 import { useToast } from "@/components/Toast";
-import type { AssessmentListItemDto, TeamTrackingItemDto, IndividualTrackingItemDto } from "@/types/Assessment";
-import type { TeamRosterItemDto, IndividualRosterItemDto, SubmissionViewerResponseDto } from "@/types/Submission";
+import type { AssessmentListItemDto, TeamTrackingItemDto, IndividualTrackingItemDto } from "@/types/assessment";
+import type { TeamRosterItemDto, IndividualRosterItemDto, SubmissionViewerResponseDto } from "@/types/submission";
 import SubmissionCodeViewer from "./SubmissionCodeViewer";
 import ExecutionTerminal from "./ExecutionTerminal";
 

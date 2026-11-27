@@ -4,7 +4,7 @@ import { useState } from "react";
 import Modal from "@/components/primitives/Modal";
 import FormInput from "@/components/primitives/FormInput";
 import ImageUpload from "@/components/forms/ImageUpload";
-import type { CloudinaryUploadResponse } from "@/types/File";
+import type { CloudinaryUploadResponse } from "@/types/file";
 
 export interface CreateClassData {
   name: string;

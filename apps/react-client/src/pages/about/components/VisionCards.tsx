@@ -2,7 +2,7 @@ import Icon from "@/components/data-display/Icon";
 import SectionHeader from "@/components/data-display/SectionHeader";
 import CardBase from "@/components/primitives/CardBase";
 import SectionWrapper from "@/components/primitives/SectionWrapper";
-import { VISION_CARDS } from "@/config/About";
+import { VISION_CARDS } from "@/config/about";
 
 /**
  * VisionCards - Displays innovation, learning, and future vision cards.

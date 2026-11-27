@@ -3,7 +3,7 @@
   "uid": "domrov-infrastructure",
   "description": "Compose container resources, databases, message queues and telemetry health.",
   "schemaVersion": 41,
-  "version": 1,
+  "version": 2,
   "editable": false,
   "tags": [
     "domrov",
@@ -35,6 +35,143 @@
   ],
   "panels": [
     {
+      "id": 11,
+      "type": "table",
+      "title": "Current metrics by service",
+      "description": "CPU and network rates use the last five minutes. RAM is the latest working set. Total sums the reported values for all monitored Compose services. A dash means no sample was available.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 12
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "label_replace(\n  (sum by (compose_service) (rate(container_cpu_usage_seconds_total{job=\"cadvisor\",compose_service!=\"\"}[5m])))\n  or label_replace(sum(sum by (compose_service) (rate(container_cpu_usage_seconds_total{job=\"cadvisor\",compose_service!=\"\"}[5m]))), \"compose_service\", \"Total\", \"__name__\", \".*\"),\n  \"metric\", \"CPU\", \"__name__\", \".*\"\n)\nor\nlabel_replace(\n  (sum by (compose_service) (container_memory_working_set_bytes{job=\"cadvisor\",compose_service!=\"\"}) / 1048576)\n  or label_replace(sum(sum by (compose_service) (container_memory_working_set_bytes{job=\"cadvisor\",compose_service!=\"\"}) / 1048576), \"compose_service\", \"Total\", \"__name__\", \".*\"),\n  \"metric\", \"RAM\", \"__name__\", \".*\"\n)\nor\nlabel_replace(\n  (sum by (compose_service) (rate(container_network_receive_bytes_total{job=\"cadvisor\",compose_service!=\"\",interface!=\"lo\"}[5m])) / 1000)\n  or label_replace(sum(sum by (compose_service) (rate(container_network_receive_bytes_total{job=\"cadvisor\",compose_service!=\"\",interface!=\"lo\"}[5m])) / 1000), \"compose_service\", \"Total\", \"__name__\", \".*\"),\n  \"metric\", \"Network RX\", \"__name__\", \".*\"\n)\nor\nlabel_replace(\n  (sum by (compose_service) (rate(container_network_transmit_bytes_total{job=\"cadvisor\",compose_service!=\"\",interface!=\"lo\"}[5m])) / 1000)\n  or label_replace(sum(sum by (compose_service) (rate(container_network_transmit_bytes_total{job=\"cadvisor\",compose_service!=\"\",interface!=\"lo\"}[5m])) / 1000), \"compose_service\", \"Total\", \"__name__\", \".*\"),\n  \"metric\", \"Network TX\", \"__name__\", \".*\"\n)",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "transformations": [
+        {
+          "id": "groupingToMatrix",
+          "options": {
+            "rowField": "compose_service",
+            "columnField": "metric",
+            "valueField": "Value",
+            "emptyValue": "null"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "indexByName": {
+              "compose_service\\metric": 0,
+              "compose_service": 0,
+              "CPU": 1,
+              "RAM": 2,
+              "Network RX": 3,
+              "Network TX": 4
+            },
+            "renameByName": {
+              "compose_service\\metric": "Service",
+              "compose_service": "Service"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "—"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: cores"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RAM"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: MiB"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Network RX"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: kB/s"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Network TX"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: kB/s"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Service",
+            "desc": false
+          }
+        ]
+      }
+    },
+    {
       "id": 1,
       "type": "timeseries",
       "title": "Container CPU usage by service",
@@ -44,7 +181,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 0,
+        "y": 12,
         "w": 12,
         "h": 8
       },
@@ -90,7 +227,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 0,
+        "y": 12,
         "w": 12,
         "h": 8
       },
@@ -136,7 +273,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 8,
+        "y": 20,
         "w": 12,
         "h": 8
       },
@@ -182,7 +319,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 8,
+        "y": 20,
         "w": 12,
         "h": 8
       },
@@ -228,7 +365,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 16,
+        "y": 28,
         "w": 12,
         "h": 8
       },
@@ -281,7 +418,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 16,
+        "y": 28,
         "w": 12,
         "h": 8
       },
@@ -334,7 +471,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 24,
+        "y": 36,
         "w": 12,
         "h": 8
       },
@@ -387,7 +524,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 24,
+        "y": 36,
         "w": 12,
         "h": 8
       },
@@ -431,7 +568,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 32,
+        "y": 44,
         "w": 12,
         "h": 8
       },
@@ -475,7 +612,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 32,
+        "y": 44,
         "w": 12,
         "h": 8
       },

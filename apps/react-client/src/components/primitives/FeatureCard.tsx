@@ -1,5 +1,5 @@
 import IconCard from "./IconCard";
-import type { IconCard as IconCardType } from "@/config/Landing";
+import type { IconCard as IconCardType } from "@/config/landing";
 
 interface FeatureCardProps {
   item: IconCardType;

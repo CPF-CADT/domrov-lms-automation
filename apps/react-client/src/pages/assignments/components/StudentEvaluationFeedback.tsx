@@ -2,7 +2,7 @@
 
 import { Sparkles, Calendar, AlertCircle, MessageSquare, CheckCircle2, BarChart3 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import type { SubmissionViewerResponseDto } from "@/types/Submission";
+import type { SubmissionViewerResponseDto } from "@/types/submission";
 
 interface StudentEvaluationFeedbackProps {
     submission: SubmissionViewerResponseDto;

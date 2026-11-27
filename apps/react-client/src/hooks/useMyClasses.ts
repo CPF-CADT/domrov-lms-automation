@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import classService from "@/services/ClassService";
-import type { GetMyClassesResponseDto } from "@/types/Class";
+import classService from "@/services/classService";
+import type { GetMyClassesResponseDto } from "@/types/class";
 
 export function useMyClasses() {
   const [classes, setClasses] = useState<GetMyClassesResponseDto[]>([]);

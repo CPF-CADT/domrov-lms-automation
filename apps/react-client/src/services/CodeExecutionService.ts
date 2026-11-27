@@ -1,4 +1,4 @@
-import axiosInstance from '@/lib/AxiosInstance';
+import axiosInstance from '@/lib/axiosInstance';
 
 export interface ExecutionProjectFile { path: string; content: string; }
 export interface ExecutionResult {

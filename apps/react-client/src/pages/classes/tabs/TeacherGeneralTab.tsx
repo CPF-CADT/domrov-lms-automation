@@ -3,8 +3,8 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { ClipboardIcon } from "../components/Icons";
-import assessmentService from "@/services/AssessmentService";
-import type { AssessmentListItemDto } from "@/types/Assessment";
+import assessmentService from "@/services/assessmentService";
+import type { AssessmentListItemDto } from "@/types/assessment";
 import { routes } from "@/lib/routes";
 
 interface TeacherGeneralTabProps {

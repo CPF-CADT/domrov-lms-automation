@@ -1,4 +1,4 @@
-import type { UserResponseDto } from './User';
+import type { UserResponseDto } from './user';
 
 export interface Team {
   id: number;

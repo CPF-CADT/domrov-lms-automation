@@ -3,7 +3,7 @@
 import { useParams, useLocation, Outlet } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { UserRole } from "@/types/Enums";
+import { UserRole } from "@/types/enums";
 import MainNavigation from "@/components/navigation/MainNavigation";
 import ClassSidebar from "@/pages/classes/components/ClassSidebar";
 import ClassTabs from "@/pages/classes/components/ClassTabs";

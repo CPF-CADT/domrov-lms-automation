@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ClipboardIcon, CheckCircle2, Clock, AlertCircle, CheckCheck } from "lucide-react";
-import assessmentService from "@/services/AssessmentService";
-import submissionService from "@/services/SubmissionService";
-import type { AssessmentListItemDto } from "@/types/Assessment";
-import type { SubmissionStatusItemDto } from "@/types/Submission";
+import assessmentService from "@/services/assessmentService";
+import submissionService from "@/services/submissionService";
+import type { AssessmentListItemDto } from "@/types/assessment";
+import type { SubmissionStatusItemDto } from "@/types/submission";
 import { routes } from "@/lib/routes";
 
 interface StudentGeneralTabProps {

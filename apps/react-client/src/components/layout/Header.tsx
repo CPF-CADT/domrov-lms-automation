@@ -3,7 +3,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
-import { CTA_LINK, NAV_LINKS, type NavLinkItem } from "@/config/Navigation";
+import { CTA_LINK, NAV_LINKS, type NavLinkItem } from "@/config/navigation";
 import { useAuth } from "@/context/AuthContext";
 import ProfileDropdown from "@/components/data-display/ProfileDropdown";
 

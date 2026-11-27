@@ -1,4 +1,4 @@
-import type { UserStatus } from './Enums';
+import type { UserStatus } from './enums';
 
 export interface User {
   user_id: number;

@@ -1,6 +1,6 @@
 
 
-import axiosInstance from "@/lib/AxiosInstance";
+import axiosInstance from "@/lib/axiosInstance";
 
 export type PaymentStatus = "pending" | "verifying" | "paid" | "failed";
 export interface UserPayment {

@@ -1,4 +1,4 @@
-import axiosInstance from '@/lib/AxiosInstance';
+import axiosInstance from '@/lib/axiosInstance';
 import type {
     PresignedUrlRequestDto,
     PresignedUrlResponseDto,
@@ -6,8 +6,8 @@ import type {
     NotifyUploadResponseDto,
     CloudinaryPresignedParams,
     CloudinaryUploadResponse,
-} from '@/types/File';
-import type { ApiResponse } from '@/types/Api';
+} from '@/types/file';
+import type { ApiResponse } from '@/types/api';
 
 /**
  * Get presigned URL for file upload

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FolderIcon, FileIcon } from "lucide-react";
-import fileService from "@/services/FileService";
+import fileService from "@/services/fileService";
 
 // Fallback saveAs implementation for file-saver compatibility
 const saveAs = (blob: Blob, filename: string) => {

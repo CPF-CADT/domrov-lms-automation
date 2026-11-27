@@ -1,5 +1,5 @@
-import type { SubmissionStatus, ResourceType, FeedbackType, EvaluationType } from './Enums';
-import type { UserBasicInfoDto } from './User';
+import type { SubmissionStatus, ResourceType, FeedbackType, EvaluationType } from './enums';
+import type { UserBasicInfoDto } from './user';
 
 export interface Submission {
   submission_id: number;

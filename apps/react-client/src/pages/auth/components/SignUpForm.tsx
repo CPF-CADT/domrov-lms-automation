@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import GoogleOAuthButton from "./GoogleOAuthButton";
-import authService from "@/services/AuthService";
+import authService from "@/services/authService";
 
 interface SignUpFormProps {
   onSuccess?: () => void;

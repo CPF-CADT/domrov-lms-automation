@@ -3,8 +3,8 @@
 import { useState, useRef } from "react";
 import Modal from "@/components/primitives/Modal";
 import FormInput from "@/components/primitives/FormInput";
-import teamService from "@/services/TeamService";
-import type { CreateTeamDto, CreateManyTeamsDto } from "@/types/Team";
+import teamService from "@/services/teamService";
+import type { CreateTeamDto, CreateManyTeamsDto } from "@/types/team";
 
 interface CreateTeamModalProps {
   isOpen: boolean;

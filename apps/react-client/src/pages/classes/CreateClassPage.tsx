@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import ImageUpload from "@/components/forms/ImageUpload";
-import classService from "@/services/ClassService";
-import type { CloudinaryUploadResponse } from "@/types/File";
+import classService from "@/services/classService";
+import type { CloudinaryUploadResponse } from "@/types/file";
 import { routes } from "@/lib/routes";
 
 interface CreateClassFormData {

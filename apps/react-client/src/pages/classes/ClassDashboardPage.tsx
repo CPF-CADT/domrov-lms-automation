@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { UserRole } from "@/types/Enums";
+import { UserRole } from "@/types/enums";
 import MainNavigation from "@/components/navigation/MainNavigation";
 import StudentDashboard from "@/pages/dashboard/StudentDashboardPage";
 import TeacherDashboard from "@/pages/dashboard/TeacherDashboardPage";
