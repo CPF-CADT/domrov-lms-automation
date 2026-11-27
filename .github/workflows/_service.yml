@@ -150,6 +150,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ vars.DOCKER_USERNAME || 'domrov' }}/${{ inputs.image }}
+          flavor: latest=false
           tags: |
             type=sha,format=short
             type=semver,pattern={{version}}
@@ -208,7 +209,7 @@ jobs:
   publish:
     name: publish (${{ inputs.service }})
     needs: build
-    if: inputs.publish
+    if: inputs.publish && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Validate Docker Hub configuration
@@ -243,6 +244,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ vars.DOCKER_USERNAME }}/${{ inputs.image }}
+          flavor: latest=false
           tags: |
             type=sha,format=short
             type=semver,pattern={{version}}
