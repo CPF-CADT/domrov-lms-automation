@@ -37,6 +37,8 @@ jobs:
       runtime: node
       image: domrov-user
       context: apps/backend/user
+      compose_service: user
+      image_env: USER_IMAGE
       lint: false
       # TEMPORARY: tests are failing on main, owner Rathanak; set back to true when fixed
       tests_blocking: false

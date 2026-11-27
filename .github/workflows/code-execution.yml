@@ -37,6 +37,8 @@ jobs:
       runtime: go
       image: domrov-code-execution
       context: apps/backend/code-execution-go
+      compose_service: code-execution
+      image_env: ''
       lint: false
       tests_blocking: true
       publish: >-

@@ -37,6 +37,8 @@ jobs:
       runtime: node
       image: domrov-academic-service
       context: apps/backend/academic
+      compose_service: academic-service
+      image_env: ACADEMIC_SERVICE_IMAGE
       lint: false
       # TEMPORARY: tests are failing on main, owner Rathanak; set back to true when fixed
       tests_blocking: false

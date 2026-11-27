@@ -23,6 +23,18 @@ on:
         description: Docker build context
         required: true
         type: string
+      compose_service:
+        description: Compose service to smoke test
+        required: true
+        type: string
+      image_env:
+        description: Compose image variable (empty for code-execution's fixed image)
+        type: string
+        default: ''
+      scan_blocking:
+        description: Fail the build on fixable high or critical vulnerabilities
+        type: boolean
+        default: false
       tests_blocking:
         description: Fail the job when tests fail
         type: boolean
@@ -113,6 +125,17 @@ jobs:
     name: build (${{ inputs.service }})
     needs: test
     runs-on: ubuntu-latest
+    env:
+      COMPOSE_PROJECT_NAME: ci-${{ inputs.service }}-${{ github.run_id }}-${{ github.run_attempt }}
+      COMPOSE_SERVICE: ${{ inputs.compose_service }}
+      LOCAL_IMAGE: ci-local/${{ inputs.image }}:ci
+      IMAGE_ENV: ${{ inputs.image_env }}
+      BACKEND_ENV_FILE: /dev/null
+      JWT_ACCESS_SECRET: ci-only-access-secret-not-for-production
+      JWT_REFRESH_SECRET: ci-only-refresh-secret-not-for-production
+      SERVICE_AUTH_TOKEN: ci-only-service-token-not-for-production
+      EBS_MOUNT_PATH: /tmp/ci-${{ inputs.service }}-${{ github.run_id }}-${{ github.run_attempt }}/files
+      CODE_EXECUTION_WORKSPACE_DIR: /tmp/ci-${{ inputs.service }}-${{ github.run_id }}-${{ github.run_attempt }}/execution
     outputs:
       tags: ${{ steps.meta.outputs.tags }}
     steps:
@@ -143,6 +166,44 @@ jobs:
           tags: ci-local/${{ inputs.image }}:ci
           cache-from: type=gha,scope=${{ inputs.service }}
           cache-to: type=gha,scope=${{ inputs.service }},mode=max
+
+      - name: Scan Docker image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ci-local/${{ inputs.image }}:ci
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          scanners: vuln
+          format: table
+          exit-code: ${{ inputs.scan_blocking && '1' || '0' }}
+
+      - name: Configure Compose image
+        run: |
+          if [ "$COMPOSE_SERVICE" = "code-execution" ]; then
+            docker tag "$LOCAL_IMAGE" domrov-code-execution:dev
+          else
+            case "$IMAGE_ENV" in
+              USER_IMAGE|ACADEMIC_SERVICE_IMAGE|PAYMENT_SERVICE_IMAGE|EVALUATION_SERVICE_IMAGE)
+                printf '%s=%s\n' "$IMAGE_ENV" "$LOCAL_IMAGE" >> "$GITHUB_ENV"
+                ;;
+              *)
+                printf 'Unsupported Compose image variable: %s\n' "$IMAGE_ENV"
+                exit 1
+                ;;
+            esac
+          fi
+
+      - name: Smoke test Compose service
+        timeout-minutes: 6
+        run: docker compose --env-file /dev/null -f docker-compose.yml up -d --wait --wait-timeout 300 --no-build "$COMPOSE_SERVICE"
+
+      - name: Show Compose logs on failure
+        if: failure()
+        run: docker compose --env-file /dev/null -f docker-compose.yml logs "$COMPOSE_SERVICE"
+
+      - name: Clean up Compose services
+        if: always()
+        run: docker compose --env-file /dev/null -f docker-compose.yml down -v
 
   publish:
     name: publish (${{ inputs.service }})

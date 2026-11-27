@@ -37,6 +37,8 @@ jobs:
       runtime: node
       image: domrov-evaluation-service
       context: apps/backend/evaluation
+      compose_service: evaluation-service
+      image_env: EVALUATION_SERVICE_IMAGE
       lint: false
       tests_blocking: true
       publish: >-
