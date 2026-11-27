@@ -5,7 +5,7 @@ import { firstValueFrom, timeout, TimeoutError } from 'rxjs';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Submission } from '../entities';
-import { getLogContext, logger, markErrorLogged, newId, safeId, withLogContext } from '../logging';
+import { getLogContext, logger, newId, safeId, withLogContext } from '../logging';
 
 export const AI_RABBITMQ_CLIENT = 'AI_RABBITMQ_CLIENT';
 export const EXECUTION_RABBITMQ_CLIENT = 'EXECUTION_RABBITMQ_CLIENT';
@@ -112,11 +112,10 @@ export class EvaluationPublisher {
       } catch (error) {
         const duration_ms = Math.round(performance.now() - startedAt);
         if (error instanceof TimeoutError) {
-          logger.warn('rabbitmq.publish.timeout', 'RabbitMQ publish timed out', { ...fields, duration_ms, outcome: 'timeout' });
+          logger.exception('rabbitmq.publish.timeout', 'RabbitMQ publish timed out', error, { ...fields, duration_ms, outcome: 'timeout' }, 'warn');
         } else {
-          logger.error('rabbitmq.publish.failed', 'RabbitMQ publish failed', { ...fields, duration_ms, error_code: client ? 'PUBLISH_FAILED' : 'CLIENT_UNAVAILABLE' });
+          logger.exception('rabbitmq.publish.failed', 'RabbitMQ publish failed', error, { ...fields, duration_ms, error_code: client ? 'PUBLISH_FAILED' : 'CLIENT_UNAVAILABLE' });
         }
-        markErrorLogged(error);
         throw error;
       }
     }));
@@ -157,8 +156,7 @@ export class EvaluationEventsController {
           logger.info('rabbitmq.consume.completed', 'Evaluation result stored', result);
         }
       } catch (error) {
-        logger.error('rabbitmq.consume.failed', 'Evaluation result could not be stored', { ...fields, requeue: false, duration_ms: Math.round(performance.now() - startedAt) });
-        markErrorLogged(error);
+        logger.exception('rabbitmq.consume.failed', 'Evaluation result could not be stored', error, { ...fields, requeue: false, duration_ms: Math.round(performance.now() - startedAt) });
         context.getChannelRef().nack(delivery, false, false);
         throw error;
       }

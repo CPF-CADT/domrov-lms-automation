@@ -15,8 +15,9 @@ function resolveApiBaseUrl(): string {
     if (url.protocol !== "http:" && url.protocol !== "https:") {
       throw new Error("VITE_API_URL must use HTTP or HTTPS");
     }
-    if (import.meta.env.PROD && url.protocol !== "https:") {
-      throw new Error("VITE_API_URL must use HTTPS in production builds");
+    const isLoopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+    if (import.meta.env.PROD && url.protocol !== "https:" && !isLoopback) {
+      throw new Error("VITE_API_URL must use HTTPS for non-local API hosts");
     }
     // Local browser traffic must use the Compose gateway. Port 3000 is the
     // gateway's internal legacy upstream and is not a browser-facing API.

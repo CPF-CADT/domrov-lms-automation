@@ -15,7 +15,7 @@ scrape_configs:
       - files: [/etc/cadvisor-targets.yml]
     metric_relabel_configs:
       - source_labels: [__name__]
-        regex: 'container_cpu_usage_seconds_total|container_memory_working_set_bytes'
+        regex: 'container_cpu_usage_seconds_total|container_memory_working_set_bytes|container_network_(receive|transmit)_bytes_total'
         action: keep
       - source_labels: [container_label_com_docker_compose_project]
         target_label: compose_project

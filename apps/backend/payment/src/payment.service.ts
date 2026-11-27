@@ -7,7 +7,7 @@ import { BakongProvider, PaymentCurrency } from './bakong.provider';
 import { PaymentGateway } from './payment.gateway';
 import { PaymentEventsPublisher } from './messaging/payment-events';
 import { PaymentProofOcrService } from './payment-proof-ocr.service';
-import { logger, markErrorLogged } from './logging';
+import { logger } from './logging';
 
 @Injectable()
 export class PaymentService {
@@ -282,8 +282,7 @@ export class PaymentService {
         duration_ms: performance.now() - started,
       };
       if (errorCode || operation === 'credit_wallet' || operation === 'verify_match' || operation === 'record_receipt') {
-        logger.warn('payment.verify', 'Payment receipt verification failed', fields);
-        markErrorLogged(error);
+        logger.exception('payment.verify', 'Payment receipt verification failed', error, fields, 'warn');
       } else {
         logger.debug('payment.verify', 'Payment receipt verification failed', fields);
       }

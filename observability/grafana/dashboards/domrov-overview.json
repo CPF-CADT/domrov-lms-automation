@@ -1,9 +1,9 @@
 {
-  "title": "DOMROV overview",
+  "title": "DOMROV — System Overview",
   "uid": "domrov-overview",
-  "description": "Request performance, RabbitMQ health and telemetry delivery.",
+  "description": "Readiness, traffic, errors and latency across the five DOMROV backends.",
   "schemaVersion": 41,
-  "version": 1,
+  "version": 2,
   "editable": false,
   "tags": [
     "domrov",
@@ -11,16 +11,41 @@
   ],
   "timezone": "browser",
   "time": {
-    "from": "now-1h",
+    "from": "now-15m",
     "to": "now"
   },
   "refresh": "30s",
+  "links": [
+    {
+      "title": "Infrastructure",
+      "type": "link",
+      "url": "/d/domrov-infrastructure",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "Microservices",
+      "type": "link",
+      "url": "/d/domrov-microservices",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "Application logs",
+      "type": "link",
+      "url": "/d/domrov-logs",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false
+    }
+  ],
   "panels": [
     {
-      "id": 1,
-      "type": "timeseries",
-      "title": "HTTP requests per second",
-      "description": "Completed application requests, grouped by service.",
+      "id": 13,
+      "type": "stat",
+      "title": "Backends ready",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -28,14 +53,65 @@
       "gridPos": {
         "x": 0,
         "y": 0,
-        "w": 12,
-        "h": 8
+        "w": 6,
+        "h": 4
       },
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (service_name) (rate(http_server_request_duration_seconds_count[$__rate_interval]))",
-          "legendFormat": "{{service_name}}",
+          "expr": "sum(probe_success{job=\"domrov-http\",service=~\"user|academic-service|payment-service|evaluation-service|code-execution\"})",
+          "legendFormat": "",
+          "instant": true,
+          "range": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: / 5",
+          "min": 0,
+          "noValue": "No data",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "description": "Successful HTTP readiness probes across the five backend services.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "none",
+        "colorMode": "none"
+      }
+    },
+    {
+      "id": 14,
+      "type": "stat",
+      "title": "Requests per second",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum (rate(http_server_request_duration_seconds_count{job=\"domrov-otel\",service_name=~\"user|academic-service|payment-service|evaluation-service|code-execution\"}[$__rate_interval]))",
+          "legendFormat": "",
+          "instant": true,
+          "range": false,
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -45,7 +121,150 @@
       "fieldConfig": {
         "defaults": {
           "unit": "reqps",
-          "min": 0
+          "min": 0,
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "none",
+        "colorMode": "none"
+      }
+    },
+    {
+      "id": 15,
+      "type": "stat",
+      "title": "HTTP 5xx rate",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum (rate(http_server_request_duration_seconds_count{job=\"domrov-otel\",service_name=~\"user|academic-service|payment-service|evaluation-service|code-execution\",http_response_status_code=~\"5..\"}[$__rate_interval])) or 0 * sum (rate(http_server_request_duration_seconds_count{job=\"domrov-otel\",service_name=~\"user|academic-service|payment-service|evaluation-service|code-execution\"}[$__rate_interval]))) / (sum (rate(http_server_request_duration_seconds_count{job=\"domrov-otel\",service_name=~\"user|academic-service|payment-service|evaluation-service|code-execution\"}[$__rate_interval])) > 0)",
+          "legendFormat": "",
+          "instant": true,
+          "range": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "description": "Server errors as a share of backend requests. An interval without traffic has no ratio.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "none",
+        "colorMode": "none"
+      }
+    },
+    {
+      "id": 16,
+      "type": "stat",
+      "title": "P95 latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{job=\"domrov-otel\",service_name=~\"user|academic-service|payment-service|evaluation-service|code-execution\"}[$__rate_interval]))) * 1000) >= 0",
+          "legendFormat": "",
+          "instant": true,
+          "range": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "min": 0,
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "none",
+        "colorMode": "none"
+      }
+    },
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Requests by service",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (service_name) (rate(http_server_request_duration_seconds_count{job=\"domrov-otel\",service_name=~\"user|academic-service|payment-service|evaluation-service|code-execution\"}[$__rate_interval]))",
+          "legendFormat": "{{service_name}}",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "noValue": "No data"
         },
         "overrides": []
       },
@@ -63,23 +282,35 @@
     {
       "id": 2,
       "type": "timeseries",
-      "title": "HTTP 5xx error ratio",
-      "description": "Server errors divided by completed requests. Series populate after HTTP traffic.",
+      "title": "HTTP errors by status class",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
       "gridPos": {
         "x": 12,
-        "y": 0,
+        "y": 4,
         "w": 12,
         "h": 8
       },
       "targets": [
         {
           "refId": "A",
-          "expr": "(sum by (service_name) (rate(http_server_request_duration_seconds_count{http_response_status_code=~\"5..\"}[$__rate_interval])) or 0 * sum by (service_name) (rate(http_server_request_duration_seconds_count[$__rate_interval]))) / clamp_min(sum by (service_name) (rate(http_server_request_duration_seconds_count[$__rate_interval])), 0.000001)",
-          "legendFormat": "{{service_name}}",
+          "expr": "sum (rate(http_server_request_duration_seconds_count{job=\"domrov-otel\",service_name=~\"user|academic-service|payment-service|evaluation-service|code-execution\",http_response_status_code=~\"4..\"}[$__rate_interval])) or 0 * sum (rate(http_server_request_duration_seconds_count{job=\"domrov-otel\",service_name=~\"user|academic-service|payment-service|evaluation-service|code-execution\"}[$__rate_interval]))",
+          "legendFormat": "HTTP 4xx",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum (rate(http_server_request_duration_seconds_count{job=\"domrov-otel\",service_name=~\"user|academic-service|payment-service|evaluation-service|code-execution\",http_response_status_code=~\"5..\"}[$__rate_interval])) or 0 * sum (rate(http_server_request_duration_seconds_count{job=\"domrov-otel\",service_name=~\"user|academic-service|payment-service|evaluation-service|code-execution\"}[$__rate_interval]))",
+          "legendFormat": "HTTP 5xx",
+          "instant": false,
+          "range": true,
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -88,8 +319,9 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "percentunit",
-          "min": 0
+          "unit": "reqps",
+          "min": 0,
+          "noValue": "No data"
         },
         "overrides": []
       },
@@ -107,23 +339,24 @@
     {
       "id": 3,
       "type": "timeseries",
-      "title": "HTTP p95 latency",
-      "description": "95th percentile of application request duration, measured in seconds.",
+      "title": "P95 latency by service",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
       "gridPos": {
         "x": 0,
-        "y": 8,
+        "y": 12,
         "w": 12,
         "h": 8
       },
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket[$__rate_interval])))",
+          "expr": "(histogram_quantile(0.95, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket{job=\"domrov-otel\",service_name=~\"user|academic-service|payment-service|evaluation-service|code-execution\"}[$__rate_interval]))) * 1000) >= 0",
           "legendFormat": "{{service_name}}",
+          "instant": false,
+          "range": true,
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -132,8 +365,9 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "s",
-          "min": 0
+          "unit": "ms",
+          "min": 0,
+          "noValue": "No data"
         },
         "overrides": []
       },
@@ -149,25 +383,26 @@
       }
     },
     {
-      "id": 4,
+      "id": 17,
       "type": "timeseries",
-      "title": "RabbitMQ client and worker p95 latency",
-      "description": "Publish and process duration from instrumented applications.",
+      "title": "Backend network traffic",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
       "gridPos": {
         "x": 12,
-        "y": 8,
+        "y": 12,
         "w": 12,
         "h": 8
       },
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (service_name, le) (rate(messaging_client_operation_duration_seconds_bucket[$__rate_interval])))",
-          "legendFormat": "{{service_name}} publish",
+          "expr": "sum (rate(container_network_receive_bytes_total{job=\"cadvisor\",compose_service=~\"user|academic-service|payment-service|evaluation-service|code-execution\",interface!=\"lo\"}[$__rate_interval]))",
+          "legendFormat": "Receive",
+          "instant": false,
+          "range": true,
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -175,8 +410,10 @@
         },
         {
           "refId": "B",
-          "expr": "histogram_quantile(0.95, sum by (service_name, le) (rate(messaging_process_duration_seconds_bucket[$__rate_interval])))",
-          "legendFormat": "{{service_name}} process",
+          "expr": "sum (rate(container_network_transmit_bytes_total{job=\"cadvisor\",compose_service=~\"user|academic-service|payment-service|evaluation-service|code-execution\",interface!=\"lo\"}[$__rate_interval]))",
+          "legendFormat": "Transmit",
+          "instant": false,
+          "range": true,
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -185,388 +422,13 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "s",
-          "min": 0
+          "unit": "Bps",
+          "min": 0,
+          "noValue": "No data"
         },
         "overrides": []
       },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      }
-    },
-    {
-      "id": 5,
-      "type": "timeseries",
-      "title": "RabbitMQ queue depth",
-      "description": "Ready and unacknowledged messages aggregated across the broker.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 16,
-        "w": 12,
-        "h": 8
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum(rabbitmq_queue_messages_ready)",
-          "legendFormat": "Ready",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        },
-        {
-          "refId": "B",
-          "expr": "sum(rabbitmq_queue_messages_unacked)",
-          "legendFormat": "Unacknowledged",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      }
-    },
-    {
-      "id": 6,
-      "type": "timeseries",
-      "title": "Scrape target availability",
-      "description": "Up means Prometheus fetched metrics successfully. It measures the scrape endpoint.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 12,
-        "y": 16,
-        "w": 12,
-        "h": 8
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "up",
-          "legendFormat": "{{job}} {{instance}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      }
-    },
-    {
-      "id": 7,
-      "type": "timeseries",
-      "title": "Pending and firing alerts",
-      "description": "Only alerts currently pending or firing appear here.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 24,
-        "w": 12,
-        "h": 8
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum by (alertname, alertstate) (ALERTS{alertstate=~\"pending|firing\"})",
-          "legendFormat": "{{alertname}} {{alertstate}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      }
-    },
-    {
-      "id": 8,
-      "type": "timeseries",
-      "title": "Failed trace export spans per second",
-      "description": "A sustained increase indicates the collector cannot send spans to Tempo.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 12,
-        "y": 24,
-        "w": 12,
-        "h": 8
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum by (exporter) (rate(otelcol_exporter_send_failed_spans_total[$__rate_interval]))",
-          "legendFormat": "{{exporter}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "ops",
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      }
-    },
-    {
-      "id": 9,
-      "type": "stat",
-      "title": "Gateway and service readiness",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 32,
-        "w": 12,
-        "h": 6
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "probe_success{job=\"domrov-http\"}",
-          "instant": true,
-          "legendFormat": "{{instance}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "Down",
-                  "color": "red"
-                },
-                "1": {
-                  "text": "Up",
-                  "color": "green"
-                }
-              }
-            }
-          ]
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value_and_name"
-      }
-    },
-    {
-      "id": 10,
-      "type": "stat",
-      "title": "PostgreSQL availability",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 12,
-        "y": 32,
-        "w": 12,
-        "h": 6
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "pg_up{job=\"domrov-postgres\"}",
-          "instant": true,
-          "legendFormat": "{{instance}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "Down",
-                  "color": "red"
-                },
-                "1": {
-                  "text": "Up",
-                  "color": "green"
-                }
-              }
-            }
-          ]
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value_and_name"
-      }
-    },
-    {
-      "id": 11,
-      "type": "timeseries",
-      "title": "Container CPU usage by service",
-      "description": "CPU cores in use, summed across running containers for each Compose service.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 38,
-        "w": 12,
-        "h": 10
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum by (compose_service) (rate(container_cpu_usage_seconds_total{job=\"cadvisor\",compose_service!=\"\"}[$__rate_interval]))",
-          "legendFormat": "{{compose_service}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "suffix: cores",
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      }
-    },
-    {
-      "id": 12,
-      "type": "timeseries",
-      "title": "Container RAM working set by service",
-      "description": "Memory working set in MiB, summed across running containers for each Compose service.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 12,
-        "y": 38,
-        "w": 12,
-        "h": 10
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum by (compose_service) (container_memory_working_set_bytes{job=\"cadvisor\",compose_service!=\"\"}) / 1048576",
-          "legendFormat": "{{compose_service}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "suffix: MiB",
-          "min": 0
-        },
-        "overrides": []
-      },
+      "description": "Sum of non-loopback traffic observed by the five backend containers.",
       "options": {
         "legend": {
           "displayMode": "list",

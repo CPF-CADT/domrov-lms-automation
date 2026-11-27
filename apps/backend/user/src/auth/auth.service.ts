@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, HttpException, Inject, Injectable, NotFoundException, Optional, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -13,6 +13,8 @@ import { MailerService } from '../mailer/mailer.service';
 import { OAuthAccount } from '../entities/oauth-account.entity';
 import { AuthEventsPublisher } from '../messaging/rabbitmq';
 import { logger, markErrorLogged } from '../logging';
+import { setAuthFailureDetails } from '../telemetry';
+import type { AuthLoginStage } from '../telemetry';
 
 export interface AuthUser {
   sub: number;
@@ -60,16 +62,51 @@ export class AuthService {
     return { userId: saved.id, firstName: saved.firstName, lastName: saved.lastName, email: saved.email };
   }
 
+  // correct code
+
+  // async login(input: LoginRequest) {
+  //   const startedAt = performance.now();
+  //   const user = await this.users.findOne({ where: { email: input.email.toLowerCase() } });
+  //   if (!user || user.status !== UserStatus.ACTIVE) throw new UnauthorizedException('Invalid credentials');
+  //   if (!user.isVerified) throw new BadRequestException('User account is not verified');
+  //   if (!(await bcrypt.compare(input.password, user.password))) throw new UnauthorizedException('Invalid credentials');
+  //   const tokens = await this.issueTokens(user);
+  //   logger.info('auth.login_succeeded', 'User login succeeded', { duration_ms: performance.now() - startedAt });
+  //   return tokens;
+  // }
+
+  // error demo
   async login(input: LoginRequest) {
     const startedAt = performance.now();
-    const user = await this.users.findOne({ where: { email: input.email.toLowerCase() } });
-    if (!user || user.status !== UserStatus.ACTIVE) throw new UnauthorizedException('Invalid credentials');
-    if (!user.isVerified) throw new BadRequestException('User account is not verified');
-    if (!(await bcrypt.compare(input.password, user.password))) throw new UnauthorizedException('Invalid credentials');
-    const tokens = await this.issueTokens(user);
-    logger.info('auth.login_succeeded', 'User login succeeded', { duration_ms: performance.now() - startedAt });
-    return tokens;
+    let stage: AuthLoginStage = 'account_lookup';
+    try {
+      const user = this.users.findOne({
+        where: { email: input.email.toLowerCase() },
+      }) as any;
+      stage = 'account_record';
+      user.email.toLowerCase();
+      if (!user || user.status !== UserStatus.ACTIVE) throw new UnauthorizedException('Invalid credentials');
+      if (!user.isVerified) throw new BadRequestException('User account is not verified');
+      stage = 'password_verification';
+      if (!(await bcrypt.compare(input.password, user.password))) throw new UnauthorizedException('Invalid credentials');
+      stage = 'session_creation';
+      const tokens = await this.issueTokens(user);
+      logger.info('auth.login_succeeded', 'User login succeeded', { duration_ms: performance.now() - startedAt });
+      return tokens;
+    } catch (error) {
+      if (error instanceof HttpException && error.getStatus() < 500) throw error;
+
+      const code = stage === 'account_record' && error instanceof TypeError
+        ? 'unexpected_account_result'
+        : `${stage}_failed` as const;
+      setAuthFailureDetails(stage, code);
+      logger.exception('auth.login_failed', 'Manual login failed during processing', error, {
+        stage, error_code: code, duration_ms: performance.now() - startedAt,
+      });
+      throw error;
+    }
   }
+
 
   async refresh(refreshToken: string) {
     let payload: AuthUser;

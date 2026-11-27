@@ -9,7 +9,7 @@ import { firstValueFrom, timeout, TimeoutError } from 'rxjs';
 import { Envelope, EvaluationRequest, EvaluationResult } from './contracts';
 import { Evaluation } from './evaluation.entity';
 import { FreeEvaluationQuota } from './free-evaluation-quota.entity';
-import { getLogContext, logger, markErrorLogged } from './logging';
+import { getLogContext, logger } from './logging';
 import { OllamaEvaluationService } from './ollama-evaluation.service';
 
 interface CreditReservationReply {
@@ -127,11 +127,11 @@ export class EvaluationService {
       if (allowanceUnavailable) {
         logger.warn('evaluation.failed', 'Evaluation was rejected because the allowance is unavailable', failure);
       } else {
-        logger.error('evaluation.failed', 'Evaluation processing failed', failure);
+        logger.exception('evaluation.failed', 'Evaluation processing failed', error, failure);
       }
       if (reservationId) await this.paymentTransition(reservationId, 'released', evaluationId).catch(() => undefined);
-      if (freePeriod) await this.finishFreeEvaluation(billingUserId, freePeriod, false).catch(() => {
-        logger.error('evaluation.allowance_release_failed', 'Could not release free evaluation allowance', { error_code: 'ALLOWANCE_RELEASE_FAILED' });
+      if (freePeriod) await this.finishFreeEvaluation(billingUserId, freePeriod, false).catch(error => {
+        logger.exception('evaluation.allowance_release_failed', 'Could not release free evaluation allowance', error, { error_code: 'ALLOWANCE_RELEASE_FAILED' });
       });
       claimed.status = 'failed';
       claimed.errorCode = error instanceof Error ? error.message : 'EVALUATION_FAILED';
@@ -156,12 +156,11 @@ export class EvaluationService {
       await this.repository.query('SELECT 1');
       return true;
     } catch (error) {
-      logger.error('dependency.check.failed', 'PostgreSQL readiness check failed', {
+      logger.exception('dependency.check.failed', 'PostgreSQL readiness check failed', error, {
         dependency: 'postgres',
         duration_ms: performance.now() - startedAt,
         error_code: 'POSTGRES_READINESS_FAILED',
       });
-      markErrorLogged(error);
       throw error;
     }
   }

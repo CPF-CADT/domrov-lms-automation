@@ -3,7 +3,7 @@
   "uid": "domrov-logs",
   "description": "Structured application logs with links to distributed traces.",
   "schemaVersion": 41,
-  "version": 1,
+  "version": 4,
   "editable": false,
   "tags": [
     "domrov",
@@ -17,6 +17,42 @@
   "refresh": "30s",
   "panels": [
     {
+      "id": 3,
+      "type": "logs",
+      "title": "Backend errors and HTTP results",
+      "description": "Backend HTTP results include the captured error code and safe exception message. Expand a row for IDs and the trace.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 13
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service=~\"${service:regex}\",service=~\"user|academic-service|payment-service|evaluation-service|code-execution\"} | json | __error__=\"\" | (error_type!=\"\" or (event=\"http.request.completed\" and status_code=~\"5[0-9]{2}\")) | request_id=~`^${request_id:regex}.*$` | line_format `{{.service}}{{if .route}} | {{if .http_method}}{{.http_method}} {{end}}{{.route}}{{end}}{{if eq .aborted \"true\"}} | Connection aborted{{else if .status_code}} | HTTP {{.status_code}}{{end}}{{if .duration_ms}} | {{round .duration_ms 2}} ms{{end}}{{if .error_function}} | {{.error_function}}{{else if .error_location}} | {{.error_location}}{{end}}{{if .error_type}} | {{.error_type}}{{end}}{{if .error_code}} | {{.error_code}}{{end}}{{if .error_message}} | {{.error_message}}{{end}}`",
+          "queryType": "range",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          }
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "sortOrder": "Descending"
+      }
+    },
+    {
       "id": 1,
       "type": "timeseries",
       "title": "Log events by service and level",
@@ -27,7 +63,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 0,
+        "y": 13,
         "w": 24,
         "h": 8
       },
@@ -71,14 +107,14 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 8,
+        "y": 21,
         "w": 24,
         "h": 16
       },
       "targets": [
         {
           "refId": "A",
-          "expr": "{service=~\"$service\",level=~\"$level\"}",
+          "expr": "{service=~\"$service\",level=~\"$level\"} | json | __error__=\"\" | request_id=~`^${request_id:regex}.*$`",
           "queryType": "range",
           "datasource": {
             "type": "loki",
@@ -131,6 +167,18 @@
         "query": "debug,info,warn,error,fatal",
         "includeAll": true,
         "multi": true,
+        "options": []
+      },
+      {
+        "type": "textbox",
+        "name": "request_id",
+        "label": "Request ID",
+        "description": "Optional request ID or prefix",
+        "query": "",
+        "current": {
+          "text": "",
+          "value": ""
+        },
         "options": []
       }
     ]

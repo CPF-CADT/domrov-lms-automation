@@ -64,16 +64,16 @@ async function bootstrap() {
     stage = 'http';
     await app.listen(Number(c.get('PORT', 3004)));
     logger.info('service.ready', 'Evaluation service is ready', { duration_ms: performance.now() - startedAt });
-  } catch {
-    logger.fatal('service.startup.failed', 'Evaluation service failed to start', {
+  } catch (error) {
+    logger.exception('service.startup.failed', 'Evaluation service failed to start', error, {
       stage,
       error_code: 'BOOTSTRAP_FAILED',
       duration_ms: performance.now() - startedAt,
-    });
+    }, 'fatal');
     connections.unsubscribe();
     process.exitCode = 1;
-    await app?.close().catch(() => {
-      logger.error('service.shutdown_failed', 'Evaluation startup cleanup failed');
+    await app?.close().catch(closeError => {
+      logger.exception('service.shutdown_failed', 'Evaluation startup cleanup failed', closeError);
     });
   }
 }

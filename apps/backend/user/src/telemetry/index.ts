@@ -29,12 +29,13 @@ const allowedAttributeKeys = [
   'http.request.method', 'http.route', 'http.response.status_code',
   'messaging.system', 'messaging.operation.type', 'messaging.destination.name', 'error.type',
 ];
+const traceAttributeKeys = [...allowedAttributeKeys, 'auth.stage', 'auth.error_code'];
 const buckets = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
 const maxSeries = 256;
 const metricIntervalMs = 10_000;
 
-function attributes(values: Attributes) {
-  return allowedAttributeKeys.flatMap<{ key: string; value: { intValue?: string; stringValue?: string } }>(key => {
+function attributes(values: Attributes, keys = allowedAttributeKeys) {
+  return keys.flatMap<{ key: string; value: { intValue?: string; stringValue?: string } }>(key => {
     const value = values[key];
     if (typeof value === 'number' && Number.isSafeInteger(value)) return [{ key, value: { intValue: String(value) } }];
     if (typeof value === 'string' && /^[A-Za-z0-9 /_.:{}()*-]{1,160}$/.test(value)) return [{ key, value: { stringValue: value } }];
@@ -87,7 +88,7 @@ class HttpTraceExporter implements SpanExporter {
       kind: span.kind + 1,
       startTimeUnixNano: epochNanos(span.startTime),
       endTimeUnixNano: epochNanos(span.endTime),
-      attributes: attributes(span.attributes),
+      attributes: attributes(span.attributes, traceAttributeKeys),
       status: { code: span.status.code },
     }));
     if (!encoded.length) {
@@ -229,6 +230,13 @@ export function markTelemetryFailure(): void {
   const span = tracer && trace.getSpan(context.active());
   span?.setStatus({ code: SpanStatusCode.ERROR });
   span?.setAttribute('error.type', 'operation_failed');
+}
+
+export type AuthLoginStage = 'account_lookup' | 'account_record' | 'password_verification' | 'session_creation';
+
+export function setAuthFailureDetails(stage: AuthLoginStage, code: 'unexpected_account_result' | `${AuthLoginStage}_failed`): void {
+  const span = tracer && trace.getSpan(context.active());
+  span?.setAttributes({ 'auth.stage': stage, 'auth.error_code': code });
 }
 
 export async function withMessagingSpan<T>(

@@ -31,15 +31,31 @@ curl -i http://127.0.0.1:8088/users/me
 ```
 
 1. In Grafana, open **DOMROV application logs** or query `{service="user"} | json | status_code=401` in Loki Explore. Find the matching response header `X-Request-ID` in the JSON. Use the log’s **View trace** link to open Tempo. The gateway has its own access log, and the app server span starts at the backend.
-2. In Prometheus, query `http_server_request_duration_seconds_count{service_name="user",http_response_status_code="401"}` after an export and scrape cycle. Open **DOMROV overview** for request rates, errors, latency, readiness and database health. Histograms populate after traffic. RabbitMQ latency panels populate as messages are published and processed.
+2. In Prometheus, query `http_server_request_duration_seconds_count{service_name="user",http_response_status_code="401"}` after an export and scrape cycle. Open **DOMROV — System Overview** for request rates, errors, latency and backend readiness. Histograms populate after traffic. Use **DOMROV — Microservices** to select one backend and open its logs.
 3. Run a synthetic assignment evaluation or code execution through the normal application. In Tempo, use the trace from the initiating HTTP log. Confirm that producer and consumer spans have the same trace ID and that the trace links back to its logs. The generated HTTP 401 is enough to test a single-service trace.
-4. The overview shows pending and firing Prometheus rules in Grafana. These rules are for dashboard display only.
+4. **DOMROV — Infrastructure** shows container resources, PostgreSQL availability, RabbitMQ queues and telemetry health. RabbitMQ latency panels populate as messages are published and processed. Prometheus rules show up in the alerts panel.
+
+### Find backend exceptions
+
+Open **DOMROV application logs** and look at **Backend errors and HTTP results**. On HTTP requests, the final response log includes any exception details captured by the backend logger. Background exceptions still have their own entries. Select a **Service** or paste a **Request ID** to narrow the results. Expand a row for the full error description and trace.
+
+The panel shows the function name, source location, and a safe exception summary when available. NestJS shows the first application stack frame. Go shows the panic location or the call site that handled a returned error.
+
+### Auth error investigation demo
+
+Open [auth-error-investigation.ipynb](auth-error-investigation.ipynb), enter your deployed API origin, and run the cells in order. Use a valid non-admin access token for the `403`. Both the token and the demo password are entered through hidden prompts.
+
+The `500` cell requires a prepared, dedicated test account that is active, verified, and has an empty stored password hash. Use an authorized test fixture on the demo deployment, or press Enter to skip the cell. The notebook sends HTTP requests only. The real login path handles a missing stored hash the same way in development and production.
+
+On **DOMROV application logs**, select `user` and paste the request ID from the `500` cell. The HTTP `500` row includes the function and error code, and `error_event=auth.login_failed` in its details. The User service’s 5xx metric can update after the next export and scrape.
+
+Grafana’s **Traces Drilldown → Breakdown** uses TraceQL metrics. After applying the Tempo configuration, restart Tempo with `docker compose restart tempo` and generate a fresh request for that view. To find one failed request, open **View trace** from its User service log or use **Explore → Tempo** with the log’s `trace_id`.
 
 ### Verify CPU and RAM coverage
 
-In **DOMROV overview**, open **Container CPU usage by service** and **Container RAM working set by service**. The charts sum container usage by Compose service, including the gateway, all five backends, databases, RabbitMQ and the observability services. Prometheus keeps only CPU and RAM samples tagged with the active Compose project and a Compose service name.
+In **DOMROV — Infrastructure**, open **Container CPU usage by service** and **Container RAM working set by service**. The charts sum container usage by Compose service, including the gateway, all five backends, databases, RabbitMQ and the observability services. Prometheus keeps cAdvisor CPU, RAM, and network byte samples tagged with the active Compose project and a Compose service name. The network charts exclude loopback traffic.
 
-1. Check that `cadvisor` shows `UP` on the [Prometheus targets page](http://localhost:9090/targets). Allow at least one minute for the CPU rate to have enough samples.
+1. Check that `cadvisor` shows `UP` on the [Prometheus targets page](http://localhost:9090/targets). If the target is up and the panels are empty, check `docker compose logs --tail=40 cadvisor` for Docker factory registration errors. The Compose service checks the common containerd socket paths under its existing `/rootfs` mount. Allow at least one minute for the CPU rate to have enough samples.
 2. Run `docker compose ps --services --status running` and compare its output with the service names returned by both queries below. Each running service should appear in both results. A stopped service can still appear in a dashboard’s historical time range.
 
    ```promql

@@ -57,7 +57,7 @@ func main() {
 	databaseURL := env("DATABASE_URL", "postgresql://domrov:domrov@localhost:5432/execution_db")
 	db, err := store.Open(ctx, databaseURL)
 	if err != nil {
-		logger.Log(ctx, observability.LevelFatal, "service.startup.failed", "Could not initialize PostgreSQL",
+		logger.LogError(ctx, observability.LevelFatal, "service.startup.failed", "Could not initialize PostgreSQL", err,
 			slog.String("dependency", "postgres"), observability.ErrorCode(err, "POSTGRESQL_STARTUP_FAILED"), observability.Duration(started))
 		os.Exit(1)
 	}
@@ -77,7 +77,7 @@ func main() {
 		s.mu.Unlock()
 		defer func() { s.mu.Lock(); delete(s.cancel, req.ExecutionID); s.mu.Unlock() }()
 		if err := db.MarkStarted(jobCtx, req.ExecutionID, time.Now().UTC()); err != nil {
-			logger.Log(jobCtx, slog.LevelError, "execution.mark_started.failed", "Could not persist execution start",
+			logger.LogError(jobCtx, slog.LevelError, "execution.mark_started.failed", "Could not persist execution start", err,
 				slog.String("dependency", "postgres"), observability.ErrorCode(err, "MARK_STARTED_FAILED"))
 		}
 		return s.sandbox.Run(jobCtx, req)
@@ -93,13 +93,13 @@ func main() {
 	}
 	listener, err := net.Listen("tcp", httpServer.Addr)
 	if err != nil {
-		logger.Log(ctx, observability.LevelFatal, "service.startup.failed", "Could not bind HTTP listener",
+		logger.LogError(ctx, observability.LevelFatal, "service.startup.failed", "Could not bind HTTP listener", err,
 			observability.ErrorCode(err, "HTTP_BIND_FAILED"))
 		os.Exit(1)
 	}
 	logger.Log(ctx, slog.LevelInfo, "service.ready", "Code execution HTTP server listening", observability.Duration(started))
 	if err := httpServer.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		logger.Log(ctx, observability.LevelFatal, "service.serve.failed", "HTTP server stopped with an error",
+		logger.LogError(ctx, observability.LevelFatal, "service.serve.failed", "HTTP server stopped with an error", err,
 			observability.ErrorCode(err, "HTTP_SERVE_FAILED"))
 		os.Exit(1)
 	}
@@ -107,8 +107,8 @@ func main() {
 
 func runExecutionConsumer(ctx context.Context, logger *observability.Logger, consume func()) {
 	defer func() {
-		if recover() != nil {
-			logger.Log(ctx, observability.LevelFatal, "rabbitmq.consumer.panicked", "Execution consumer panicked",
+		if fault := recover(); fault != nil {
+			logger.LogPanic(ctx, observability.LevelFatal, "rabbitmq.consumer.panicked", "Execution consumer panicked", fault,
 				slog.String("dependency", "rabbitmq"), slog.String("error_code", "CONSUMER_PANIC"))
 			// Preserve process termination on an uncaught worker panic without printing its value or stack.
 			os.Exit(2)
@@ -138,7 +138,7 @@ func openBroker(ctx context.Context, logger *observability.Logger) (*messaging.B
 	started := time.Now()
 	b, err := messaging.Connect(env("RABBITMQ_URL", "amqp://domrov:domrov@localhost:5672/%2f"), env("RABBITMQ_EXECUTION_QUEUE", "domrov.code.execution.worker"), env("RABBITMQ_EVENTS_EXCHANGE", "domrov.events"), logger)
 	if err != nil {
-		logger.Log(ctx, observability.LevelFatal, "service.startup.failed", "Could not initialize RabbitMQ",
+		logger.LogError(ctx, observability.LevelFatal, "service.startup.failed", "Could not initialize RabbitMQ", err,
 			slog.String("dependency", "rabbitmq"), observability.ErrorCode(err, "RABBITMQ_STARTUP_FAILED"), observability.Duration(started))
 		return nil, err
 	}
@@ -180,7 +180,7 @@ func (s *server) executions(w http.ResponseWriter, r *http.Request) {
 		req.ExecutionID = fmt.Sprintf("exec-%d", time.Now().UnixNano())
 	}
 	if err := s.db.Create(r.Context(), req); err != nil {
-		s.logger.Log(r.Context(), slog.LevelError, "execution.create.failed", "Could not persist execution request",
+		s.logger.LogError(r.Context(), slog.LevelError, "execution.create.failed", "Could not persist execution request", err,
 			slog.String("dependency", "postgres"), observability.ErrorCode(err, "CREATE_EXECUTION_FAILED"))
 		writeError(w, 500, "Could not create execution")
 		return
@@ -246,7 +246,7 @@ func (s *server) executionByID(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) logExecutionReadError(ctx context.Context, err error) {
 	if !errors.Is(err, sql.ErrNoRows) {
-		s.logger.Log(ctx, slog.LevelError, "execution.read.failed", "Could not read execution",
+		s.logger.LogError(ctx, slog.LevelError, "execution.read.failed", "Could not read execution", err,
 			slog.String("dependency", "postgres"), observability.ErrorCode(err, "READ_EXECUTION_FAILED"))
 	}
 }

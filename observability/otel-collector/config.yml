@@ -20,7 +20,7 @@ processors:
     trace_statements:
       - keep_keys(resource.attributes, ["service.name"])
       - keep_keys(scope.attributes, [])
-      - keep_keys(span.attributes, ["http.request.method", "http.route", "http.response.status_code", "messaging.system", "messaging.destination.name", "messaging.operation.name", "messaging.operation.type", "messaging.rabbitmq.destination.routing_key", "error.type", "outcome"])
+      - keep_keys(span.attributes, ["http.request.method", "http.route", "http.response.status_code", "messaging.system", "messaging.destination.name", "messaging.operation.name", "messaging.operation.type", "messaging.rabbitmq.destination.routing_key", "error.type", "outcome", "auth.stage", "auth.error_code"])
       - set(span.status.message, "")
       - set(span.trace_state, "")
       - keep_keys(spanevent.attributes, [])

@@ -19,7 +19,7 @@ export class HealthController {
     try {
       await this.dataSource.query('SELECT 1');
     } catch (error) {
-      this.updateDatabaseStatus(false);
+      this.updateDatabaseStatus(false, error);
       markErrorLogged(error);
       throw error;
     }
@@ -27,13 +27,15 @@ export class HealthController {
     return { status: 'ok', database: 'connected' };
   }
 
-  private updateDatabaseStatus(available: boolean) {
+  private updateDatabaseStatus(available: boolean, error?: unknown) {
     if (this.databaseAvailable === available) return;
     this.databaseAvailable = available;
     if (available) {
       logger.info('dependency.connected', 'Database readiness restored', { dependency: 'postgres' });
-    } else {
+    } else if (error === undefined) {
       logger.warn('dependency.disconnected', 'Database readiness check failed', { dependency: 'postgres' });
+    } else {
+      logger.exception('dependency.disconnected', 'Database readiness check failed', error, { dependency: 'postgres' }, 'warn');
     }
   }
 }

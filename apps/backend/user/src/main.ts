@@ -61,7 +61,7 @@ async function bootstrap(startup: { startedAt: number; stage: string }) {
 installFatalLogging();
 startTelemetry('user');
 const startup = { startedAt: performance.now(), stage: 'application_init' };
-void bootstrap(startup).catch(() => {
-  logger.fatal('service.startup.failed', 'User service startup failed', { stage: startup.stage, duration_ms: performance.now() - startup.startedAt });
+void bootstrap(startup).catch(error => {
+  logger.exception('service.startup.failed', 'User service startup failed', error, { stage: startup.stage, duration_ms: performance.now() - startup.startedAt }, 'fatal');
   process.stderr.write('', () => process.exit(1));
 });

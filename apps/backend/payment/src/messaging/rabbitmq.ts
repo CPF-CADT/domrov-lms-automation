@@ -1,7 +1,7 @@
 import { withMessagingSpan } from '../telemetry';
 import { Controller, HttpException } from '@nestjs/common';
 import { Ctx, MessagePattern, Payload, RmqContext } from '@nestjs/microservices';
-import { logger, markErrorLogged, newId, safeId, withLogContext } from '../logging';
+import { logger, newId, safeId, withLogContext } from '../logging';
 import { PaymentService } from '../payment.service';
 
 export interface RabbitEnvelope<T> {
@@ -73,12 +73,11 @@ export class PaymentRabbitController {
           duration_ms: performance.now() - started,
         };
         if (status && status < 500) {
-          logger.warn('rabbitmq.consume.failed', 'Credit command rejected', failure);
+          logger.exception('rabbitmq.consume.failed', 'Credit command rejected', error, failure, 'warn');
         } else {
-          logger.error('rabbitmq.consume.failed', 'Credit command failed', failure);
+          logger.exception('rabbitmq.consume.failed', 'Credit command failed', error, failure);
         }
         context.getChannelRef().nack(message, false, false);
-        markErrorLogged(error);
         throw error;
       }
     }));

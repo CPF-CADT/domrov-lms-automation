@@ -62,14 +62,14 @@ async function bootstrap(): Promise<void> {
     operation = 'listen_http';
     await app.listen(Number(process.env.PORT ?? 3003));
     logger.info('service.ready', 'Payment service listening', { duration_ms: performance.now() - started });
-  } catch {
-    logger.fatal('service.startup.failed', 'Payment service failed to start', {
+  } catch (error) {
+    logger.exception('service.startup.failed', 'Payment service failed to start', error, {
       operation, duration_ms: performance.now() - started,
-    });
+    }, 'fatal');
     subscriptions.unsubscribe();
     process.exitCode = 1;
-    await app?.close().catch(() => {
-      logger.error('service.shutdown_failed', 'Payment startup cleanup failed');
+    await app?.close().catch(closeError => {
+      logger.exception('service.shutdown_failed', 'Payment startup cleanup failed', closeError);
     });
   }
 }

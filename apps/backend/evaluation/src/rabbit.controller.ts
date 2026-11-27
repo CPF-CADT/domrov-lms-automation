@@ -50,7 +50,7 @@ export class RabbitController {
         }
       } catch (error) {
         markTelemetryFailure();
-        logger.error('rabbitmq.consume.failed', 'Message processing failed', {
+        logger.exception('rabbitmq.consume.failed', 'Message processing failed', error, {
           ...fields,
           outcome: 'failed',
           requeue,

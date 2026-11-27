@@ -438,6 +438,19 @@ domrov-lms-automation/
 | **CI/CD** | GitHub Actions |
 
 
+## Run the full stack locally
+
+From the repository root, run `docker compose up -d --build`.
+
+| Interface | Local URL |
+|---|---|
+| Student and teacher client | http://localhost:5173 |
+| Admin dashboard | http://localhost:5174 |
+| API gateway | http://localhost:8088 |
+| Grafana | http://localhost:8005 |
+
+Both frontends use the gateway URL resolved from `GATEWAY_PORT` or `API_BASE_URL`. The client reads this at container startup. Rebuild `react-admin` after changing its API URL so the new value is included in the admin bundle.
+
 ## Additional Documentation
 
 - [Project Website](https://domrov.app)

@@ -19,7 +19,7 @@ services:
       - /bin/sh
       - -c
       - >-
-        envsubst '$${LEGACY_BACKEND_HOST} $${LEGACY_BACKEND_PORT} $${AUTH_CORS_ORIGIN}'
+        envsubst '$${LEGACY_BACKEND_HOST} $${LEGACY_BACKEND_PORT} $${AUTH_CORS_ORIGIN} $${ADMIN_CORS_ORIGIN}'
         < /etc/nginx/templates/nginx.conf.template
         > /etc/nginx/nginx.conf
         && nginx -g 'daemon off;'
@@ -31,6 +31,7 @@ services:
       LEGACY_BACKEND_HOST: "${LEGACY_BACKEND_HOST:-host.docker.internal}"
       LEGACY_BACKEND_PORT: "${LEGACY_BACKEND_PORT:-3000}"
       AUTH_CORS_ORIGIN: "${AUTH_CORS_ORIGIN:-http://localhost:5173}"
+      ADMIN_CORS_ORIGIN: "${ADMIN_CORS_ORIGIN:-http://localhost:5174}"
 
     volumes:
       - ./infra/gateway/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
@@ -51,6 +52,25 @@ services:
         condition: service_started
       rabbitmq:
         condition: service_healthy
+
+  react-client:
+    build: ./apps/react-client
+    environment:
+      API_BASE_URL: "${API_BASE_URL:-http://localhost:${GATEWAY_PORT:-8088}}"
+    ports:
+      - "127.0.0.1:5173:80"
+    depends_on:
+      - gateway
+
+  react-admin:
+    build:
+      context: ./apps/admin
+      args:
+        VITE_API_URL: "${API_BASE_URL:-http://localhost:${GATEWAY_PORT:-8088}}"
+    ports:
+      - "127.0.0.1:5174:80"
+    depends_on:
+      - gateway
 
   # ==========================================
   # USER SERVICE
@@ -511,10 +531,24 @@ services:
     <<: *observability
     image: ghcr.io/google/cadvisor:0.57.0
     cgroup: host
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        for socket in /rootfs/run/desktop-containerd/containerd.sock \
+                      /rootfs/run/docker/containerd/containerd.sock \
+                      /rootfs/run/containerd/containerd.sock; do
+          if [ -S "$$socket" ]; then
+            echo "cAdvisor using containerd socket $$socket"
+            exec /usr/bin/cadvisor --containerd="$$socket" "$$@"
+          fi
+        done
+        exec /usr/bin/cadvisor "$$@"
+      - cadvisor
     command:
       - --docker_only=true
       - --disable_root_cgroup_stats=true
-      - --enable_metrics=cpu,memory
+      - --enable_metrics=cpu,memory,network
       - --store_container_labels=false
       - --whitelisted_container_labels=com.docker.compose.project,com.docker.compose.service
     volumes:

@@ -6,8 +6,46 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
+
+type requestLogKey struct{}
+
+type httpRequestLog struct {
+	mu         sync.Mutex
+	finished   bool
+	level      slog.Level
+	event      string
+	message    string
+	attributes []slog.Attr
+}
+
+func (r *httpRequestLog) capture(level slog.Level, event, message string, attributes []slog.Attr) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.finished {
+		return false
+	}
+	if r.event == "" || level > r.level {
+		r.level, r.event, r.message = level, event, message
+		r.attributes = r.attributes[:0]
+		for _, attr := range attributes {
+			switch attr.Key {
+			case "http_method", "route", "status_code", "aborted", "duration_ms", "error_event":
+				continue
+			}
+			r.attributes = append(r.attributes, attr)
+		}
+	}
+	return true
+}
+
+func (r *httpRequestLog) finish() {
+	r.mu.Lock()
+	r.finished = true
+	r.mu.Unlock()
+}
 
 func (l *Logger) HTTP(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -18,14 +56,17 @@ func (l *Logger) HTTP(next http.Handler) http.Handler {
 		started := time.Now()
 		route := routeName(r.Method, r.URL.Path)
 		ctx, span := l.startHTTP(ctx, methodName(r.Method), route, r.Header.Get("traceparent"))
+		requestLog := &httpRequestLog{}
+		ctx = context.WithValue(ctx, requestLogKey{}, requestLog)
 		writer := &statusWriter{ResponseWriter: w}
 		defer func() {
 			fault := recover()
+			requestLog.finish()
 			if fault != nil && fault != http.ErrAbortHandler {
 				span.endHTTP(http.StatusInternalServerError)
-				l.Log(ctx, slog.LevelError, "http.request.panicked", "HTTP handler panicked",
+				l.LogPanic(ctx, slog.LevelError, "http.request.panicked", "HTTP handler panicked", fault,
 					slog.String("http_method", methodName(r.Method)), slog.String("route", route),
-					slog.String("error_code", "HANDLER_PANIC"), Duration(started))
+					slog.String("error_code", "HANDLER_PANIC"), slog.Bool("aborted", true), Duration(started))
 				// Let net/http abort the response without logging the panic value or stack.
 				panic(http.ErrAbortHandler)
 			}
@@ -40,7 +81,7 @@ func (l *Logger) HTTP(next http.Handler) http.Handler {
 				status = http.StatusOK
 			}
 			span.endHTTP(status)
-			if status < 400 && (route == "/health/live" || route == "/health/ready") {
+			if requestLog.event == "" && status < 400 && (route == "/health/live" || route == "/health/ready") {
 				return
 			}
 			level := slog.LevelInfo
@@ -50,9 +91,17 @@ func (l *Logger) HTTP(next http.Handler) http.Handler {
 			case status >= 400:
 				level = slog.LevelWarn
 			}
-			l.Log(ctx, level, "http.request.completed", message,
+			fields := []slog.Attr{
 				slog.String("http_method", methodName(r.Method)), slog.String("route", route),
-				slog.Int("status_code", status), slog.Bool("aborted", aborted), Duration(started))
+				slog.Int("status_code", status), slog.Bool("aborted", aborted), Duration(started),
+			}
+			if requestLog.event != "" {
+				level = max(level, requestLog.level)
+				message = requestLog.message
+				fields = append(fields, slog.String("error_event", requestLog.event))
+				fields = append(fields, requestLog.attributes...)
+			}
+			l.Log(ctx, level, "http.request.completed", message, fields...)
 			if fault == http.ErrAbortHandler {
 				panic(http.ErrAbortHandler)
 			}

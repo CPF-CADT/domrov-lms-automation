@@ -60,11 +60,23 @@ loki.process "application_logs" {
           {{- else -}}
             {{- $_ := set $out "message" "See structured event fields" -}}
           {{- end -}}
-          {{- range $key := splitList " " "dependency operation outcome error_code routing_key stage http_method" -}}
+          {{- range $key := splitList " " "dependency operation outcome error_code error_type error_event routing_key stage http_method" -}}
             {{- $value := get $line $key -}}
             {{- if and (kindIs "string" $value) (regexMatch "^[A-Za-z][A-Za-z0-9_.-]{0,79}$" $value) -}}
               {{- $_ := set $out $key $value -}}
             {{- end -}}
+          {{- end -}}
+          {{- $errorMessage := get $line "error_message" -}}
+          {{- if and (kindIs "string" $errorMessage) (regexMatch "^(Cannot read properties of undefined [(]reading 'toLowerCase'[)]|Unexpected type or missing value|A variable or function was unavailable|A value was out of range|Input could not be parsed|Database query failed|Unexpected application exception|Operation timed out|Operation was canceled|Application panic|Go runtime panic)$" $errorMessage) -}}
+            {{- $_ := set $out "error_message" $errorMessage -}}
+          {{- end -}}
+          {{- $location := get $line "error_location" -}}
+          {{- if and (kindIs "string" $location) (le (len $location) 160) (regexMatch "^src/[A-Za-z0-9_./-]+[.](([cm]?js|ts):[0-9]{1,7}:[0-9]{1,7}|go:[0-9]{1,7})$" $location) -}}
+            {{- $_ := set $out "error_location" $location -}}
+          {{- end -}}
+          {{- $function := get $line "error_function" -}}
+          {{- if and (kindIs "string" $function) (regexMatch "^[A-Za-z_$(][A-Za-z0-9_$.<>*()-]{0,119}$" $function) -}}
+            {{- $_ := set $out "error_function" $function -}}
           {{- end -}}
           {{- range $key := splitList " " "duration_ms duration_seconds status_code attempt" -}}
             {{- $value := get $line $key -}}

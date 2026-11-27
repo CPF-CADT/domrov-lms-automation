@@ -3,9 +3,14 @@ error_log stderr warn;
 events {}
 
 http {
-  map $http_origin $cors_origin {
+  map $http_origin $client_cors_origin {
     default "";
     "${AUTH_CORS_ORIGIN}" $http_origin;
+  }
+
+  map $http_origin $cors_origin {
+    default $client_cors_origin;
+    "${ADMIN_CORS_ORIGIN}" $http_origin;
   }
 
   upstream user_service { server user:3001; }
@@ -82,7 +87,7 @@ http {
     add_header Access-Control-Allow-Origin $cors_origin always;
     add_header Access-Control-Allow-Credentials "true" always;
     add_header Access-Control-Allow-Methods "GET, POST, PATCH, PUT, DELETE, OPTIONS" always;
-    add_header Access-Control-Allow-Headers "Authorization, Content-Type, Idempotency-Key, X-Requested-With" always;
+    add_header Access-Control-Allow-Headers "Authorization, Content-Type, Idempotency-Key, X-Requested-With, Cache-Control, Pragma, Expires" always;
     if ($request_method = OPTIONS) { return 204; }
 
     location = /health {

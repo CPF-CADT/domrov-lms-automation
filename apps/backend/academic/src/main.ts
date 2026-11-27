@@ -51,11 +51,11 @@ async function bootstrap() {
     const port = Number(process.env.PORT ?? 3002);
     await app.listen(port);
     logger.info('service.ready', 'Academic service listening', { duration_ms: Math.round(performance.now() - startedAt) });
-  } catch {
-    logger.fatal('service.startup.failed', 'Academic service failed to start', { stage, duration_ms: Math.round(performance.now() - startedAt) });
+  } catch (error) {
+    logger.exception('service.startup.failed', 'Academic service failed to start', error, { stage, duration_ms: Math.round(performance.now() - startedAt) }, 'fatal');
     process.exitCode = 1;
-    await app?.close().catch(() => {
-      logger.error('service.shutdown_failed', 'Academic service could not close after startup failure');
+    await app?.close().catch(closeError => {
+      logger.exception('service.shutdown_failed', 'Academic service could not close after startup failure', closeError);
     });
   }
 }

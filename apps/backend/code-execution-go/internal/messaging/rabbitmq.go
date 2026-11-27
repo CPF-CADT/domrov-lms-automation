@@ -71,10 +71,10 @@ func (b *Broker) Publish(ctx context.Context, routingKey string, value any) erro
 	if err != nil {
 		var timeout net.Error
 		if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &timeout) && timeout.Timeout()) {
-			b.logger.Log(ctx, slog.LevelWarn, "rabbitmq.publish.timeout", "Timed out publishing execution message",
+			b.logger.LogError(ctx, slog.LevelWarn, "rabbitmq.publish.timeout", "Timed out publishing execution message", err,
 				append(fields, slog.String("error_code", "PUBLISH_TIMEOUT"))...)
 		} else {
-			b.logger.Log(ctx, slog.LevelError, "rabbitmq.publish.failed", "Could not publish execution message",
+			b.logger.LogError(ctx, slog.LevelError, "rabbitmq.publish.failed", "Could not publish execution message", err,
 				append(fields, observability.ErrorCode(err, "PUBLISH_FAILED"))...)
 		}
 		return err
@@ -106,7 +106,7 @@ func (b *Broker) Consume(ctx context.Context, runner func(context.Context, execu
 	started := time.Now()
 	deliveries, err := b.channel.Consume(b.queue, "code-execution", false, false, false, false, nil)
 	if err != nil {
-		b.logger.Log(ctx, slog.LevelError, "rabbitmq.consumer.start.failed", "Could not start execution consumer",
+		b.logger.LogError(ctx, slog.LevelError, "rabbitmq.consumer.start.failed", "Could not start execution consumer", err,
 			slog.String("dependency", "rabbitmq"), observability.ErrorCode(err, "CONSUMER_START_FAILED"), observability.Duration(started))
 		return
 	}
@@ -151,7 +151,7 @@ func (b *Broker) handleDelivery(ctx context.Context, delivery amqp091.Delivery, 
 		return
 	}
 	if err := db.Create(ctx, req); err != nil {
-		b.logger.Log(ctx, slog.LevelError, "rabbitmq.consume.failed", "Could not persist execution request",
+		b.logger.LogError(ctx, slog.LevelError, "rabbitmq.consume.failed", "Could not persist execution request", err,
 			append(fields, slog.String("dependency", "postgres"), observability.ErrorCode(err, "CREATE_EXECUTION_FAILED"), observability.Duration(started))...)
 		b.reject(ctx, delivery, true)
 		return
@@ -165,12 +165,12 @@ func (b *Broker) handleDelivery(ctx context.Context, delivery amqp091.Delivery, 
 	b.logResult(runContext, result, runStarted, fields)
 	saveErr := db.SaveResult(ctx, result)
 	if saveErr != nil {
-		b.logger.Log(ctx, slog.LevelError, "execution.result.save.failed", "Could not persist execution result",
+		b.logger.LogError(ctx, slog.LevelError, "execution.result.save.failed", "Could not persist execution result", saveErr,
 			append(fields, slog.String("dependency", "postgres"), observability.ErrorCode(saveErr, "SAVE_RESULT_FAILED"))...)
 	}
 	publishErr := b.Publish(ctx, completedRoutingKey, result)
 	if err := delivery.Ack(false); err != nil {
-		b.logger.Log(ctx, slog.LevelError, "rabbitmq.consume.failed", "Could not acknowledge execution message",
+		b.logger.LogError(ctx, slog.LevelError, "rabbitmq.consume.failed", "Could not acknowledge execution message", err,
 			append(fields, observability.ErrorCode(err, "ACK_FAILED"))...)
 		return
 	}
@@ -184,7 +184,7 @@ func (b *Broker) handleDelivery(ctx context.Context, delivery amqp091.Delivery, 
 func (b *Broker) reject(ctx context.Context, delivery amqp091.Delivery, requeue bool) {
 	err := delivery.Nack(false, requeue)
 	if err != nil {
-		b.logger.Log(ctx, slog.LevelError, "rabbitmq.consume.failed", "Could not negatively acknowledge execution message",
+		b.logger.LogError(ctx, slog.LevelError, "rabbitmq.consume.failed", "Could not negatively acknowledge execution message", err,
 			slog.String("routing_key", requestedRoutingKey), slog.Bool("requeue", requeue), observability.ErrorCode(err, "NACK_FAILED"))
 	} else if requeue {
 		b.logger.Log(ctx, slog.LevelWarn, "rabbitmq.message.requeued", "Requeued execution message",
