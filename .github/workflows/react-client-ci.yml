@@ -1,0 +1,52 @@
+name: React Client Static CI
+
+on:
+  pull_request:
+    paths:
+      - 'apps/react-client/**'
+      - '.github/workflows/react-client-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/react-client/**'
+      - '.github/workflows/react-client-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/react-client
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check for bundled Node
+        id: node_runner
+        shell: bash
+        run: |
+          use_bundled_node=false
+          if [[ "${ACT:-}" == true && "${DOMROV_LOCAL_NODE:-}" == 1 ]]; then
+            node -e "if (process.versions.node.split('.')[0] !== '22') throw new Error('Expected Node 22')"
+            use_bundled_node=true
+          fi
+          echo "use_bundled_node=$use_bundled_node" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v4
+        if: steps.node_runner.outputs.use_bundled_node != 'true'
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/react-client/package-lock.json
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_API_URL: ${{ vars.PRODUCTION_API_BASE_URL || 'https://api.domrov.me' }}
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'push'
+        with:
+          name: domrov-client-${{ github.sha }}
+          path: apps/react-client/dist/
+          if-no-files-found: error

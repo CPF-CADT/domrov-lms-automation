@@ -1,0 +1,22 @@
+name: Evaluation CD
+on:
+  workflow_run:
+    workflows: ["Evaluation Image CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  actions: read
+
+jobs:
+  deploy:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    uses: ./.github/workflows/_vps-cd.yml
+    with:
+      target: evaluation-service
+      sha: ${{ github.event.workflow_run.head_sha }}
+      run_id: ${{ format('{0}', github.event.workflow_run.id) }}
+      run_number: ${{ format('{0}', github.event.workflow_run.run_number) }}

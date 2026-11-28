@@ -18,13 +18,27 @@ groups:
         annotations:
           summary: A DOMROV database probe is failing
       - alert: DomrovObservabilityTargetDown
-        expr: up{job=~"observability|domrov-otel|rabbitmq"} == 0
+        expr: up{job=~"observability|domrov-otel|domrov-host|rabbitmq"} == 0
         for: 1m
         labels:
           severity: warning
           component: telemetry
         annotations:
           summary: A telemetry target is unavailable
+      - alert: DomrovHostDiskSpaceLow
+        expr: |
+          (
+            node_filesystem_avail_bytes{job="domrov-host",mountpoint="/"}
+            / node_filesystem_size_bytes{job="domrov-host",mountpoint="/"}
+          ) < 0.15
+          and
+          node_filesystem_readonly{job="domrov-host",mountpoint="/"} == 0
+        for: 10m
+        labels:
+          severity: warning
+          component: storage
+        annotations:
+          summary: The DOMROV host root filesystem has less than 15 percent available
       - alert: DomrovHighHttpErrorRate
         expr: |
           (

@@ -451,6 +451,10 @@ From the repository root, run `docker compose up -d --build`.
 
 Both frontends use the gateway URL resolved from `GATEWAY_PORT` or `API_BASE_URL`. The client reads this at container startup. Rebuild `react-admin` after changing its API URL so the new value is included in the admin bundle.
 
+To manage local development secrets centrally, follow the [local Infisical setup](docs/infisical.md).
+
+For the two-VPS deployment with prebuilt images, see the [production Compose guide](docs/production-compose.md).
+
 ## Additional Documentation
 
 - [Project Website](https://domrov.app)

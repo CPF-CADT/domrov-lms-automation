@@ -20,6 +20,11 @@ lerna-debug.log*
 .env.development
 .env.test
 .env.production
+.env.production.backup
+.env.production.draft
+.env.production.staged.*
+.env.release
+.env.infisical
 
 # temp directory
 .temp

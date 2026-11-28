@@ -1,0 +1,79 @@
+name: Deploy to Production VPS
+
+on:
+  workflow_call:
+    inputs:
+      target:
+        required: true
+        type: string
+      artifact:
+        type: string
+        default: ''
+      sha:
+        required: true
+        type: string
+      run_id:
+        required: true
+        type: string
+      run_number:
+        required: true
+        type: string
+
+permissions:
+  actions: read
+
+jobs:
+  deploy:
+    if: vars.ENABLE_VPS_DEPLOY == 'true'
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Download the frontend build from CI
+        if: inputs.artifact != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact }}-${{ inputs.sha }}
+          path: frontend-build
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Deploy the selected release
+        shell: bash
+        env:
+          VPS_HOST: ${{ vars.VPS_HOST }}
+          VPS_USER: ${{ vars.VPS_USER }}
+          VPS_DEPLOY_DIR: ${{ vars.VPS_DEPLOY_DIR }}
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          VPS_SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+          TARGET: ${{ inputs.target }}
+          RELEASE_SHA: ${{ inputs.sha }}
+          CI_RUN_NUMBER: ${{ inputs.run_number }}
+          FRONTEND_ARTIFACT: ${{ inputs.artifact }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$VPS_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ||
+                ! "$VPS_USER" =~ ^[a-z_][a-z0-9_-]*$ ||
+                ! "$VPS_DEPLOY_DIR" =~ ^/[a-zA-Z0-9_./-]+$ ||
+                -z "$VPS_SSH_PRIVATE_KEY" || -z "$VPS_SSH_KNOWN_HOSTS" ]]; then
+            echo "::error::Set the VPS variables and SSH secrets in the production environment."
+            exit 1
+          fi
+          [[ "$TARGET" =~ ^[a-z][a-z-]*$ && "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ &&
+             "$CI_RUN_NUMBER" =~ ^[1-9][0-9]{0,15}$ ]]
+
+          umask 077
+          ssh_dir=$(mktemp -d)
+          trap 'rm -rf -- "$ssh_dir"' EXIT
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > "$ssh_dir/key"
+          printf '%s\n' "$VPS_SSH_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          unset VPS_SSH_PRIVATE_KEY VPS_SSH_KNOWN_HOSTS
+          ssh_cmd=(ssh -T -i "$ssh_dir/key" -o IdentitiesOnly=yes -o BatchMode=yes
+                   -o ConnectTimeout=15 -o StrictHostKeyChecking=yes
+                   -o UserKnownHostsFile="$ssh_dir/known_hosts" "$VPS_USER@$VPS_HOST")
+          remote="cd '$VPS_DEPLOY_DIR' && bash infra/deploy/release.sh '$TARGET' '$RELEASE_SHA' '$CI_RUN_NUMBER'"
+          if [[ -n "$FRONTEND_ARTIFACT" ]]; then
+            test -s frontend-build/index.html
+            tar -C frontend-build -cf - . | "${ssh_cmd[@]}" "$remote"
+          else
+            "${ssh_cmd[@]}" "$remote" </dev/null
+          fi

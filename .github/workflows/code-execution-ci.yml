@@ -1,0 +1,22 @@
+name: Code Execution Image CI
+on:
+  pull_request:
+    paths:
+      - 'apps/backend/code-execution-go/**'
+      - '.github/workflows/code-execution-ci.yml'
+      - '.github/workflows/_image-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/backend/code-execution-go/**'
+      - '.github/workflows/code-execution-ci.yml'
+      - '.github/workflows/_image-ci.yml'
+
+jobs:
+  image:
+    uses: ./.github/workflows/_image-ci.yml
+    with:
+      context: apps/backend/code-execution-go
+      image: domrov-code-execution
+    secrets:
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

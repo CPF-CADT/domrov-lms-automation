@@ -1,0 +1,355 @@
+name: domrov-prod
+
+x-backend: &backend
+  restart: unless-stopped
+
+x-backend-env: &backend-env
+  NODE_ENV: production
+  JWT_ACCESS_SECRET: "${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET}"
+  RABBITMQ_URL: "${RABBITMQ_URL:?Set RABBITMQ_URL}"
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_LOGS_EXPORTER: none
+
+x-observability: &observability
+  restart: unless-stopped
+
+services:
+  gateway:
+    image: nginx:1.28-alpine
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        mkdir -p /var/run/domrov
+        envsubst '$${API_BASE_URL}' < /etc/nginx/runtime-config.js.template > /var/run/domrov/runtime-config.js
+        envsubst '$${API_HOST} $${CLIENT_HOST} $${ADMIN_HOST} $${AUTH_CORS_ORIGIN} $${ADMIN_CORS_ORIGIN}' < /etc/nginx/domrov.conf.template > /etc/nginx/nginx.conf
+        nginx -t
+        exec nginx -g 'daemon off;'
+    ports:
+      - "127.0.0.1:${GATEWAY_PORT:-8088}:80"
+    environment:
+      API_BASE_URL: "${API_BASE_URL:?Set API_BASE_URL}"
+      API_HOST: "${API_HOST:?Set API_HOST}"
+      CLIENT_HOST: "${CLIENT_HOST:?Set CLIENT_HOST}"
+      ADMIN_HOST: "${ADMIN_HOST:?Set ADMIN_HOST}"
+      AUTH_CORS_ORIGIN: "${AUTH_CORS_ORIGIN:?Set AUTH_CORS_ORIGIN}"
+      ADMIN_CORS_ORIGIN: "${ADMIN_CORS_ORIGIN:?Set ADMIN_CORS_ORIGIN}"
+    volumes:
+      - ./infra/gateway/nginx.production.conf.template:/etc/nginx/domrov.conf.template:ro
+      - ./infra/gateway/runtime-config.js.template:/etc/nginx/runtime-config.js.template:ro
+      - ./frontend:/srv/domrov:ro
+    depends_on:
+      user:
+        condition: service_healthy
+      academic-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+      evaluation-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  user:
+    <<: *backend
+    image: "${DOCKER_REGISTRY:?Set DOCKER_REGISTRY}/domrov-user:${USER_IMAGE_TAG:?Set USER_IMAGE_TAG}"
+
+    environment:
+      <<: *backend-env
+      PORT: "3001"
+      LOG_LEVEL: "${USER_LOG_LEVEL:-${LOG_LEVEL:-info}}"
+      FRONTEND_URL: "${AUTH_CORS_ORIGIN:?Set AUTH_CORS_ORIGIN}"
+      AUTH_CORS_ORIGIN: "${AUTH_CORS_ORIGIN:?Set AUTH_CORS_ORIGIN}"
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
+      GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
+      GOOGLE_CALLBACK_URL: "${GOOGLE_CALLBACK_URL:-}"
+      GITHUB_CLIENT_ID: "${GITHUB_CLIENT_ID:-}"
+      GITHUB_CLIENT_SECRET: "${GITHUB_CLIENT_SECRET:-}"
+      GITHUB_CALLBACK_URL: "${GITHUB_CALLBACK_URL:-}"
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      SMTP_FROM: "${SMTP_FROM:-}"
+      SMTP_REQUIRED: "${SMTP_REQUIRED:-false}"
+
+      DATABASE_URL: "${USER_DATABASE_URL:?Set USER_DATABASE_URL}"
+
+      JWT_REFRESH_SECRET: "${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET}"
+      JWT_ACCESS_EXPIRES_IN: "${JWT_ACCESS_EXPIRES_IN:-20h}"
+      JWT_REFRESH_EXPIRES_IN: "${JWT_REFRESH_EXPIRES_IN:-7d}"
+
+      RABBITMQ_EVENTS_EXCHANGE: "${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}"
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  academic-service:
+    <<: *backend
+    image: "${DOCKER_REGISTRY:?Set DOCKER_REGISTRY}/domrov-academic-service:${ACADEMIC_IMAGE_TAG:?Set ACADEMIC_IMAGE_TAG}"
+
+    environment:
+      <<: *backend-env
+      PORT: "3002"
+      AUTH_CORS_ORIGIN: "${AUTH_CORS_ORIGIN:?Set AUTH_CORS_ORIGIN}"
+      LOG_LEVEL: "${ACADEMIC_LOG_LEVEL:-${LOG_LEVEL:-info}}"
+
+      DATABASE_URL: "${ACADEMIC_DATABASE_URL:?Set ACADEMIC_DATABASE_URL}"
+
+      RABBITMQ_EVENTS_EXCHANGE: "${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}"
+      RABBITMQ_COMMANDS_EXCHANGE: "${RABBITMQ_COMMANDS_EXCHANGE:-domrov.commands}"
+      RABBITMQ_EXECUTION_QUEUE: "domrov.code.execution.worker"
+
+    volumes:
+      - academic_files:/data/files
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3002/api/academic/health/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  payment-service:
+    <<: *backend
+    image: "${DOCKER_REGISTRY:?Set DOCKER_REGISTRY}/domrov-payment-service:${PAYMENT_IMAGE_TAG:?Set PAYMENT_IMAGE_TAG}"
+
+    environment:
+      <<: *backend-env
+      PORT: "3003"
+      LOG_LEVEL: "${PAYMENT_LOG_LEVEL:-${LOG_LEVEL:-info}}"
+
+      DATABASE_URL: "${PAYMENT_DATABASE_URL:?Set PAYMENT_DATABASE_URL}"
+
+      SERVICE_AUTH_TOKEN: "${SERVICE_AUTH_TOKEN:?Set SERVICE_AUTH_TOKEN}"
+
+      RABBITMQ_COMMANDS_EXCHANGE: "${RABBITMQ_COMMANDS_EXCHANGE:-domrov.commands}"
+      RABBITMQ_EVENTS_EXCHANGE: "${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}"
+
+      BAKONG_MODE: "${BAKONG_MODE:-mock}"
+      BAKONG_MOCK_STATUS: "${BAKONG_MOCK_STATUS:-UNPAID}"
+      BAKONG_API_URL: "${BAKONG_API_URL:-https://api-bakong.nbc.gov.kh/v1}"
+      BAKONG_TOKEN: "${BAKONG_TOKEN:-}"
+
+      BAKONG_ACCOUNT_TYPE: "${BAKONG_ACCOUNT_TYPE:-individual}"
+      BAKONG_BANK_ACCOUNT: "${BAKONG_BANK_ACCOUNT:-}"
+      BAKONG_MERCHANT_ID: "${BAKONG_MERCHANT_ID:-}"
+      BAKONG_ACQUIRING_BANK: "${BAKONG_ACQUIRING_BANK:-}"
+
+      MERCHANT_NAME: "${MERCHANT_NAME:-DOMROV}"
+      MERCHANT_CITY: "${MERCHANT_CITY:-PHNOM PENH}"
+      PHONE_NUMBER: "${PHONE_NUMBER:-}"
+      LOCAL_FILE_ROOT: /data/files
+
+    volumes:
+      - "${RECEIPTS_DIR:?Set RECEIPTS_DIR}:/data/files"
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3003/health/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  evaluation-service:
+    <<: *backend
+    image: "${DOCKER_REGISTRY:?Set DOCKER_REGISTRY}/domrov-evaluation-service:${EVALUATION_IMAGE_TAG:?Set EVALUATION_IMAGE_TAG}"
+
+    environment:
+      <<: *backend-env
+      PORT: "3004"
+      LOG_LEVEL: "${EVALUATION_LOG_LEVEL:-${LOG_LEVEL:-info}}"
+
+      DATABASE_URL: "${EVALUATION_DATABASE_URL:?Set EVALUATION_DATABASE_URL}"
+
+      RABBITMQ_EVENTS_EXCHANGE: "${RABBITMQ_EVENTS_EXCHANGE:-domrov.events}"
+      RABBITMQ_COMMANDS_EXCHANGE: "${RABBITMQ_COMMANDS_EXCHANGE:-domrov.commands}"
+      RABBITMQ_EVALUATION_QUEUE: "domrov.evaluation.events"
+      RABBITMQ_EVALUATION_WORKER_QUEUE: "domrov.evaluation.worker"
+
+      EVALUATION_PAYMENT_MODE: "${EVALUATION_PAYMENT_MODE:-disabled}"
+      EVALUATION_CREDIT_COST: "${EVALUATION_CREDIT_COST:-1}"
+      FREE_EVALUATIONS_PER_MONTH: "${FREE_EVALUATIONS_PER_MONTH:-10}"
+
+      OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
+      OLLAMA_MODEL: "${OLLAMA_MODEL:-qwen2.5:7b-instruct}"
+      OLLAMA_TIMEOUT_MS: "${OLLAMA_TIMEOUT_MS:-120000}"
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3004/health/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    hostname: rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: "${RABBITMQ_DEFAULT_USER:?Set RABBITMQ_DEFAULT_USER}"
+      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_DEFAULT_PASS:?Set RABBITMQ_DEFAULT_PASS}"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./infra/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./infra/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # Centralized logging
+  loki:
+    <<: *observability
+    image: grafana/loki:latest
+    command: -config.file=/etc/loki/config.yml
+    volumes:
+      - ./observability/loki/config.yml:/etc/loki/config.yml:ro
+      - loki_data:/loki
+
+  alloy:
+    <<: *observability
+    image: grafana/alloy:latest
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    environment:
+      COMPOSE_PROJECT_NAME: "${COMPOSE_PROJECT_NAME:-domrov-prod}"
+    volumes:
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy_data:/var/lib/alloy/data
+    depends_on:
+      - loki
+
+  # Distributed tracing
+  tempo:
+    <<: *observability
+    image: grafana/tempo:2.10.8
+    command: -config.file=/etc/tempo/config.yml
+    volumes:
+      - ./observability/tempo/config.yml:/etc/tempo/config.yml:ro
+      - tempo_data:/var/tempo
+
+  otel-collector:
+    <<: *observability
+    image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.166.0
+    command: --config=/etc/otelcol-contrib/config.yml
+    volumes:
+      - ./observability/otel-collector/config.yml:/etc/otelcol-contrib/config.yml:ro
+    depends_on:
+      - tempo
+
+  # Metrics
+  cadvisor:
+    <<: *observability
+    image: ghcr.io/google/cadvisor:0.57.0
+    cgroup: host
+    command:
+      - --docker_only=true
+      - --disable_root_cgroup_stats=true
+      - --enable_metrics=cpu,memory,network
+      - --store_container_labels=false
+      - --whitelisted_container_labels=com.docker.compose.project,com.docker.compose.service
+    volumes:
+      - /:/rootfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/sys:ro
+
+  node-exporter:
+    <<: *observability
+    image: quay.io/prometheus/node-exporter:v1.13.1
+    pid: host
+    command:
+      - --path.rootfs=/host
+      - --collector.disable-defaults
+      - --collector.filesystem
+    volumes:
+      - /:/host:ro
+
+  prometheus:
+    <<: *observability
+    image: prom/prometheus:latest
+    command:
+      - --config.file=/etc/prometheus/production.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./observability/prometheus:/etc/prometheus:ro
+      - prometheus_data:/prometheus
+    configs:
+      - source: cadvisor_targets
+        target: /etc/cadvisor-targets.yml
+
+  postgres-exporter:
+    <<: *observability
+    image: quay.io/prometheuscommunity/postgres-exporter:latest
+    environment:
+      DATA_SOURCE_NAME: "${POSTGRES_EXPORTER_DSN:?Set POSTGRES_EXPORTER_DSN}"
+
+  # Visualization
+  grafana:
+    <<: *observability
+    image: grafana/grafana:latest
+    ports:
+      - "127.0.0.1:8005:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:-admin}"
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - loki
+      - tempo
+      - prometheus
+
+  blackbox-exporter:
+    <<: *observability
+    image: prom/blackbox-exporter:v0.28.0
+    command: ["--config.file=/etc/blackbox-exporter/config.yml"]
+    volumes:
+      - ./observability/blackbox-exporter/config.yml:/etc/blackbox-exporter/config.yml:ro
+
+configs:
+  cadvisor_targets:
+    content: |
+      - targets: ["cadvisor:8080"]
+        labels:
+          compose_project: "${COMPOSE_PROJECT_NAME:-domrov-prod}"
+
+volumes:
+  rabbitmq_data:
+  academic_files:
+  loki_data:
+  alloy_data:
+  tempo_data:
+  prometheus_data:
+  grafana_data:

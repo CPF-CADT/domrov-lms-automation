@@ -1,0 +1,15 @@
+name: Academic CD (Mock)
+on:
+  workflow_run:
+    workflows: ["Academic Image CI"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+    uses: ./.github/workflows/_mock-cd.yml
+    with:
+      service: academic-service
+      tag_key: ACADEMIC_IMAGE_TAG
+      sha: ${{ github.event.workflow_run.head_sha }}

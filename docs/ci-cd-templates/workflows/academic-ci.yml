@@ -1,0 +1,22 @@
+name: Academic Image CI
+on:
+  pull_request:
+    paths:
+      - 'apps/backend/academic/**'
+      - '.github/workflows/academic-ci.yml'
+      - '.github/workflows/_image-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/backend/academic/**'
+      - '.github/workflows/academic-ci.yml'
+      - '.github/workflows/_image-ci.yml'
+
+jobs:
+  image:
+    uses: ./.github/workflows/_image-ci.yml
+    with:
+      context: apps/backend/academic
+      image: domrov-academic-service
+    secrets:
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

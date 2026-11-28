@@ -1,0 +1,22 @@
+name: Payment Image CI
+on:
+  pull_request:
+    paths:
+      - 'apps/backend/payment/**'
+      - '.github/workflows/payment-ci.yml'
+      - '.github/workflows/_image-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/backend/payment/**'
+      - '.github/workflows/payment-ci.yml'
+      - '.github/workflows/_image-ci.yml'
+
+jobs:
+  image:
+    uses: ./.github/workflows/_image-ci.yml
+    with:
+      context: apps/backend/payment
+      image: domrov-payment-service
+    secrets:
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

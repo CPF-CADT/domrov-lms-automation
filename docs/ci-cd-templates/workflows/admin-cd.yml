@@ -1,0 +1,27 @@
+name: React Admin CD (Mock)
+
+on:
+  workflow_run:
+    workflows: ["React Admin Static CI"]
+    branches: [main]
+    types: [completed]
+
+permissions:
+  actions: read
+
+jobs:
+  preview:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: domrov-admin-${{ github.event.workflow_run.head_sha }}
+          path: frontend/admin
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - name: Preview VPS upload
+        shell: bash
+        run: |
+          test -s frontend/admin/index.html
+          printf '%s\n' 'Mock upload: frontend/admin/ → <VPS deployment directory>/frontend/admin/'

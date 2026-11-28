@@ -11,10 +11,11 @@ export class MailerService {
   constructor(private readonly config: ConfigService) {
     const host = this.config.get<string>('SMTP_HOST');
     if (host) {
+      const port = Number(this.config.get<string>('SMTP_PORT', '587'));
       this.transporter = nodemailer.createTransport({
         host,
-        port: this.config.get<number>('SMTP_PORT', 587),
-        secure: this.config.get<number>('SMTP_PORT', 587) === 465,
+        port,
+        secure: port === 465,
         auth: { user: this.config.getOrThrow<string>('SMTP_USER'), pass: this.config.get<string>('SMTP_PASSWORD') ?? this.config.getOrThrow<string>('SMTP_PASS') },
       });
     }

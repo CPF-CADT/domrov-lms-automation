@@ -73,6 +73,12 @@ docker compose exec prometheus promtool check config /etc/prometheus/prometheus.
 docker compose exec alloy alloy validate /etc/alloy/config.alloy
 ```
 
+### Verify host disk coverage
+
+In **DOMROV — Infrastructure**, open **Host root filesystem available**. Prometheus scrapes Node Exporter on the Compose network and raises `DomrovHostDiskSpaceLow` when available root filesystem space stays below 15% for 10 minutes. Check that `domrov-host` is UP on the Prometheus targets page. On Docker Desktop this is the Linux VM filesystem.
+
+For a two-VPS deployment, add a separate filesystem scrape target on the PostgreSQL VPS and monitor its data mount if that mount differs from the root filesystem. Replace the local PostgreSQL probe targets and credentials with the production ones. Probe the real public HTTPS endpoint from outside the application host, define a user-facing availability target, and configure an alert receiver to deliver notifications. The local rules currently appear in Prometheus and Grafana.
+
 ## Data handling and storage
 
 - Alloy reads Docker logs for the five services and gateway in the Compose project, keeps the application JSON schema and forwards once to Loki. Trace, span, request and correlation IDs remain queryable fields rather than index labels. Plain text, oversized entries and unexpected fields stay out of Loki.

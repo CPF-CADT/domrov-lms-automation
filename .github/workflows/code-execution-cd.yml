@@ -1,0 +1,16 @@
+name: Code Execution CD (Mock)
+on:
+  workflow_run:
+    workflows: ["Code Execution Image CI"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+    uses: ./.github/workflows/_mock-cd.yml
+    with:
+      service: code-execution
+      tag_key: CODE_EXECUTION_IMAGE_TAG
+      sha: ${{ github.event.workflow_run.head_sha }}
+      compose_file: compose.worker.yml

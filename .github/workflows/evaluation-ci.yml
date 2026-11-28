@@ -1,0 +1,22 @@
+name: Evaluation Image CI
+on:
+  pull_request:
+    paths:
+      - 'apps/backend/evaluation/**'
+      - '.github/workflows/evaluation-ci.yml'
+      - '.github/workflows/_image-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/backend/evaluation/**'
+      - '.github/workflows/evaluation-ci.yml'
+      - '.github/workflows/_image-ci.yml'
+
+jobs:
+  image:
+    uses: ./.github/workflows/_image-ci.yml
+    with:
+      context: apps/backend/evaluation
+      image: domrov-evaluation-service
+    secrets:
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

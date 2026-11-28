@@ -97,7 +97,7 @@ services:
       NODE_ENV: "${NODE_ENV:-development}"
       SMTP_REQUIRED: "${SMTP_REQUIRED:-false}"
 
-      DATABASE_URL: "postgresql://domrov:domrov@auth-db:5432/auth_db"
+      DATABASE_URL: "${USER_DATABASE_URL:-postgresql://domrov:domrov@auth-db:5432/auth_db}"
 
       JWT_ACCESS_SECRET: "${JWT_ACCESS_SECRET:-local-access-secret}"
       JWT_REFRESH_SECRET: "${JWT_REFRESH_SECRET:-local-refresh-secret}"
@@ -138,7 +138,7 @@ services:
       PORT: "3002"
       LOG_LEVEL: "${ACADEMIC_LOG_LEVEL:-${LOG_LEVEL:-info}}"
 
-      DATABASE_URL: "postgresql://domrov:domrov@academic-db:5432/academic_db"
+      DATABASE_URL: "${ACADEMIC_DATABASE_URL:-postgresql://domrov:domrov@academic-db:5432/academic_db}"
 
       JWT_ACCESS_SECRET: "${JWT_ACCESS_SECRET:-local-access-secret}"
 
@@ -185,7 +185,7 @@ services:
       LOG_LEVEL: "${PAYMENT_LOG_LEVEL:-${LOG_LEVEL:-info}}"
 
       # Database
-      DATABASE_URL: "postgresql://domrov:domrov@payment-db:5432/payment_db"
+      DATABASE_URL: "${PAYMENT_DATABASE_URL:-postgresql://domrov:domrov@payment-db:5432/payment_db}"
 
       # Authentication
       JWT_ACCESS_SECRET: "${JWT_ACCESS_SECRET:-local-access-secret}"
@@ -252,7 +252,7 @@ services:
       LOG_LEVEL: "${EVALUATION_LOG_LEVEL:-${LOG_LEVEL:-info}}"
 
       # Database
-      DATABASE_URL: "postgresql://domrov:domrov@evaluation-db:5432/evaluation_db"
+      DATABASE_URL: "${EVALUATION_DATABASE_URL:-postgresql://domrov:domrov@evaluation-db:5432/evaluation_db}"
 
       # Authentication
       JWT_ACCESS_SECRET: "${JWT_ACCESS_SECRET:-local-access-secret}"
@@ -312,7 +312,7 @@ services:
       LOG_LEVEL: "${CODE_EXECUTION_LOG_LEVEL:-${LOG_LEVEL:-info}}"
 
       # Database
-      DATABASE_URL: "postgresql://domrov:domrov@execution-db:5432/execution_db"
+      DATABASE_URL: "${EXECUTION_DATABASE_URL:-postgresql://domrov:domrov@execution-db:5432/execution_db}"
 
       # Authentication
       JWT_ACCESS_SECRET: "${JWT_ACCESS_SECRET:-local-access-secret}"
@@ -555,6 +555,17 @@ services:
       - /:/rootfs:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /sys:/sys:ro
+
+  node-exporter:
+    <<: *observability
+    image: quay.io/prometheus/node-exporter:v1.13.1
+    pid: host
+    command:
+      - --path.rootfs=/host
+      - --collector.disable-defaults
+      - --collector.filesystem
+    volumes:
+      - /:/host:ro
 
   prometheus:
     <<: *observability

@@ -1,0 +1,15 @@
+name: User CD (Mock)
+on:
+  workflow_run:
+    workflows: ["User Image CI"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+    uses: ./.github/workflows/_mock-cd.yml
+    with:
+      service: user
+      tag_key: USER_IMAGE_TAG
+      sha: ${{ github.event.workflow_run.head_sha }}
