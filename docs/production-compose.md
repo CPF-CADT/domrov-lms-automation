@@ -4,7 +4,7 @@
 
 1. Record the published Git SHA tag from each service's CI workflow for User, Academic, Payment, and Evaluation. Use a VPS architecture that matches the published images.
 2. Download the Client and Admin CI artifacts built for your public API origin. Extract them so the app entrypoints are `frontend/client/index.html` and `frontend/admin/index.html`.
-3. On a Linux VPS, install Docker Engine, Compose, and `flock` from util-linux. Copy `compose.prod.yml`, `infra/deploy/release.sh`, and the `infra/gateway/`, `infra/rabbitmq/`, and `observability/` files referenced by Compose, together with the frontend artifacts. Run deployment commands from that directory.
+3. On VPS 1, install Docker Engine, Compose, host Nginx, and `flock` from util-linux. Place `compose.prod.yml`, `infra/`, `observability/`, and the frontend artifacts in `/srv/domrov/`. Run deployment commands from that directory.
 4. Provision `.env.production` on VPS 1 with file permissions set to `600`. Fill in the database URLs, registry namespace, public domains, and secrets. If the images are private, authenticate to the registry as the deployment account with a pull-only credential. Create `RECEIPTS_DIR` and give the container's `node` user (UID 1000) write access. Back up that directory and the Academic volume.
 
 ## Prepare PostgreSQL on VPS 2
@@ -49,16 +49,64 @@ Frontend CD uploads the exact CI artifact, switches the app's symlink, and check
 
 ## HTTPS and verification
 
-Point the client, admin, and API DNS records to VPS 1. Configure a TLS reverse proxy on VPS 1 to forward all three HTTPS hostnames to `127.0.0.1:8088` and preserve the original `Host` header. Enable WebSocket forwarding for `/socket.io/`. If you use a remote load balancer, adapt the gateway bind address for its private network. Publish only the public proxy's web ports.
+Point the four web DNS records below to VPS 1. Allow inbound TCP 80 and 443. Keep `db.domrov.me` on private DNS pointing to VPS 2 and restrict TCP 5432 to VPS 1.
 
-For a host-level Caddy proxy, a minimal Caddyfile looks like this. Replace all three names with the values in `.env.production`.
+| Public hostname | Host Nginx upstream |
+| --- | --- |
+| `domrov.me` | `127.0.0.1:8088` |
+| `admin.domrov.me` | `127.0.0.1:8088` |
+| `api.domrov.me` | `127.0.0.1:8088` |
+| `grafana.domrov.me` | `127.0.0.1:8005` |
 
-```caddyfile
-lms.example.com, admin.example.com, api.example.com {
-    reverse_proxy 127.0.0.1:8088
-}
+Set these values in `/srv/domrov/.env.production` before starting Compose:
+
+```dotenv
+CLIENT_HOST=domrov.me
+ADMIN_HOST=admin.domrov.me
+API_HOST=api.domrov.me
+GATEWAY_PORT=8088
+AUTH_CORS_ORIGIN=https://domrov.me
+ADMIN_CORS_ORIGIN=https://admin.domrov.me
+API_BASE_URL=https://api.domrov.me
+GRAFANA_ROOT_URL=https://grafana.domrov.me/
 ```
 
-Check that both frontend URLs load and that `https://api.example.com/users/me` returns `401` for an unauthenticated request. Test Google sign-in from the client if configured. Use an SSH tunnel to reach Grafana at VPS 1's `127.0.0.1:8005`. Verify the failed request in Loki and check readiness, request rate, p95 latency, CPU, and RAM in Grafana.
+On VPS 1, load the HTTP site first so Certbot can obtain a certificate for all four names. If you use Cloudflare, set the four records to DNS only during certificate setup. The ACME path stays available over HTTP for renewals.
+
+```bash
+cd /srv/domrov
+sudo apt-get install certbot apache2-utils
+sudo install -d -m 0755 /var/www/letsencrypt
+sudo install -m 0644 infra/nginx/domrov-http.conf /etc/nginx/sites-available/domrov-http.conf
+sudo ln -sfn /etc/nginx/sites-available/domrov-http.conf /etc/nginx/sites-enabled/domrov-http.conf
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot certonly --webroot -w /var/www/letsencrypt --cert-name domrov.me \
+  -d domrov.me -d admin.domrov.me -d api.domrov.me -d grafana.domrov.me
+```
+
+Create a separate Nginx credential for Grafana, then enable HTTPS:
+
+```bash
+sudo htpasswd -cB /etc/nginx/domrov-grafana.htpasswd domrov-ops
+sudo chown root:www-data /etc/nginx/domrov-grafana.htpasswd
+sudo chmod 0640 /etc/nginx/domrov-grafana.htpasswd
+sudo install -m 0644 infra/nginx/domrov-https.conf /etc/nginx/sites-available/domrov-https.conf
+sudo ln -sfn /etc/nginx/sites-available/domrov-https.conf /etc/nginx/sites-enabled/domrov-https.conf
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Use `htpasswd -B` without `-c` for subsequent users so existing entries are preserved. Grafana also requires its own sign-in. Keep Cloudflare's SSL mode on **Full (strict)** if you enable its proxy.
+
+Install the renewal reload hook and test certificate renewal:
+
+```bash
+sudo install -d /etc/letsencrypt/renewal-hooks/deploy
+printf '%s\n' '#!/bin/sh' 'systemctl reload nginx' |
+  sudo tee /etc/letsencrypt/renewal-hooks/deploy/reload-nginx >/dev/null
+sudo chmod 0755 /etc/letsencrypt/renewal-hooks/deploy/reload-nginx
+sudo certbot renew --dry-run
+```
+
+Check that HTTP redirects to HTTPS, both frontends load, `https://api.domrov.me/health` returns `200`, and `https://grafana.domrov.me/login` returns `401` before the Nginx sign-in. Then sign in to Grafana, verify a failed application request in Loki, and check readiness, request rate, p95 latency, CPU, and RAM.
 
 Student code execution is disabled in this deployment. Its run and status routes return `503`, and submission file browsing remains available. AI evaluation requires a reachable model provider. Unmatched API routes return `404`.
