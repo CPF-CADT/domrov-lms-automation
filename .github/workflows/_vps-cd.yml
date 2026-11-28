@@ -24,7 +24,6 @@ permissions:
 
 jobs:
   deploy:
-    if: vars.ENABLE_VPS_DEPLOY == 'true'
     environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 25

@@ -32,21 +32,20 @@ prod ps
 
 Payment runs migrations on startup. Update the image tags for subsequent releases and repeat the sequence. Back up PostgreSQL before migrations. Deploy the previous tags and frontend artifacts for an application rollback, checking schema compatibility first.
 
-## Enable GitHub Actions CD
+## Configure GitHub Actions CD
 
-After the manual deployment passes, configure the GitHub `production` environment.
+Configure the GitHub `production` environment before the first automatic deployment.
 
 | Setting | Where |
 | --- | --- |
 | `VPS_HOST`, `VPS_USER`, `VPS_DEPLOY_DIR` | Environment variables. Use the VPS hostname or IPv4 address, deployment account, and absolute stack directory. |
 | `VPS_SSH_PRIVATE_KEY`, `VPS_SSH_KNOWN_HOSTS` | Environment secrets. Use the deployment account's authorized key and a known-hosts entry verified against the VPS host key. |
-| `ENABLE_VPS_DEPLOY=true` | Repository Actions variable. Set this after the server and production environment are ready. |
 
 The deployment account needs Docker access and write access to the deployment directory. If upgrading an existing stack that mounts the frontend folders individually, apply the updated Compose file to recreate the gateway once so it sees the parent frontend directory.
 
-On a successful `main` CI run, CD uses that run's SHA and deploys only the matching service or frontend. Backend CD stages a private copy of `.env.production` under the deployment lock, changes the selected tag, and runs User or Academic migrations when applicable. It replaces the env file after Compose reports the service healthy and saves the previous tag in `.deploy-state/<service>.previous-tag`. Pause CD while manually editing runtime settings. If the rollout fails, inspect the running container and schema before restoring its previous image. Migration changes can outlive container failures.
+After CI succeeds for a push to `main`, CD automatically uses that run's SHA and deploys only the matching service or frontend. The deploy job fails if its VPS settings or SSH secrets are missing. Backend CD stages a private copy of `.env.production` under the deployment lock, changes the selected tag, and runs User or Academic migrations when applicable. It replaces the env file after Compose reports the service healthy and saves the previous tag in `.deploy-state/<service>.previous-tag`. Pause CD while manually editing runtime settings. If the rollout fails, inspect the running container and schema before restoring its previous image. Migration changes can outlive container failures.
 
-Frontend CD uploads the exact CI artifact, switches the app's symlink, and checks that the gateway container reads the new `index.html`. CD stores prior release references in `.deploy-state/` and retains previous frontend builds under `frontend/.releases/`. Run the public HTTPS checks below after enabling CD. Code Execution stays on mock CD.
+Frontend CD uploads the exact CI artifact, switches the app's symlink, and checks that the gateway container reads the new `index.html`. CD stores prior release references in `.deploy-state/` and retains previous frontend builds under `frontend/.releases/`. Run the public HTTPS checks below after deployment. Code Execution stays on mock CD.
 
 ## HTTPS and verification
 
