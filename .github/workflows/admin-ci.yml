@@ -8,6 +8,7 @@ on:
   push:
     branches: [main]
     paths:
+      - '.github/rebuild-all.txt'
       - 'apps/admin/**'
       - '.github/workflows/admin-ci.yml'
 

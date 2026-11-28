@@ -8,6 +8,7 @@ on:
   push:
     branches: [main]
     paths:
+      - '.github/rebuild-all.txt'
       - 'apps/backend/payment/**'
       - '.github/workflows/payment-ci.yml'
       - '.github/workflows/_image-ci.yml'

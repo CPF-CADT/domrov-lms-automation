@@ -8,6 +8,7 @@ on:
   push:
     branches: [main]
     paths:
+      - '.github/rebuild-all.txt'
       - 'apps/backend/user/**'
       - '.github/workflows/user-ci.yml'
       - '.github/workflows/_image-ci.yml'
