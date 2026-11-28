@@ -32,9 +32,9 @@ prod ps
 
 Payment runs migrations on startup. Update the image tags for subsequent releases and repeat the sequence. Back up PostgreSQL before migrations. Deploy the previous tags and frontend artifacts for an application rollback, checking schema compatibility first.
 
-## Configure GitHub Actions CD
+## Connect GitHub Actions CD to the VPS
 
-Configure the GitHub `production` environment before the first automatic deployment.
+The active CD workflows verify deployments on GitHub-hosted runners. To switch a workflow to the VPS, configure the GitHub `production` environment and update the caller to use `.github/workflows/_vps-cd.yml` with its required inputs. The VPS workflow supports User, Academic, Payment, Evaluation, Client, and Admin.
 
 | Setting | Where |
 | --- | --- |
@@ -45,7 +45,7 @@ The deployment account needs Docker access and write access to the deployment di
 
 After CI succeeds for a push to `main`, CD automatically uses that run's SHA and deploys only the matching service or frontend. The deploy job fails if its VPS settings or SSH secrets are missing. Backend CD stages a private copy of `.env.production` under the deployment lock, changes the selected tag, and runs User or Academic migrations when applicable. It replaces the env file after Compose reports the service healthy and saves the previous tag in `.deploy-state/<service>.previous-tag`. Pause CD while manually editing runtime settings. If the rollout fails, inspect the running container and schema before restoring its previous image. Migration changes can outlive container failures.
 
-Frontend CD uploads the exact CI artifact, switches the app's symlink, and checks that the gateway container reads the new `index.html`. CD stores prior release references in `.deploy-state/` and retains previous frontend builds under `frontend/.releases/`. Run the public HTTPS checks below after deployment. Code Execution stays on mock CD.
+Frontend CD uploads the exact CI artifact, switches the app's symlink, and checks that the gateway container reads the new `index.html`. CD stores prior release references in `.deploy-state/` and retains previous frontend builds under `frontend/.releases/`. Run the public HTTPS checks below after deployment.
 
 ## HTTPS and verification
 

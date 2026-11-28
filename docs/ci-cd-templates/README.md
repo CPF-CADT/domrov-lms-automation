@@ -1,6 +1,6 @@
 # Per-service CI and CD templates
 
-The [workflow templates](workflows) are mock examples for sharing. The active workflows in `.github/workflows/` use the real VPS deployment path described in the [production Compose guide](../production-compose.md). Keep a single publisher per image when merging with the existing team workflows.
+The [workflow templates](workflows) are mock examples for sharing. The active workflows in `.github/workflows/` run deployment demos on GitHub-hosted runners. The five backend workflows pull the CI image by commit SHA, start it with temporary PostgreSQL and RabbitMQ, check readiness, and remove the containers and volumes. Client and Admin download the CI artifact, serve it through Nginx, verify the entry page, and remove the container. These demos need no VPS or SSH configuration. Code Execution checks startup and readiness without submitting code. See the [production Compose guide](../production-compose.md) for live hosting.
 
 | Service | CI | Mock CD | Compose target |
 | --- | --- | --- | --- |

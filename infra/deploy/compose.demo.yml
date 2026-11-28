@@ -1,0 +1,47 @@
+services:
+  backend:
+    image: ${DEMO_IMAGE:-domrov-demo-unused}
+    environment:
+      PORT: ${DEMO_PORT:-3001}
+      DATABASE_URL: postgresql://demo:demo@postgres:5432/demo
+      RABBITMQ_URL: amqp://demo:demo@rabbitmq:5672/%2f
+      JWT_ACCESS_SECRET: demo-access-signing-key-for-temporary-containers
+      JWT_REFRESH_SECRET: demo-refresh-signing-key-for-temporary-containers
+      SERVICE_AUTH_TOKEN: demo-only-service-token
+      AUTH_CORS_ORIGIN: https://demo.example.invalid
+      SMTP_REQUIRED: "false"
+      BAKONG_MODE: mock
+      EVALUATION_PAYMENT_MODE: disabled
+      OTEL_SDK_DISABLED: "true"
+    ports:
+      - "127.0.0.1::${DEMO_PORT:-3001}"
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: demo
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: demo
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "demo", "-d", "demo"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: demo
+      RABBITMQ_DEFAULT_PASS: demo
+    volumes:
+      - ../rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+  frontend:
+    image: nginx:1.27-alpine
+    volumes:
+      - ${DEMO_FRONTEND_DIR:-.}:/usr/share/nginx/html:ro
+      - ${DEMO_NGINX_CONFIG:-../../apps/admin/nginx.conf}:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "127.0.0.1::80"
